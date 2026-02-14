@@ -1,0 +1,94 @@
+{
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit",
+    "source.organizeImports": "explicit"
+  },
+  "editor.minimap.enabled": false,
+  "editor.bracketPairColorization.enabled": true,
+  "editor.guides.bracketPairs": true,
+  "editor.smoothScrolling": true,
+  "editor.cursorBlinking": "smooth",
+  "editor.cursorSmoothCaretAnimation": "on",
+  "editor.fontSize": 14,
+  "editor.tabSize": 2,
+  "editor.wordWrap": "on",
+  "editor.linkedEditing": true,
+  "editor.inlineSuggest.enabled": true,
+  "editor.stickyScroll.enabled": true,
+  "editor.suggestSelection": "first",
+
+  "files.autoSave": "onFocusChange",
+  "files.exclude": {
+    "**/node_modules": true,
+    "**/.next": true,
+    "**/dist": true,
+    "**/.git": true
+  },
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true,
+
+  "terminal.integrated.defaultProfile.windows": "PowerShell",
+  "terminal.integrated.fontSize": 13,
+
+  "typescript.preferences.importModuleSpecifier": "relative",
+  "typescript.updateImportsOnFileMove.enabled": "always",
+  "typescript.suggest.autoImports": true,
+  "typescript.tsdk": "node_modules/typescript/lib",
+
+  "javascript.updateImportsOnFileMove.enabled": "always",
+
+  "tailwindCSS.includeLanguages": {
+    "typescript": "javascript",
+    "typescriptreact": "javascript"
+  },
+  "tailwindCSS.emmetCompletions": true,
+  "tailwindCSS.experimental.classRegex": [
+    ["cva\\(([^)]*)\\)", "[\"'`]([^\"'`]*?)[\"'`]"],
+    ["cx\\(([^)]*)\\)", "[\"'`]([^\"'`]*?)[\"'`]"],
+    ["cn\\(([^)]*)\\)", "[\"'`]([^\"'`]*?)[\"'`]"]
+  ],
+
+  "emmet.includeLanguages": {
+    "javascript": "javascriptreact",
+    "typescript": "typescriptreact"
+  },
+  "emmet.triggerExpansionOnTab": true,
+
+  "eslint.validate": [
+    "javascript",
+    "javascriptreact",
+    "typescript",
+    "typescriptreact"
+  ],
+
+  "better-comments.tags": [
+    { "tag": "!", "color": "#FF2D00", "backgroundColor": "transparent" },
+    { "tag": "?", "color": "#3498DB", "backgroundColor": "transparent" },
+    { "tag": "//", "color": "#474747", "strikethrough": true, "backgroundColor": "transparent" },
+    { "tag": "todo", "color": "#FF8C00", "backgroundColor": "transparent" },
+    { "tag": "*", "color": "#98C379", "backgroundColor": "transparent" }
+  ],
+
+  "console-ninja.featureSet": "Community",
+
+  "git.autofetch": true,
+  "git.confirmSync": false,
+
+  "explorer.confirmDelete": false,
+  "explorer.confirmDragAndDrop": false,
+  "explorer.fileNesting.enabled": true,
+  "explorer.fileNesting.patterns": {
+    "package.json": "package-lock.json, pnpm-lock.yaml, yarn.lock, .npmrc, .nvmrc",
+    "next.config.*": "tsconfig.json, next-env.d.ts, .env*",
+    "tailwind.config.*": "postcss.config.*",
+    "README.md": "LICENSE, CONTRIBUTING.md, CHANGELOG.md"
+  },
+
+  "workbench.startupEditor": "none",
+  "workbench.tree.indent": 16,
+  "workbench.iconTheme": "material-icon-theme",
+
+  "headwind.runOnSave": true
+}
