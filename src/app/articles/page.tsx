@@ -43,14 +43,12 @@ function ArticlesContent() {
       <main className="flex-1">
         <div className="pen-container pen-fade-in py-8">
           <h1 className="mb-8 text-2xl font-bold">
-            <FileText className="mr-2 inline h-6 w-6 text-[var(--accent)]" />
+            <FileText className="text-accent mr-2 inline h-6 w-6" />
             記事
           </h1>
 
           {error && (
-            <p className="mb-4 text-center text-sm text-[var(--danger)]">
-              {error}
-            </p>
+            <p className="text-danger mb-4 text-center text-sm">{error}</p>
           )}
 
           {loading ? (
@@ -59,11 +57,11 @@ function ArticlesContent() {
             </div>
           ) : articles.length === 0 ? (
             <div className="py-20 text-center">
-              <FileText className="mx-auto mb-4 h-12 w-12 text-[var(--muted-fg)]" />
-              <p className="mb-2 text-lg font-medium text-[var(--muted-fg)]">
+              <FileText className="text-muted-foreground mx-auto mb-4 h-12 w-12" />
+              <p className="text-muted-foreground mb-2 text-lg font-bold">
                 記事がまだありません
               </p>
-              <p className="text-sm text-[var(--muted-fg)]">
+              <p className="text-muted-foreground text-sm">
                 テーマを作成し、インタビューを完了すると記事が生成されます
               </p>
               <Link
@@ -79,10 +77,10 @@ function ArticlesContent() {
                 <div key={article.id} className="pen-card group relative">
                   <Link href={`/articles/${article.id}`} className="block">
                     <h3 className="mb-1 font-bold">{article.title}</h3>
-                    <p className="mb-2 line-clamp-2 text-sm text-[var(--muted-fg)]">
+                    <p className="text-muted-foreground mb-2 line-clamp-2 text-sm">
                       {article.content.slice(0, 150)}...
                     </p>
-                    <div className="flex items-center gap-3 text-xs text-[var(--muted-fg)]">
+                    <div className="text-muted-foreground flex items-center gap-3 text-xs">
                       {article.theme_title && (
                         <span className="pen-badge">{article.theme_title}</span>
                       )}
@@ -96,7 +94,7 @@ function ArticlesContent() {
                   </Link>
                   <button
                     onClick={() => handleDelete(article.id)}
-                    className="absolute top-3 right-3 rounded-full p-1.5 text-[var(--muted-fg)] opacity-0 transition-all group-hover:opacity-100 hover:bg-[var(--danger)]/10 hover:text-[var(--danger)]"
+                    className="text-muted-foreground hover:bg-danger/10 hover:text-danger absolute top-3 right-3 rounded-lg p-2 transition-all md:opacity-0 md:group-hover:opacity-100"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>

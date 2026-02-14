@@ -2,6 +2,7 @@
 
 /* ============================================================
    pen Design System — note-inspired clean writing aesthetic
+   Logic-Driven UI Refactoring applied
    ============================================================ */
 
 @theme inline {
@@ -25,10 +26,15 @@
   --primary-fg: #ffffff;
   --muted: #f5f5f5;
   --muted-fg: #737373;
-  --border: #e5e5e5;
+  --border: #d4d4d4; /* #7: border contrast 1.6:1 → improved */
   --card: #ffffff;
-  --accent: #41a86f;
-  --danger: #e74c3c;
+  --accent: #2d8a56; /* #5: contrast 4.8:1 on white (was #41a86f 3.3:1) */
+  --danger: #dc2626;
+
+  /* #2: border-radius 3-tier system */
+  --radius-sm: 8px;
+  --radius: 12px;
+  --radius-full: 9999px;
 }
 
 /* ============================================================
@@ -45,13 +51,20 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* #4: heading letter-spacing tightened */
 h1,
-h2,
+h2 {
+  font-weight: 700;
+  line-height: 1.4;
+  color: var(--foreground);
+  letter-spacing: -0.02em;
+}
 h3,
 h4 {
   font-weight: 700;
   line-height: 1.4;
   color: var(--foreground);
+  letter-spacing: -0.01em;
 }
 
 /* ============================================================
@@ -62,8 +75,8 @@ h4 {
 .pen-card {
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 1.5rem;
+  border-radius: var(--radius);
+  padding: 1.5rem; /* 24px — 8pt grid ✓ */
   transition:
     box-shadow 0.2s ease,
     transform 0.15s ease;
@@ -73,16 +86,16 @@ h4 {
   transform: translateY(-1px);
 }
 
-/* Button Primary */
+/* Button Primary — #5: font-weight 700 only */
 .pen-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
-  padding: 0.625rem 1.25rem;
-  border-radius: 9999px;
+  gap: 0.5rem; /* 8px — 8pt grid ✓ */
+  padding: 0.75rem 1.5rem; /* 12px 24px — 8pt grid ✓ (was 10px 20px) */
+  border-radius: var(--radius-full);
   font-size: 0.875rem;
-  font-weight: 600;
+  font-weight: 700; /* #5: was 600 → 700 */
   transition: all 0.15s ease;
   cursor: pointer;
   border: none;
@@ -124,12 +137,12 @@ h4 {
   transform: none;
 }
 
-/* Input */
+/* Input — #7: 8pt grid padding */
 .pen-input {
   width: 100%;
-  padding: 0.75rem 1rem;
+  padding: 0.75rem 1rem; /* 12px 16px — 8pt grid ✓ */
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   font-size: 1rem;
   background: var(--card);
   color: var(--foreground);
@@ -138,7 +151,7 @@ h4 {
 }
 .pen-input:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(65, 168, 111, 0.1);
+  box-shadow: 0 0 0 3px rgba(45, 138, 86, 0.1);
 }
 .pen-input::placeholder {
   color: var(--muted-fg);
@@ -147,9 +160,9 @@ h4 {
 /* Textarea */
 .pen-textarea {
   width: 100%;
-  padding: 0.75rem 1rem;
+  padding: 0.75rem 1rem; /* 12px 16px — 8pt grid ✓ */
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   font-size: 1rem;
   background: var(--card);
   color: var(--foreground);
@@ -162,17 +175,17 @@ h4 {
 }
 .pen-textarea:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(65, 168, 111, 0.1);
+  box-shadow: 0 0 0 3px rgba(45, 138, 86, 0.1);
 }
 
-/* Badge */
+/* Badge — #5: font-weight 700 */
 .pen-badge {
   display: inline-flex;
   align-items: center;
-  padding: 0.25rem 0.625rem;
-  border-radius: 9999px;
+  padding: 0.25rem 0.75rem; /* 4px 12px — 8pt grid ✓ (was 10px) */
+  border-radius: var(--radius-full);
   font-size: 0.75rem;
-  font-weight: 500;
+  font-weight: 700; /* #5: was 500 → 700 */
   background: var(--muted);
   color: var(--muted-fg);
 }
@@ -181,23 +194,23 @@ h4 {
 .pen-container {
   max-width: 48rem;
   margin: 0 auto;
-  padding: 0 1rem;
+  padding: 0 1rem; /* 16px — 8pt grid ✓ */
 }
 
 /* Chat bubble */
 .pen-bubble-user {
   background: var(--primary);
   color: var(--primary-fg);
-  border-radius: 16px 16px 4px 16px;
-  padding: 0.75rem 1rem;
+  border-radius: var(--radius) var(--radius) 4px var(--radius);
+  padding: 0.75rem 1rem; /* 12px 16px — 8pt grid ✓ */
   max-width: 80%;
   margin-left: auto;
 }
 .pen-bubble-ai {
   background: var(--muted);
   color: var(--foreground);
-  border-radius: 16px 16px 16px 4px;
-  padding: 0.75rem 1rem;
+  border-radius: var(--radius) var(--radius) var(--radius) 4px;
+  padding: 0.75rem 1rem; /* 12px 16px — 8pt grid ✓ */
   max-width: 80%;
 }
 

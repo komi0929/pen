@@ -67,7 +67,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[var(--background)] px-4">
+    <div className="bg-background flex min-h-screen items-center justify-center px-4">
       <div className="pen-fade-in w-full max-w-sm">
         <div className="mb-8 text-center">
           <Link
@@ -77,7 +77,7 @@ export default function LoginPage() {
             <PenLine className="h-7 w-7" />
             pen
           </Link>
-          <p className="text-sm text-[var(--muted-fg)]">
+          <p className="text-muted-foreground text-sm">
             {isSignUp ? "アカウントを作成" : "ログイン"}
           </p>
         </div>
@@ -110,9 +110,9 @@ export default function LoginPage() {
         </button>
 
         <div className="mb-4 flex items-center gap-3">
-          <div className="h-px flex-1 bg-[var(--border)]" />
-          <span className="text-xs text-[var(--muted-fg)]">または</span>
-          <div className="h-px flex-1 bg-[var(--border)]" />
+          <div className="bg-border h-px flex-1" />
+          <span className="text-muted-foreground text-xs">または</span>
+          <div className="bg-border h-px flex-1" />
         </div>
 
         {/* Email Form */}
@@ -153,17 +153,13 @@ export default function LoginPage() {
         </form>
 
         {error && (
-          <p className="mt-3 text-center text-sm text-[var(--danger)]">
-            {error}
-          </p>
+          <p className="text-danger mt-3 text-center text-sm">{error}</p>
         )}
         {message && (
-          <p className="mt-3 text-center text-sm text-[var(--accent)]">
-            {message}
-          </p>
+          <p className="text-accent mt-3 text-center text-sm">{message}</p>
         )}
 
-        <p className="mt-6 text-center text-sm text-[var(--muted-fg)]">
+        <p className="text-muted-foreground mt-6 text-center text-sm">
           {isSignUp
             ? "すでにアカウントをお持ちですか？"
             : "アカウントをお持ちでないですか？"}{" "}
@@ -173,13 +169,13 @@ export default function LoginPage() {
               setError(null);
               setMessage(null);
             }}
-            className="font-medium text-[var(--accent)] hover:underline"
+            className="text-accent font-bold hover:underline"
           >
             {isSignUp ? "ログイン" : "新規登録"}
           </button>
         </p>
 
-        <div className="mt-8 text-center text-xs text-[var(--muted-fg)]">
+        <div className="text-muted-foreground mt-8 text-center text-xs">
           <Link href="/terms" className="hover:underline">
             利用規約
           </Link>{" "}

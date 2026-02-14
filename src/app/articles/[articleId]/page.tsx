@@ -5,7 +5,7 @@ import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
 import { deleteArticle, getArticle } from "@/lib/actions/articles";
 import type { Article } from "@/types";
-import { ArrowLeft, Check, Copy, FileText, Trash2 } from "lucide-react";
+import { ArrowLeft, Check, Copy, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
@@ -74,7 +74,7 @@ function ArticleDetailContent() {
       <div className="flex min-h-screen flex-col">
         <Header />
         <main className="flex flex-1 items-center justify-center">
-          <p className="text-[var(--muted-fg)]">記事が見つかりません</p>
+          <p className="text-muted-foreground">記事が見つかりません</p>
         </main>
       </div>
     );
@@ -87,7 +87,7 @@ function ArticleDetailContent() {
         <div className="pen-container pen-fade-in py-8">
           <Link
             href="/articles"
-            className="mb-6 inline-flex items-center gap-1 text-sm text-[var(--muted-fg)] transition-colors hover:text-[var(--foreground)]"
+            className="text-muted-foreground hover:bg-muted hover:text-foreground mb-6 inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />
             記事一覧に戻る
@@ -96,7 +96,7 @@ function ArticleDetailContent() {
           {/* メタ情報 */}
           <div className="mb-6">
             <h1 className="mb-2 text-2xl font-bold">{article.title}</h1>
-            <div className="flex flex-wrap items-center gap-3 text-sm text-[var(--muted-fg)]">
+            <div className="text-muted-foreground flex flex-wrap items-center gap-3 text-sm">
               {article.theme_title && (
                 <span className="pen-badge">{article.theme_title}</span>
               )}
@@ -111,7 +111,7 @@ function ArticleDetailContent() {
           <div className="mb-6 flex gap-2">
             <button
               onClick={handleCopy}
-              className={`pen-btn ${copied ? "pen-btn-accent" : "pen-btn-secondary"}`}
+              className={`pen-btn ${copied ? "pen-btn-accent" : "pen-btn-accent"}`}
             >
               {copied ? (
                 <>
@@ -127,9 +127,9 @@ function ArticleDetailContent() {
             </button>
             <button
               onClick={handleDelete}
-              className="pen-btn pen-btn-secondary text-[var(--danger)] hover:bg-[var(--danger)]/10"
+              className="text-muted-foreground hover:bg-danger/10 hover:text-danger rounded-lg px-3 py-2 text-sm transition-colors"
             >
-              <Trash2 className="h-4 w-4" />
+              <Trash2 className="mr-1 inline h-4 w-4" />
               削除
             </button>
           </div>
@@ -150,13 +150,9 @@ function ArticleDetailContent() {
 
           {/* フッターアクション */}
           <div className="mt-8 flex justify-center">
-            <button
-              onClick={handleCopy}
-              className="pen-btn pen-btn-accent px-8 py-3 text-base"
-            >
-              <FileText className="h-5 w-5" />
-              noteに投稿するためにコピー
-            </button>
+            <p className="text-muted-foreground text-sm">
+              ✨ 記事をコピーして、noteに投稿しましょう
+            </p>
           </div>
         </div>
       </main>

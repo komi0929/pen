@@ -87,7 +87,7 @@ function MemosContent() {
         <div className="pen-container pen-fade-in py-8">
           <Link
             href={`/themes/${themeId}`}
-            className="mb-6 inline-flex items-center gap-1 text-sm text-[var(--muted-fg)] transition-colors hover:text-[var(--foreground)]"
+            className="text-muted-foreground hover:bg-muted hover:text-foreground mb-6 inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />
             {theme?.title ?? "テーマ"}に戻る
@@ -95,18 +95,16 @@ function MemosContent() {
 
           <div className="mb-8">
             <h1 className="mb-1 text-2xl font-bold">
-              <StickyNote className="mr-2 inline h-6 w-6 text-[var(--accent)]" />
+              <StickyNote className="text-accent mr-2 inline h-6 w-6" />
               メモ
             </h1>
-            <p className="text-sm text-[var(--muted-fg)]">
+            <p className="text-muted-foreground text-sm">
               思いついたことを自由に書き溜めましょう
             </p>
           </div>
 
           {error && (
-            <p className="mb-4 text-center text-sm text-[var(--danger)]">
-              {error}
-            </p>
+            <p className="text-danger mb-4 text-center text-sm">{error}</p>
           )}
 
           {/* メモ入力フォーム */}
@@ -122,7 +120,7 @@ function MemosContent() {
               autoFocus
             />
             <div className="mt-3 flex items-center justify-between">
-              <span className="text-xs text-[var(--muted-fg)]">
+              <span className="text-muted-foreground text-xs">
                 {memos.length}件のメモ
               </span>
               <button
@@ -143,8 +141,8 @@ function MemosContent() {
           {/* メモ一覧 */}
           {memos.length === 0 ? (
             <div className="py-16 text-center">
-              <StickyNote className="mx-auto mb-4 h-12 w-12 text-[var(--muted-fg)]" />
-              <p className="text-[var(--muted-fg)]">
+              <StickyNote className="text-muted-foreground mx-auto mb-4 h-12 w-12" />
+              <p className="text-muted-foreground">
                 まだメモがありません。上の入力欄から追加しましょう。
               </p>
             </div>
@@ -153,20 +151,20 @@ function MemosContent() {
               {memos.map((memo) => (
                 <div
                   key={memo.id}
-                  className="group flex items-start gap-3 rounded-lg border border-[var(--border)] bg-[var(--card)] px-4 py-3"
+                  className="group border-border bg-card flex items-start gap-3 rounded-lg border px-4 py-3"
                 >
-                  <div className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-[var(--accent)]" />
+                  <div className="bg-accent mt-1 h-2.5 w-2.5 shrink-0 rounded-full" />
                   <div className="min-w-0 flex-1">
                     <p className="text-sm leading-relaxed whitespace-pre-wrap">
                       {memo.content}
                     </p>
-                    <p className="mt-1 text-xs text-[var(--muted-fg)]">
+                    <p className="text-muted-foreground mt-1 text-xs">
                       {new Date(memo.created_at).toLocaleString("ja-JP")}
                     </p>
                   </div>
                   <button
                     onClick={() => handleDelete(memo.id)}
-                    className="shrink-0 rounded-full p-1.5 text-[var(--muted-fg)] opacity-0 transition-all group-hover:opacity-100 hover:bg-[var(--danger)]/10 hover:text-[var(--danger)]"
+                    className="text-muted-foreground hover:bg-danger/10 hover:text-danger shrink-0 rounded-lg p-2 transition-all md:opacity-0 md:group-hover:opacity-100"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>

@@ -84,9 +84,7 @@ function ThemesContent() {
           </div>
 
           {error && (
-            <p className="mb-4 text-center text-sm text-[var(--danger)]">
-              {error}
-            </p>
+            <p className="text-danger mb-4 text-center text-sm">{error}</p>
           )}
 
           {showForm && (
@@ -127,11 +125,11 @@ function ThemesContent() {
             </div>
           ) : themes.length === 0 ? (
             <div className="py-20 text-center">
-              <Lightbulb className="mx-auto mb-4 h-12 w-12 text-[var(--muted-fg)]" />
-              <p className="mb-2 text-lg font-medium text-[var(--muted-fg)]">
+              <Lightbulb className="text-muted-foreground mx-auto mb-4 h-12 w-12" />
+              <p className="text-muted-foreground mb-2 text-lg font-bold">
                 テーマがまだありません
               </p>
-              <p className="text-sm text-[var(--muted-fg)]">
+              <p className="text-muted-foreground text-sm">
                 「新規テーマ」ボタンから書きたいテーマを追加しましょう
               </p>
             </div>
@@ -142,11 +140,11 @@ function ThemesContent() {
                   <Link href={`/themes/${theme.id}`} className="block">
                     <h3 className="mb-1 font-bold">{theme.title}</h3>
                     {theme.description && (
-                      <p className="mb-2 line-clamp-2 text-sm text-[var(--muted-fg)]">
+                      <p className="text-muted-foreground mb-2 line-clamp-2 text-sm">
                         {theme.description}
                       </p>
                     )}
-                    <div className="flex items-center gap-3 text-xs text-[var(--muted-fg)]">
+                    <div className="text-muted-foreground flex items-center gap-3 text-xs">
                       <span className="flex items-center gap-1">
                         <StickyNote className="h-3 w-3" />
                         メモ {theme.memo_count ?? 0}件
@@ -158,7 +156,7 @@ function ThemesContent() {
                   </Link>
                   <button
                     onClick={() => handleDelete(theme.id)}
-                    className="absolute top-3 right-3 rounded-full p-1.5 text-[var(--muted-fg)] opacity-0 transition-all group-hover:opacity-100 hover:bg-[var(--danger)]/10 hover:text-[var(--danger)]"
+                    className="text-muted-foreground hover:bg-danger/10 hover:text-danger absolute top-3 right-3 rounded-lg p-2 transition-all md:opacity-0 md:group-hover:opacity-100"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>

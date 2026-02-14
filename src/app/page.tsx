@@ -10,15 +10,15 @@ export default function HomePage() {
       <main className="flex-1">
         {/* Hero */}
         <section className="pen-container pen-fade-in py-20 text-center">
-          <div className="mb-6 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-[var(--primary)] text-white">
+          <div className="bg-primary mb-6 inline-flex h-16 w-16 items-center justify-center rounded-2xl text-white">
             <PenLine className="h-8 w-8" />
           </div>
           <h1 className="mb-4 text-4xl font-bold tracking-tight">
             あなたの思考を、
             <br />
-            <span className="text-[var(--accent)]">記事</span>に変える。
+            <span className="text-accent">記事</span>に変える。
           </h1>
-          <p className="mx-auto mb-8 max-w-md text-lg leading-relaxed text-[var(--muted-fg)]">
+          <p className="text-muted-foreground mx-auto mb-8 max-w-md text-lg leading-relaxed">
             AIインタビューを通じて、あなたの考えを整理し、
             noteに投稿できる記事を自動生成します。
           </p>
@@ -34,31 +34,31 @@ export default function HomePage() {
         <section className="pen-container py-16">
           <div className="grid gap-6 md:grid-cols-3">
             <div className="pen-card text-center">
-              <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--muted)]">
-                <MessageSquare className="h-6 w-6 text-[var(--accent)]" />
+              <div className="bg-muted mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl">
+                <MessageSquare className="text-accent h-6 w-6" />
               </div>
               <h3 className="mb-2 font-bold">AIインタビュー</h3>
-              <p className="text-sm leading-relaxed text-[var(--muted-fg)]">
+              <p className="text-muted-foreground text-sm leading-relaxed">
                 AIが質問を投げかけ、あなたの回答を引き出します。
                 自然な対話で思考を深堀りします。
               </p>
             </div>
             <div className="pen-card text-center">
-              <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--muted)]">
-                <Sparkles className="h-6 w-6 text-[var(--accent)]" />
+              <div className="bg-muted mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl">
+                <Sparkles className="text-accent h-6 w-6" />
               </div>
               <h3 className="mb-2 font-bold">自動記事生成</h3>
-              <p className="text-sm leading-relaxed text-[var(--muted-fg)]">
+              <p className="text-muted-foreground text-sm leading-relaxed">
                 インタビュー内容から、noteに最適化された
                 読みやすい記事を自動生成します。
               </p>
             </div>
             <div className="pen-card text-center">
-              <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--muted)]">
-                <FileText className="h-6 w-6 text-[var(--accent)]" />
+              <div className="bg-muted mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl">
+                <FileText className="text-accent h-6 w-6" />
               </div>
               <h3 className="mb-2 font-bold">コピー＆投稿</h3>
-              <p className="text-sm leading-relaxed text-[var(--muted-fg)]">
+              <p className="text-muted-foreground text-sm leading-relaxed">
                 生成された記事をワンクリックでコピー。
                 そのままnoteに投稿できます。
               </p>
@@ -67,7 +67,7 @@ export default function HomePage() {
         </section>
 
         {/* How it works */}
-        <section className="bg-[var(--muted)] py-16">
+        <section className="bg-muted py-16">
           <div className="pen-container">
             <h2 className="mb-10 text-center text-2xl font-bold">使い方</h2>
             <div className="grid gap-8 md:grid-cols-4">
@@ -94,11 +94,11 @@ export default function HomePage() {
                 },
               ].map((item) => (
                 <div key={item.step} className="text-center">
-                  <div className="mb-2 text-3xl font-bold text-[var(--accent)]">
+                  <div className="text-accent mb-2 text-3xl font-bold">
                     {item.step}
                   </div>
                   <h3 className="mb-1 font-bold">{item.title}</h3>
-                  <p className="text-sm text-[var(--muted-fg)]">{item.desc}</p>
+                  <p className="text-muted-foreground text-sm">{item.desc}</p>
                 </div>
               ))}
             </div>

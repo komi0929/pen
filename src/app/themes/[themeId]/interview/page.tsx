@@ -188,29 +188,27 @@ function InterviewContent() {
           <div className="pen-container pen-fade-in py-8">
             <Link
               href={`/themes/${themeId}`}
-              className="mb-6 inline-flex items-center gap-1 text-sm text-[var(--muted-fg)] transition-colors hover:text-[var(--foreground)]"
+              className="text-muted-foreground hover:bg-muted hover:text-foreground mb-6 inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors"
             >
               <ArrowLeft className="h-4 w-4" />
               {theme?.title ?? "テーマ"}に戻る
             </Link>
 
             <div className="py-16 text-center">
-              <div className="mx-auto mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-[var(--muted)]">
-                <MessageSquare className="h-8 w-8 text-[var(--accent)]" />
+              <div className="bg-muted mx-auto mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl">
+                <MessageSquare className="text-accent h-8 w-8" />
               </div>
               <h1 className="mb-2 text-2xl font-bold">AIインタビュー</h1>
-              <p className="mx-auto mb-8 max-w-md text-[var(--muted-fg)]">
+              <p className="text-muted-foreground mx-auto mb-8 max-w-md">
                 AIがあなたに質問を投げかけます。対話を通じて考えを整理し、
                 記事の素材を作りましょう。
               </p>
               {memos.length > 0 && (
-                <p className="mb-6 text-sm text-[var(--muted-fg)]">
+                <p className="text-muted-foreground mb-6 text-sm">
                   📝 {memos.length}件のメモを参考にAIが質問を生成します
                 </p>
               )}
-              {error && (
-                <p className="mb-4 text-sm text-[var(--danger)]">{error}</p>
-              )}
+              {error && <p className="text-danger mb-4 text-sm">{error}</p>}
               <button
                 onClick={handleStart}
                 disabled={sending}
@@ -240,7 +238,7 @@ function InterviewContent() {
           <div className="mb-6 flex items-center justify-between">
             <Link
               href={`/themes/${themeId}`}
-              className="inline-flex items-center gap-1 text-sm text-[var(--muted-fg)] transition-colors hover:text-[var(--foreground)]"
+              className="text-muted-foreground hover:bg-muted hover:text-foreground inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors"
             >
               <ArrowLeft className="h-4 w-4" />
               戻る
@@ -248,7 +246,7 @@ function InterviewContent() {
             <button
               onClick={handleComplete}
               disabled={completing || messages.length < 2}
-              className="pen-btn pen-btn-primary"
+              className="pen-btn pen-btn-accent"
             >
               {completing ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -260,9 +258,7 @@ function InterviewContent() {
           </div>
 
           {error && (
-            <p className="mb-4 text-center text-sm text-[var(--danger)]">
-              {error}
-            </p>
+            <p className="text-danger mb-4 text-center text-sm">{error}</p>
           )}
 
           {/* チャットメッセージ */}
@@ -297,7 +293,7 @@ function InterviewContent() {
           {/* 入力フォーム */}
           <form
             onSubmit={handleSend}
-            className="sticky bottom-4 flex gap-2 rounded-xl border border-[var(--border)] bg-[var(--card)] p-2 shadow-lg"
+            className="border-border bg-card sticky bottom-4 flex gap-2 rounded-xl border p-2 shadow-lg"
           >
             <textarea
               ref={inputRef}
@@ -312,9 +308,10 @@ function InterviewContent() {
             <button
               type="submit"
               disabled={sending || !input.trim()}
-              className="pen-btn pen-btn-accent shrink-0 rounded-lg px-4"
+              className="pen-btn pen-btn-secondary shrink-0 rounded-lg px-4"
             >
               <Send className="h-4 w-4" />
+              送信
             </button>
           </form>
         </div>

@@ -3,9 +3,9 @@
 import { AuthGuard } from "@/components/AuthGuard";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
+import { getActiveInterview } from "@/lib/actions/interviews";
 import { getMemos } from "@/lib/actions/memos";
 import { getTheme } from "@/lib/actions/themes";
-import { getActiveInterview } from "@/lib/actions/interviews";
 import type { Interview, Memo, Theme } from "@/types";
 import {
   ArrowLeft,
@@ -25,7 +25,7 @@ function ThemeDetailContent() {
   const [theme, setTheme] = useState<Theme | null>(null);
   const [memos, setMemos] = useState<Memo[]>([]);
   const [activeInterview, setActiveInterview] = useState<Interview | null>(
-    null,
+    null
   );
   const [loading, setLoading] = useState(true);
 
@@ -38,8 +38,7 @@ function ThemeDetailContent() {
 
     if (themeResult.success) setTheme(themeResult.data);
     if (memosResult.success) setMemos(memosResult.data);
-    if (interviewResult.success)
-      setActiveInterview(interviewResult.data);
+    if (interviewResult.success) setActiveInterview(interviewResult.data);
     setLoading(false);
   }, [themeId]);
 
@@ -63,7 +62,7 @@ function ThemeDetailContent() {
       <div className="flex min-h-screen flex-col">
         <Header />
         <main className="flex flex-1 items-center justify-center">
-          <p className="text-[var(--muted-fg)]">テーマが見つかりません</p>
+          <p className="text-muted-foreground">テーマが見つかりません</p>
         </main>
       </div>
     );
@@ -76,7 +75,7 @@ function ThemeDetailContent() {
         <div className="pen-container pen-fade-in py-8">
           <Link
             href="/themes"
-            className="mb-6 inline-flex items-center gap-1 text-sm text-[var(--muted-fg)] transition-colors hover:text-[var(--foreground)]"
+            className="text-muted-foreground hover:bg-muted hover:text-foreground mb-6 inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />
             テーマ一覧に戻る
@@ -85,9 +84,7 @@ function ThemeDetailContent() {
           <div className="mb-8">
             <h1 className="mb-2 text-2xl font-bold">{theme.title}</h1>
             {theme.description && (
-              <p className="text-[var(--muted-fg)]">
-                {theme.description}
-              </p>
+              <p className="text-muted-foreground">{theme.description}</p>
             )}
           </div>
 
@@ -95,18 +92,16 @@ function ThemeDetailContent() {
             {/* メモ */}
             <Link
               href={`/themes/${themeId}/memos`}
-              className="pen-card flex flex-col items-center py-8 text-center"
+              className="pen-card flex flex-col items-start py-8 text-left"
             >
-              <div className="mb-3 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--muted)]">
-                <StickyNote className="h-6 w-6 text-[var(--accent)]" />
+              <div className="bg-muted mb-3 inline-flex h-12 w-12 items-center justify-center rounded-xl">
+                <StickyNote className="text-accent h-6 w-6" />
               </div>
               <h3 className="mb-1 font-bold">メモ</h3>
-              <p className="mb-3 text-sm text-[var(--muted-fg)]">
+              <p className="text-muted-foreground mb-3 text-sm">
                 思いついたことを書き溜める
               </p>
-              <span className="pen-badge">
-                {memos.length}件のメモ
-              </span>
+              <span className="pen-badge">{memos.length}件のメモ</span>
             </Link>
 
             {/* インタビュー */}
@@ -114,15 +109,15 @@ function ThemeDetailContent() {
               href={`/themes/${themeId}/interview`}
               className="pen-card flex flex-col items-center py-8 text-center"
             >
-              <div className="mb-3 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--muted)]">
-                <MessageSquare className="h-6 w-6 text-[var(--accent)]" />
+              <div className="bg-muted mb-3 inline-flex h-12 w-12 items-center justify-center rounded-xl">
+                <MessageSquare className="text-accent h-6 w-6" />
               </div>
               <h3 className="mb-1 font-bold">インタビュー</h3>
-              <p className="mb-3 text-sm text-[var(--muted-fg)]">
+              <p className="text-muted-foreground mb-3 text-sm">
                 AIと対話して考えを深める
               </p>
               {activeInterview ? (
-                <span className="pen-badge bg-[var(--accent)]/10 text-[var(--accent)]">
+                <span className="pen-badge bg-accent/10 text-accent">
                   進行中
                 </span>
               ) : (
@@ -135,11 +130,11 @@ function ThemeDetailContent() {
               href={`/articles?theme=${themeId}`}
               className="pen-card flex flex-col items-center py-8 text-center"
             >
-              <div className="mb-3 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--muted)]">
-                <FileText className="h-6 w-6 text-[var(--accent)]" />
+              <div className="bg-muted mb-3 inline-flex h-12 w-12 items-center justify-center rounded-xl">
+                <FileText className="text-accent h-6 w-6" />
               </div>
               <h3 className="mb-1 font-bold">記事</h3>
-              <p className="mb-3 text-sm text-[var(--muted-fg)]">
+              <p className="text-muted-foreground mb-3 text-sm">
                 生成された記事を確認
               </p>
               <span className="pen-badge">記事を見る</span>
@@ -156,23 +151,26 @@ function ThemeDetailContent() {
                 </h2>
                 <Link
                   href={`/themes/${themeId}/memos`}
-                  className="text-sm text-[var(--accent)] hover:underline"
+                  className="text-accent text-sm hover:underline"
                 >
                   すべて見る
                 </Link>
               </div>
               <div className="space-y-2">
-                {memos.slice(-3).reverse().map((memo) => (
-                  <div
-                    key={memo.id}
-                    className="rounded-lg border border-[var(--border)] bg-[var(--card)] px-4 py-3 text-sm"
-                  >
-                    <p className="line-clamp-2">{memo.content}</p>
-                    <p className="mt-1 text-xs text-[var(--muted-fg)]">
-                      {new Date(memo.created_at).toLocaleString("ja-JP")}
-                    </p>
-                  </div>
-                ))}
+                {memos
+                  .slice(-3)
+                  .reverse()
+                  .map((memo) => (
+                    <div
+                      key={memo.id}
+                      className="border-border bg-card rounded-lg border px-4 py-3 text-sm"
+                    >
+                      <p className="line-clamp-2">{memo.content}</p>
+                      <p className="text-muted-foreground mt-1 text-xs">
+                        {new Date(memo.created_at).toLocaleString("ja-JP")}
+                      </p>
+                    </div>
+                  ))}
               </div>
             </div>
           )}
