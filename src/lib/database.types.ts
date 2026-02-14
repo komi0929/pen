@@ -9,12 +9,145 @@ export type Json =
 export interface Database {
   public: {
     Tables: {
-      // テーブルはSuppabase CLIで自動生成されます
-      // npx supabase gen types typescript --project-id <ref> > src/lib/database.types.ts
-      [key: string]: {
-        Row: Record<string, unknown>;
-        Insert: Record<string, unknown>;
-        Update: Record<string, unknown>;
+      profiles: {
+        Row: {
+          id: string;
+          display_name: string | null;
+          avatar_url: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id: string;
+          display_name?: string | null;
+          avatar_url?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          display_name?: string | null;
+          avatar_url?: string | null;
+          updated_at?: string;
+        };
+      };
+      themes: {
+        Row: {
+          id: string;
+          user_id: string;
+          title: string;
+          description: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          title: string;
+          description?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          title?: string;
+          description?: string;
+          updated_at?: string;
+        };
+      };
+      memos: {
+        Row: {
+          id: string;
+          theme_id: string;
+          user_id: string;
+          content: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          theme_id: string;
+          user_id: string;
+          content: string;
+          created_at?: string;
+        };
+        Update: {
+          content?: string;
+        };
+      };
+      interviews: {
+        Row: {
+          id: string;
+          theme_id: string;
+          user_id: string;
+          target_length: number;
+          status: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          theme_id: string;
+          user_id: string;
+          target_length?: number;
+          status?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          target_length?: number;
+          status?: string;
+          updated_at?: string;
+        };
+      };
+      interview_messages: {
+        Row: {
+          id: string;
+          interview_id: string;
+          user_id: string;
+          role: string;
+          content: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          interview_id: string;
+          user_id: string;
+          role: string;
+          content: string;
+          created_at?: string;
+        };
+        Update: {
+          content?: string;
+        };
+      };
+      articles: {
+        Row: {
+          id: string;
+          theme_id: string;
+          interview_id: string | null;
+          user_id: string;
+          title: string;
+          content: string;
+          word_count: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          theme_id: string;
+          interview_id?: string | null;
+          user_id: string;
+          title: string;
+          content: string;
+          word_count?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          title?: string;
+          content?: string;
+          word_count?: number;
+          updated_at?: string;
+        };
       };
     };
     Views: {
