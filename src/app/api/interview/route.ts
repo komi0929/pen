@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
 
     // Gemini AI を使用したインタビュー
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
     const systemPrompt = buildSystemPrompt(themeTitle, themeDescription, memos);
 
@@ -92,7 +92,6 @@ ${themeDescription ? `説明: ${themeDescription}` : ""}${memoSection}
 9. 絵文字は使わない`;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function generateMockResponse(
   themeTitle: string,
   themeDescription: string,
