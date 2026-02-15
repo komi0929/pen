@@ -92,7 +92,7 @@ function ThemeDetailContent() {
             {/* メモ */}
             <Link
               href={`/themes/${themeId}/memos`}
-              className="pen-card flex flex-col items-start py-8 text-left"
+              className="pen-card flex flex-col items-center py-8 text-center"
             >
               <div className="bg-muted mb-3 inline-flex h-12 w-12 items-center justify-center rounded-xl">
                 <StickyNote className="text-accent h-6 w-6" />
