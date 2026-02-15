@@ -3,6 +3,7 @@
 import { AuthGuard } from "@/components/AuthGuard";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
+import { createArticle } from "@/lib/actions/articles";
 import {
   addMessage,
   completeInterview,
@@ -13,36 +14,51 @@ import {
 import { getMemos } from "@/lib/actions/memos";
 import { getTheme } from "@/lib/actions/themes";
 import type { Interview, InterviewMessage, Memo, Theme } from "@/types";
-import { ArrowLeft, Check, Loader2, MessageSquare, Send } from "lucide-react";
+import {
+  ArrowLeft,
+  Check,
+  FileText,
+  Loader2,
+  MessageSquare,
+  Send,
+  SkipForward,
+} from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-/** 準備度に応じたステータス情報 */
-function getReadinessInfo(readiness: number) {
-  if (readiness < 0) return { label: "", color: "", bgColor: "", message: "" };
-  if (readiness < 20)
+/* ── 準備度の表示スケール ── */
+// AI側: max 80 → 表示: 100%（つまり AI の 80 = ユーザー表示の 100%）
+// AI の 100 = ユーザー表示の 125%（ボーナス）
+function rescaleReadiness(aiReadiness: number): number {
+  if (aiReadiness < 0) return -1;
+  return Math.round((aiReadiness / 80) * 100);
+}
+
+function getReadinessInfo(display: number) {
+  if (display < 0) return { label: "", color: "", bgColor: "", message: "" };
+  if (display < 25)
     return {
       label: "導入",
       color: "bg-red-400",
       bgColor: "bg-red-100",
       message: "まだ始まったばかりです",
     };
-  if (readiness < 40)
+  if (display < 50)
     return {
       label: "基本情報",
       color: "bg-orange-400",
       bgColor: "bg-orange-100",
       message: "基本的な情報が集まってきました",
     };
-  if (readiness < 60)
+  if (display < 75)
     return {
       label: "深堀り中",
       color: "bg-yellow-400",
       bgColor: "bg-yellow-100",
       message: "素材が集まってきています",
     };
-  if (readiness < 80)
+  if (display < 100)
     return {
       label: "あと少し",
       color: "bg-green-400",
@@ -69,15 +85,21 @@ function InterviewContent() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
-  const [completing, setCompleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [readiness, setReadiness] = useState(-1);
+  const [aiReadiness, setAiReadiness] = useState(-1);
+
+  // 完了確認ダイアログ
+  const [showCompleteDialog, setShowCompleteDialog] = useState(false);
+  const [generating, setGenerating] = useState(false);
+
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-
-  // 重複API呼び出し防止用ref
   const isLoadingRef = useRef(false);
   const isFetchingRef = useRef(false);
+
+  const displayReadiness = rescaleReadiness(aiReadiness);
+  const info = getReadinessInfo(displayReadiness);
+  const isReady = displayReadiness >= 100;
 
   const scrollToBottom = () => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -87,13 +109,20 @@ function InterviewContent() {
     scrollToBottom();
   }, [messages]);
 
-  // AI応答を取得（共通関数）
+  // テキストエリア自動拡張
+  const autoResize = (el: HTMLTextAreaElement) => {
+    el.style.height = "auto";
+    el.style.height = Math.min(el.scrollHeight, 200) + "px";
+  };
+
+  // AI応答を取得
   const fetchAI = useCallback(
     async (
       interviewId: string,
       currentMessages: InterviewMessage[],
       themeData: Theme | null,
-      memosData: Memo[]
+      memosData: Memo[],
+      isSkip = false
     ) => {
       if (isFetchingRef.current) return;
       isFetchingRef.current = true;
@@ -110,6 +139,7 @@ function InterviewContent() {
               role: m.role,
               content: m.content,
             })),
+            isSkip,
           }),
         });
 
@@ -117,19 +147,39 @@ function InterviewContent() {
         if (data.error) throw new Error(data.error);
         if (!data.response) throw new Error("AI応答が空です");
 
-        // 準備度を更新
         if (typeof data.readiness === "number" && data.readiness >= 0) {
-          setReadiness(data.readiness);
+          setAiReadiness(data.readiness);
         }
 
-        // AI応答をDB保存
+        // スキップの場合、ダミーのuserメッセージをDBに保存
+        if (isSkip) {
+          await addMessage(
+            interviewId,
+            "user",
+            "（この質問をスキップしました）"
+          );
+        }
+
         const saveResult = await addMessage(
           interviewId,
           "assistant",
           data.response
         );
         if (saveResult.success) {
-          setMessages((prev) => [...prev, saveResult.data]);
+          if (isSkip) {
+            // スキップメッセージ + AI応答をまとめて追加
+            const skipMsg: InterviewMessage = {
+              id: `skip-${Date.now()}`,
+              interview_id: interviewId,
+              user_id: "",
+              role: "user",
+              content: "（この質問をスキップしました）",
+              created_at: new Date().toISOString(),
+            };
+            setMessages((prev) => [...prev, skipMsg, saveResult.data]);
+          } else {
+            setMessages((prev) => [...prev, saveResult.data]);
+          }
         }
       } catch (err) {
         setError(
@@ -218,6 +268,10 @@ function InterviewContent() {
       const updatedMessages = [...messages, userResult.data];
       setMessages(updatedMessages);
       setInput("");
+      // テキストエリアリセット
+      if (inputRef.current) {
+        inputRef.current.style.height = "auto";
+      }
       await fetchAI(interview.id, updatedMessages, theme, memos);
     } else {
       setError(userResult.error);
@@ -227,17 +281,73 @@ function InterviewContent() {
     inputRef.current?.focus();
   };
 
-  // インタビュー完了
-  const handleComplete = async () => {
-    if (!interview || completing) return;
-    setCompleting(true);
-    const result = await completeInterview(interview.id);
-    if (result.success) {
-      router.push(`/themes/${themeId}`);
-    } else {
-      setError(result.error);
+  // 質問スキップ
+  const handleSkip = async () => {
+    if (!interview || sending) return;
+    setSending(true);
+    setError(null);
+    await fetchAI(interview.id, messages, theme, memos, true);
+    setSending(false);
+  };
+
+  // 完了ボタンクリック → 確認ダイアログ表示
+  const handleCompleteClick = () => {
+    setShowCompleteDialog(true);
+  };
+
+  // 記事生成して完了
+  const handleGenerateAndComplete = async () => {
+    if (!interview || generating) return;
+    setGenerating(true);
+    setError(null);
+
+    try {
+      // 1. 記事生成API呼び出し
+      const res = await fetch("/api/generate-article", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          themeTitle: theme?.title ?? "",
+          themeDescription: theme?.description ?? "",
+          memos: memos.map((m) => ({ content: m.content })),
+          messages: messages.map((m) => ({
+            role: m.role,
+            content: m.content,
+          })),
+        }),
+      });
+
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+
+      // 2. 記事をDB保存
+      const articleResult = await createArticle(
+        themeId,
+        interview.id,
+        data.title,
+        data.content
+      );
+      if (!articleResult.success) throw new Error(articleResult.error);
+
+      // 3. インタビューを完了ステータスに更新
+      await completeInterview(interview.id);
+
+      // 4. 生成された記事ページへ遷移
+      router.push(`/articles/${articleResult.data.id}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "記事の生成に失敗しました");
+      setShowCompleteDialog(false);
+    } finally {
+      setGenerating(false);
     }
-    setCompleting(false);
+  };
+
+  // 記事生成せずに完了
+  const handleCompleteOnly = async () => {
+    if (!interview || generating) return;
+    setGenerating(true);
+    await completeInterview(interview.id);
+    router.push(`/themes/${themeId}`);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -308,16 +418,46 @@ function InterviewContent() {
     );
   }
 
-  const info = getReadinessInfo(readiness);
-  const isReady = readiness >= 80;
-
   // チャットUI
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
+
+      {/* 固定プログレスバー */}
+      {displayReadiness >= 0 && (
+        <div className="border-border bg-card/95 sticky top-14 z-40 border-b px-4 py-2 backdrop-blur-sm">
+          <div className="pen-container">
+            <div className="mb-1 flex items-center justify-between">
+              <span className="text-muted-foreground text-xs font-medium">
+                記事素材の準備度
+              </span>
+              <span className="text-xs font-bold">
+                {Math.min(displayReadiness, 100)}%
+                {info.label && (
+                  <span className="text-muted-foreground ml-1 font-normal">
+                    — {info.label}
+                  </span>
+                )}
+              </span>
+            </div>
+            <div
+              className={`h-1.5 w-full overflow-hidden rounded-full ${info.bgColor}`}
+            >
+              <div
+                className={`h-full rounded-full transition-all duration-700 ease-out ${info.color}`}
+                style={{ width: `${Math.min(displayReadiness, 100)}%` }}
+              />
+            </div>
+            <p className="text-muted-foreground mt-0.5 text-[11px]">
+              {info.message}
+            </p>
+          </div>
+        </div>
+      )}
+
       <main className="flex-1">
-        <div className="pen-container pen-fade-in py-8">
-          {/* ヘッダー: 戻るボタン + 完了ボタン */}
+        <div className="pen-container pen-fade-in py-6">
+          {/* ヘッダー: 戻る + 完了ボタン */}
           <div className="mb-4 flex items-center justify-between">
             <Link
               href={`/themes/${themeId}`}
@@ -327,50 +467,20 @@ function InterviewContent() {
               戻る
             </Link>
             <button
-              onClick={handleComplete}
-              disabled={completing || messages.length < 2}
+              onClick={handleCompleteClick}
+              disabled={messages.length < 2 || sending}
               className={`pen-btn ${
-                isReady ? "pen-btn-accent animate-pulse" : "pen-btn-secondary"
-              }`}
+                isReady ? "pen-btn-accent shadow-lg" : "pen-btn-secondary"
+              } transition-all`}
             >
-              {completing ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+              {isReady ? (
+                <FileText className="h-4 w-4" />
               ) : (
                 <Check className="h-4 w-4" />
               )}
-              インタビューを完了
+              {isReady ? "記事を生成する" : "インタビューを完了する"}
             </button>
           </div>
-
-          {/* 準備度プログレスバー */}
-          {readiness >= 0 && (
-            <div className="mb-6">
-              <div className="mb-1.5 flex items-center justify-between">
-                <span className="text-muted-foreground text-xs font-medium">
-                  記事素材の準備度
-                </span>
-                <span className="text-xs font-bold">
-                  {readiness}%
-                  {info.label && (
-                    <span className="text-muted-foreground ml-1 font-normal">
-                      — {info.label}
-                    </span>
-                  )}
-                </span>
-              </div>
-              <div
-                className={`h-2 w-full overflow-hidden rounded-full ${info.bgColor}`}
-              >
-                <div
-                  className={`h-full rounded-full transition-all duration-700 ease-out ${info.color}`}
-                  style={{ width: `${readiness}%` }}
-                />
-              </div>
-              <p className="text-muted-foreground mt-1 text-xs">
-                {info.message}
-              </p>
-            </div>
-          )}
 
           {error && (
             <p className="text-danger mb-4 text-center text-sm">{error}</p>
@@ -405,18 +515,37 @@ function InterviewContent() {
             <div ref={chatEndRef} />
           </div>
 
+          {/* スキップボタン（最後のメッセージがAIの場合に表示） */}
+          {messages.length > 0 &&
+            messages[messages.length - 1].role === "assistant" &&
+            !sending && (
+              <div className="mb-4 flex justify-start">
+                <button
+                  onClick={handleSkip}
+                  disabled={sending}
+                  className="text-muted-foreground hover:text-foreground hover:bg-muted inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs transition-colors"
+                >
+                  <SkipForward className="h-3.5 w-3.5" />
+                  この質問をスキップする
+                </button>
+              </div>
+            )}
+
           {/* 入力フォーム */}
           <form
             onSubmit={handleSend}
-            className="border-border bg-card sticky bottom-4 flex gap-2 rounded-xl border p-2 shadow-lg"
+            className="border-border bg-card sticky bottom-4 flex items-end gap-2 rounded-xl border p-2 shadow-lg"
           >
             <textarea
               ref={inputRef}
               value={input}
-              onChange={(e) => setInput(e.target.value)}
+              onChange={(e) => {
+                setInput(e.target.value);
+                autoResize(e.target);
+              }}
               onKeyDown={handleKeyDown}
               placeholder="メッセージを入力... (Enterで送信)"
-              className="min-h-[44px] flex-1 resize-none rounded-lg bg-transparent px-3 py-2 text-sm outline-none"
+              className="max-h-[200px] min-h-[44px] flex-1 resize-none rounded-lg bg-transparent px-3 py-2 text-sm outline-none"
               rows={1}
               disabled={sending}
             />
@@ -431,6 +560,55 @@ function InterviewContent() {
           </form>
         </div>
       </main>
+
+      {/* 完了確認ダイアログ */}
+      {showCompleteDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-card w-full max-w-md rounded-2xl p-6 shadow-2xl">
+            <h3 className="mb-2 text-lg font-bold">インタビューを完了する</h3>
+            <p className="text-muted-foreground mb-6 text-sm leading-relaxed">
+              インタビュー内容をもとに、AIが記事を自動生成します。
+              生成には30秒ほどかかる場合があります。
+            </p>
+
+            {generating && (
+              <div className="mb-4 flex items-center gap-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
+                <Loader2 className="h-5 w-5 shrink-0 animate-spin" />
+                <span>記事を生成中です... しばらくお待ちください</span>
+              </div>
+            )}
+
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={handleGenerateAndComplete}
+                disabled={generating}
+                className="pen-btn pen-btn-accent w-full justify-center py-3"
+              >
+                {generating ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <FileText className="h-4 w-4" />
+                )}
+                記事を生成して完了する
+              </button>
+              <button
+                onClick={handleCompleteOnly}
+                disabled={generating}
+                className="pen-btn pen-btn-secondary w-full justify-center py-2.5"
+              >
+                記事を生成せずに完了する
+              </button>
+              <button
+                onClick={() => setShowCompleteDialog(false)}
+                disabled={generating}
+                className="text-muted-foreground mt-1 text-sm hover:underline"
+              >
+                インタビューを続ける
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

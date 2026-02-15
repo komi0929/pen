@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { themeTitle, themeDescription, memos, messages } = body;
+    const { themeTitle, themeDescription, memos, messages, isSkip } = body;
 
     const messageCount = messages?.length ?? 0;
 
@@ -12,13 +12,13 @@ export async function POST(request: NextRequest) {
     const apiKey = process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
-      // APIキー未設定時はモック応答
       const mock = generateMockResponse(
         themeTitle,
         themeDescription,
         memos,
         messages,
-        messageCount
+        messageCount,
+        isSkip
       );
       return NextResponse.json(mock);
     }
@@ -58,15 +58,18 @@ export async function POST(request: NextRequest) {
     if (messageCount === 0) {
       prompt = "インタビューを開始してください。最初の質問をしてください。";
       chatHistory = [];
+    } else if (isSkip) {
+      // スキップの場合、最後のAIメッセージまでをhistoryに含め、別の質問を依頼
+      chatHistory = rawHistory;
+      prompt =
+        "この質問はスキップします。別の角度から、違う質問をしてください。";
     } else {
       chatHistory = rawHistory.slice(0, -1);
       const lastMsg = rawHistory[rawHistory.length - 1];
       prompt = lastMsg.parts[0].text;
     }
 
-    const chat = model.startChat({
-      history: chatHistory,
-    });
+    const chat = model.startChat({ history: chatHistory });
 
     // リトライ付きでメッセージ送信（429対策）
     let rawResponse: string | null = null;
@@ -100,9 +103,6 @@ export async function POST(request: NextRequest) {
   }
 }
 
-/**
- * AI応答から [[READY:XX]] をパースし、表示テキストと準備度を分離する
- */
 function parseReadiness(text: string): { text: string; readiness: number } {
   const match = text.match(/\[\[READY:(\d{1,3})\]\]/);
   const readiness = match
@@ -137,6 +137,7 @@ ${themeDescription ? `説明: ${themeDescription}` : ""}${memoSection}
 6. メモがある場合は、メモの内容に触れながら質問する
 7. 敬語で話す（ですます調）
 8. 絵文字は使わない
+9. ユーザーが質問をスキップした場合は、無理に深堀りせず別の話題で質問する
 
 ## 記事素材の準備度評価（必須）
 あなたは毎回の応答の最後に、記事を書くための素材がどれくらい集まったかを評価してください。
@@ -146,18 +147,22 @@ ${themeDescription ? `説明: ${themeDescription}` : ""}${memoSection}
 
 XXは0〜100の整数で、以下の基準に従ってください：
 
-- **0〜20**: まだ始まったばかり。テーマの背景や動機がわかっていない
-- **20〜40**: 基本的な情報は得たが、具体的なエピソードや感情が不足
-- **40〜60**: いくつかのエピソードや考えが出てきた。もう少し深堀りが必要
-- **60〜80**: 良い素材が揃ってきた。あと1〜2問で十分になりそう
-- **80〜100**: 記事を書くための十分な素材が集まった
+- **0〜15**: まだ始まったばかり。テーマの背景や動機がわかっていない
+- **15〜30**: 基本的な導入情報は得たが、具体的なエピソードが不足
+- **30〜50**: いくつかのエピソードが出てきた。もう少し深堀りが必要
+- **50〜70**: 良い素材が揃ってきた。あと2〜3問で十分になりそう
+- **70〜80**: 十分な素材が集まった。記事を書ける状態
+
+80以上は使わないでください。最大値は80です。
 
 **重要なルール：**
-- 準備度が80以上になったら、質問の前に「十分な素材が集まりました。このままインタビューを完了して記事を生成できます。もちろん、まだ伝えたいことがあれば続けてもOKです。」と自然に伝えてから、念のためもう1つ質問をする
-- 準備度が80以上でも、ユーザーが続けたい場合は対応する
+- 準備度が70以上になったら、通常の質問をやめて、以下のような完了提案メッセージを送ってください：
+  「ここまでのお話で、記事を書くための素材が十分に集まりました。このままインタビューを完了して、記事の生成に進むことができます。もし他に伝えたいことがあれば、もちろん続けていただけます。」
+  その後に「他に何か付け加えたいことはありますか？」と聞いてください
 - 最初の質問（会話開始時）は必ず [[READY:5]] とする
 - ユーザーの回答が短い・浅い場合は準備度を大きく上げない
 - ユーザーの回答が具体的で豊かな場合は準備度を積極的に上げる
+- スキップされた質問は準備度に影響しない
 
 このタグはユーザーには表示されません。必ず毎回付与してください。`;
 }
@@ -167,9 +172,18 @@ function generateMockResponse(
   themeDescription: string,
   memos: { content: string }[] | null,
   messages: { role: string; content: string }[] | null,
-  messageCount: number
+  messageCount: number,
+  isSkip: boolean
 ): { response: string; readiness: number } {
   const userMessages = messages?.filter((m) => m.role === "user") ?? [];
+
+  if (isSkip) {
+    return {
+      response:
+        "わかりました、では別の角度からお聞きします。このテーマについて、特に読者に共感してもらいたい部分はどこですか？",
+      readiness: Math.min(80, (userMessages.length - 1) * 12 + 5),
+    };
+  }
 
   if (messageCount === 0) {
     const response =
@@ -181,27 +195,25 @@ function generateMockResponse(
     const depthQuestions = [
       "なるほど！具体的なエピソードや例はありますか？",
       "それは面白いですね。読者にとって一番伝えたいポイントは何ですか？",
-      "もう少し詳しく聞かせてください。なぜそう考えるようになりましたか？",
     ];
     return {
       response: depthQuestions[userMessages.length - 1] ?? depthQuestions[0],
-      readiness: 20 + userMessages.length * 10,
+      readiness: 15 + userMessages.length * 10,
     };
   } else if (userMessages.length <= 4) {
     const expandQuestions = [
-      "素晴らしいですね。他に補足したいことや、読者に知ってほしいことはありますか？",
       "この経験から学んだことや、変化したことはありますか？",
       "最後に、このテーマについて一言でまとめるとしたら、どう表現しますか？",
     ];
     return {
       response: expandQuestions[userMessages.length - 3] ?? expandQuestions[0],
-      readiness: 50 + (userMessages.length - 2) * 15,
+      readiness: 40 + (userMessages.length - 2) * 12,
     };
   } else {
     return {
       response:
-        "十分な素材が集まりました。このままインタビューを完了して記事を生成できます。もちろん、まだ伝えたいことがあれば続けてもOKです。\n\n最後に、この記事を通じて読者に一番伝えたいメッセージは何ですか？",
-      readiness: 90,
+        "ここまでのお話で、記事を書くための素材が十分に集まりました。このままインタビューを完了して、記事の生成に進むことができます。もし他に伝えたいことがあれば、もちろん続けていただけます。\n\n他に何か付け加えたいことはありますか？",
+      readiness: 75,
     };
   }
 }

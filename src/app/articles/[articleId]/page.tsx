@@ -52,6 +52,8 @@ function ArticleDetailContent() {
 
   const handleDelete = async () => {
     if (!article) return;
+    if (!window.confirm("この記事を削除しますか？この操作は取り消せません。"))
+      return;
     const result = await deleteArticle(article.id);
     if (result.success) {
       router.push("/articles");
