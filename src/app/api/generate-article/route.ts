@@ -4,7 +4,8 @@ import { NextRequest, NextResponse } from "next/server";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { themeTitle, themeDescription, memos, messages } = body;
+    const { themeTitle, themeDescription, memos, messages, targetLength } =
+      body;
 
     const apiKey = process.env.GEMINI_API_KEY;
 
@@ -23,7 +24,8 @@ export async function POST(request: NextRequest) {
     const systemPrompt = buildArticlePrompt(
       themeTitle,
       themeDescription,
-      memos
+      memos,
+      targetLength ?? 2000
     );
     const model = genAI.getGenerativeModel({
       model: "gemini-2.0-flash",
@@ -90,7 +92,8 @@ export async function POST(request: NextRequest) {
 function buildArticlePrompt(
   themeTitle: string,
   themeDescription: string,
-  memos: { content: string }[] | null
+  memos: { content: string }[] | null,
+  targetLength: number
 ): string {
   const memoSection =
     memos && memos.length > 0
@@ -109,7 +112,7 @@ ${themeDescription ? `説明: ${themeDescription}` : ""}${memoSection}
 3. 改行を適切に使い、読みやすくする
 4. 段落の区切りには空行を入れる
 5. 見出し（##）を使って構成を整理する
-6. 2000〜4000文字程度の記事にする
+6. ${targetLength.toLocaleString()}文字程度の記事にする
 7. インタビューの質問・回答形式そのままではなく、自然な記事に再構成する
 8. 「ですます調」を使用する
 9. noteの読者層を意識した、カジュアルだが内容のある文章にする

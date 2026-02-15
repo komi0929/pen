@@ -87,6 +87,7 @@ function InterviewContent() {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [aiReadiness, setAiReadiness] = useState(-1);
+  const [targetLength, setTargetLength] = useState(2000);
 
   // 完了確認ダイアログ
   const [showCompleteDialog, setShowCompleteDialog] = useState(false);
@@ -245,7 +246,7 @@ function InterviewContent() {
     if (sending) return;
     setSending(true);
     setError(null);
-    const result = await createInterview(themeId, 1000);
+    const result = await createInterview(themeId, targetLength);
     if (result.success) {
       setInterview(result.data);
       await fetchAI(result.data.id, [], theme, memos);
@@ -309,6 +310,7 @@ function InterviewContent() {
         body: JSON.stringify({
           themeTitle: theme?.title ?? "",
           themeDescription: theme?.description ?? "",
+          targetLength: interview.target_length,
           memos: memos.map((m) => ({ content: m.content })),
           messages: messages.map((m) => ({
             role: m.role,
@@ -397,6 +399,32 @@ function InterviewContent() {
                   📝 {memos.length}件のメモを参考にAIが質問を生成します
                 </p>
               )}
+
+              {/* 文字数設定 */}
+              <div className="mx-auto mb-8 max-w-xs">
+                <label className="text-muted-foreground mb-2 block text-sm">
+                  目標文字数
+                </label>
+                <div className="flex flex-wrap justify-center gap-2">
+                  {[1000, 2000, 3000, 4000, 5000].map((len) => (
+                    <button
+                      key={len}
+                      onClick={() => setTargetLength(len)}
+                      className={`rounded-lg border px-4 py-2 text-sm font-bold transition-all ${
+                        targetLength === len
+                          ? "border-accent bg-accent/10 text-accent"
+                          : "border-border hover:bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      {len.toLocaleString()}字
+                    </button>
+                  ))}
+                </div>
+                <p className="text-muted-foreground mt-2 text-xs">
+                  生成される記事のおおよその文字数です
+                </p>
+              </div>
+
               {error && <p className="text-danger mb-4 text-sm">{error}</p>}
               <button
                 onClick={handleStart}
