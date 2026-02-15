@@ -40,35 +40,35 @@ function getReadinessInfo(display: number) {
   if (display < 25)
     return {
       label: "導入",
-      color: "bg-red-400",
-      bgColor: "bg-red-100",
+      color: "bg-gray-300",
+      bgColor: "bg-gray-100",
       message: "まだ始まったばかりです",
     };
   if (display < 50)
     return {
       label: "基本情報",
-      color: "bg-orange-400",
-      bgColor: "bg-orange-100",
+      color: "bg-gray-400",
+      bgColor: "bg-gray-100",
       message: "基本的な情報が集まってきました",
     };
   if (display < 75)
     return {
       label: "深堀り中",
-      color: "bg-yellow-400",
-      bgColor: "bg-yellow-100",
+      color: "bg-gray-500",
+      bgColor: "bg-gray-200",
       message: "素材が集まってきています",
     };
   if (display < 100)
     return {
       label: "あと少し",
-      color: "bg-green-400",
-      bgColor: "bg-green-100",
+      color: "bg-gray-600",
+      bgColor: "bg-gray-200",
       message: "あと少しで記事が書けます",
     };
   return {
     label: "準備完了",
-    color: "bg-emerald-500",
-    bgColor: "bg-emerald-100",
+    color: "bg-gray-800",
+    bgColor: "bg-gray-200",
     message: "記事を書く準備ができました！",
   };
 }

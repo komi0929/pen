@@ -28,7 +28,7 @@
   --muted-fg: #737373;
   --border: #d4d4d4; /* #7: border contrast 1.6:1 → improved */
   --card: #ffffff;
-  --accent: #2d8a56; /* #5: contrast 4.8:1 on white (was #41a86f 3.3:1) */
+  --accent: #1a1a1a; /* monotone: matches foreground for note-style clean look */
   --danger: #dc2626;
 
   /* #2: border-radius 3-tier system */
@@ -151,7 +151,7 @@ h4 {
 }
 .pen-input:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(45, 138, 86, 0.1);
+  box-shadow: 0 0 0 3px rgba(26, 26, 26, 0.1);
 }
 .pen-input::placeholder {
   color: var(--muted-fg);
@@ -175,7 +175,7 @@ h4 {
 }
 .pen-textarea:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(45, 138, 86, 0.1);
+  box-shadow: 0 0 0 3px rgba(26, 26, 26, 0.1);
 }
 
 /* Badge — #5: font-weight 700 */
