@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
 
     // Gemini AI を使用したインタビュー
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
     const systemPrompt = buildSystemPrompt(themeTitle, themeDescription, memos);
 
@@ -57,8 +57,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ response });
   } catch (error) {
     console.error("Interview API error:", error);
+    const message = error instanceof Error ? error.message : "不明なエラー";
     return NextResponse.json(
-      { error: "インタビューの処理中にエラーが発生しました" },
+      { error: `インタビューの処理中にエラーが発生しました: ${message}` },
       { status: 500 }
     );
   }
