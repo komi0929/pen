@@ -138,3 +138,36 @@ export async function deleteArticle(articleId: string): Promise<ActionResult> {
     };
   }
 }
+
+export async function updateArticle(
+  articleId: string,
+  title: string,
+  content: string
+): Promise<ActionResult<Article>> {
+  try {
+    const supabase = await createClient();
+    if (!supabase) return { success: false, error: "DB接続エラー" };
+
+    const wordCount = content.length;
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase.from("articles") as any)
+      .update({
+        title,
+        content,
+        word_count: wordCount,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", articleId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return { success: true, data: data as unknown as Article };
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "記事の更新に失敗しました",
+    };
+  }
+}

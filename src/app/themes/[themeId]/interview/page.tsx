@@ -3,7 +3,7 @@
 import { AuthGuard } from "@/components/AuthGuard";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
-import { createArticle } from "@/lib/actions/articles";
+import { createArticle, updateArticle } from "@/lib/actions/articles";
 import {
   addMessage,
   completeInterview,
@@ -24,7 +24,7 @@ import {
   SkipForward,
 } from "lucide-react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 /* ── 準備度の表示スケール ── */
@@ -76,7 +76,9 @@ function getReadinessInfo(display: number) {
 function InterviewContent() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const themeId = params.themeId as string;
+  const articleId = searchParams.get("articleId");
 
   const [theme, setTheme] = useState<Theme | null>(null);
   const [memos, setMemos] = useState<Memo[]>([]);
@@ -87,7 +89,7 @@ function InterviewContent() {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [aiReadiness, setAiReadiness] = useState(-1);
-  const [targetLength, setTargetLength] = useState(2000);
+  const [targetLength, setTargetLength] = useState(1000);
 
   // 完了確認ダイアログ
   const [showCompleteDialog, setShowCompleteDialog] = useState(false);
@@ -322,20 +324,32 @@ function InterviewContent() {
       const data = await res.json();
       if (data.error) throw new Error(data.error);
 
-      // 2. 記事をDB保存
-      const articleResult = await createArticle(
-        themeId,
-        interview.id,
-        data.title,
-        data.content
-      );
-      if (!articleResult.success) throw new Error(articleResult.error);
+      // 2. 記事をDB保存（追加インタビューの場合は既存記事を上書き）
+      let savedArticleId: string;
+      if (articleId) {
+        const updateResult = await updateArticle(
+          articleId,
+          data.title,
+          data.content
+        );
+        if (!updateResult.success) throw new Error(updateResult.error);
+        savedArticleId = articleId;
+      } else {
+        const articleResult = await createArticle(
+          themeId,
+          interview.id,
+          data.title,
+          data.content
+        );
+        if (!articleResult.success) throw new Error(articleResult.error);
+        savedArticleId = articleResult.data.id;
+      }
 
       // 3. インタビューを完了ステータスに更新
       await completeInterview(interview.id);
 
       // 4. 生成された記事ページへ遷移
-      router.push(`/articles/${articleResult.data.id}`);
+      router.push(`/articles/${savedArticleId}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "記事の生成に失敗しました");
       setShowCompleteDialog(false);
@@ -406,7 +420,7 @@ function InterviewContent() {
                   目標文字数
                 </label>
                 <div className="flex flex-wrap justify-center gap-2">
-                  {[1000, 2000, 3000, 4000, 5000].map((len) => (
+                  {[300, 500, 1000, 1500, 2000, 3000].map((len) => (
                     <button
                       key={len}
                       onClick={() => setTargetLength(len)}

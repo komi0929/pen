@@ -49,7 +49,13 @@ function ThemesContent() {
     setCreating(false);
   };
 
-  const handleDelete = async (themeId: string) => {
+  const handleDelete = async (themeId: string, themeTitle: string) => {
+    if (
+      !window.confirm(
+        `「${themeTitle}」を削除しますか？\nテーマに紐づくメモ・インタビュー・記事もすべて削除されます。`
+      )
+    )
+      return;
     const result = await deleteTheme(themeId);
     if (result.success) {
       setThemes((prev) => prev.filter((t) => t.id !== themeId));
@@ -155,7 +161,7 @@ function ThemesContent() {
                     </div>
                   </Link>
                   <button
-                    onClick={() => handleDelete(theme.id)}
+                    onClick={() => handleDelete(theme.id, theme.title)}
                     className="text-muted-foreground hover:bg-danger/10 hover:text-danger absolute top-3 right-3 rounded-lg p-2 transition-all md:opacity-0 md:group-hover:opacity-100"
                   >
                     <Trash2 className="h-4 w-4" />

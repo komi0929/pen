@@ -6,7 +6,7 @@ import { Header } from "@/components/Header";
 import { createMemo, deleteMemo, getMemos } from "@/lib/actions/memos";
 import { getTheme } from "@/lib/actions/themes";
 import type { Memo, Theme } from "@/types";
-import { ArrowLeft, Loader2, Send, StickyNote, Trash2 } from "lucide-react";
+import { ArrowLeft, Loader2, Send, StickyNote, X } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -22,6 +22,7 @@ function MemosContent() {
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const listTopRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
     const [themeResult, memosResult] = await Promise.all([
@@ -46,11 +47,17 @@ function MemosContent() {
     if (result.success) {
       setMemos((prev) => [...prev, result.data]);
       setContent("");
-      textareaRef.current?.focus();
+      if (textareaRef.current) {
+        textareaRef.current.style.height = "auto";
+      }
+      setTimeout(() => {
+        listTopRef.current?.scrollIntoView({ behavior: "smooth" });
+      }, 100);
     } else {
       setError(result.error);
     }
     setCreating(false);
+    textareaRef.current?.focus();
   };
 
   const handleDelete = async (memoId: string) => {
@@ -69,6 +76,11 @@ function MemosContent() {
     }
   };
 
+  const autoResize = (el: HTMLTextAreaElement) => {
+    el.style.height = "auto";
+    el.style.height = Math.min(el.scrollHeight, 150) + "px";
+  };
+
   if (loading) {
     return (
       <div className="flex min-h-screen flex-col">
@@ -80,26 +92,29 @@ function MemosContent() {
     );
   }
 
+  // メモを新しい順に表示（上に積み重なる）
+  const sortedMemos = [...memos].reverse();
+
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
-      <main className="flex-1">
-        <div className="pen-container pen-fade-in py-8">
-          <Link
-            href={`/themes/${themeId}`}
-            className="text-muted-foreground hover:bg-muted hover:text-foreground mb-6 inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            {theme?.title ?? "テーマ"}に戻る
-          </Link>
-
-          <div className="mb-8">
+      <main className="flex flex-1 flex-col">
+        <div className="pen-container pen-fade-in flex flex-1 flex-col py-6">
+          {/* ヘッダー */}
+          <div className="mb-4">
+            <Link
+              href={`/themes/${themeId}`}
+              className="text-muted-foreground hover:bg-muted hover:text-foreground mb-4 inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              {theme?.title ?? "テーマ"}に戻る
+            </Link>
             <h1 className="mb-1 text-2xl font-bold">
               <StickyNote className="text-accent mr-2 inline h-6 w-6" />
               メモ
             </h1>
             <p className="text-muted-foreground text-sm">
-              思いついたことを自由に書き溜めましょう
+              思いついたことを自由に書き溜めましょう（{memos.length}件）
             </p>
           </div>
 
@@ -107,71 +122,73 @@ function MemosContent() {
             <p className="text-danger mb-4 text-center text-sm">{error}</p>
           )}
 
-          {/* メモ入力フォーム */}
-          <form onSubmit={handleCreate} className="pen-card mb-6">
-            <textarea
-              ref={textareaRef}
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="メモを入力... (Ctrl+Enterで追加)"
-              className="pen-textarea"
-              rows={3}
-              autoFocus
-            />
-            <div className="mt-3 flex items-center justify-between">
-              <span className="text-muted-foreground text-xs">
-                {memos.length}件のメモ
-              </span>
-              <button
-                type="submit"
-                disabled={creating || !content.trim()}
-                className="pen-btn pen-btn-accent"
-              >
-                {creating ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Send className="h-4 w-4" />
-                )}
-                追加
-              </button>
-            </div>
-          </form>
-
-          {/* メモ一覧 */}
-          {memos.length === 0 ? (
-            <div className="py-16 text-center">
-              <StickyNote className="text-muted-foreground mx-auto mb-4 h-12 w-12" />
-              <p className="text-muted-foreground">
-                まだメモがありません。上の入力欄から追加しましょう。
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {memos.map((memo) => (
-                <div
-                  key={memo.id}
-                  className="group border-border bg-card flex items-start gap-3 rounded-lg border px-4 py-3"
-                >
-                  <div className="bg-accent mt-1 h-2.5 w-2.5 shrink-0 rounded-full" />
-                  <div className="min-w-0 flex-1">
+          {/* メモ一覧（新しい順 = 上に積み重なる） */}
+          <div className="mb-6 flex-1">
+            <div ref={listTopRef} />
+            {sortedMemos.length === 0 ? (
+              <div className="py-16 text-center">
+                <StickyNote className="text-muted-foreground mx-auto mb-4 h-12 w-12" />
+                <p className="text-muted-foreground">
+                  まだメモがありません。下の入力欄から追加しましょう。
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {sortedMemos.map((memo) => (
+                  <div
+                    key={memo.id}
+                    className="group border-border bg-card relative rounded-lg border px-4 py-3 pr-10"
+                  >
                     <p className="text-sm leading-relaxed whitespace-pre-wrap">
                       {memo.content}
                     </p>
                     <p className="text-muted-foreground mt-1 text-xs">
                       {new Date(memo.created_at).toLocaleString("ja-JP")}
                     </p>
+                    <button
+                      onClick={() => handleDelete(memo.id)}
+                      className="text-muted-foreground hover:bg-danger/10 hover:text-danger absolute top-2 right-2 rounded-lg p-1.5 transition-all md:opacity-0 md:group-hover:opacity-100"
+                      aria-label="削除"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
                   </div>
-                  <button
-                    onClick={() => handleDelete(memo.id)}
-                    className="text-muted-foreground hover:bg-danger/10 hover:text-danger shrink-0 rounded-lg p-2 transition-all md:opacity-0 md:group-hover:opacity-100"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* 画面下部固定の入力欄 */}
+          <form
+            onSubmit={handleCreate}
+            className="border-border bg-card sticky bottom-4 flex items-end gap-2 rounded-xl border p-2 shadow-lg"
+          >
+            <textarea
+              ref={textareaRef}
+              value={content}
+              onChange={(e) => {
+                setContent(e.target.value);
+                autoResize(e.target);
+              }}
+              onKeyDown={handleKeyDown}
+              placeholder="メモを入力... (Ctrl+Enterで追加)"
+              className="max-h-[150px] min-h-[44px] flex-1 resize-none rounded-lg bg-transparent px-3 py-2 text-sm outline-none"
+              rows={1}
+              disabled={creating}
+            />
+            <button
+              type="submit"
+              disabled={creating || !content.trim()}
+              className="pen-btn pen-btn-accent shrink-0 rounded-lg px-4"
+            >
+              {creating ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4" />
+              )}
+              追加
+            </button>
+          </form>
         </div>
       </main>
       <Footer />

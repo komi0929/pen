@@ -3,48 +3,33 @@
 import { createClient } from "@/lib/supabase/client";
 import { Loader2, Mail, PenLine } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
+  const [sent, setSent] = useState(false);
   const supabase = createClient();
-  const router = useRouter();
 
-  const handleEmailAuth = async (e: React.FormEvent) => {
+  const handleMagicLink = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!email.trim()) return;
     setLoading(true);
     setError(null);
-    setMessage(null);
 
     try {
-      if (isSignUp) {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            emailRedirectTo: `${window.location.origin}/auth/callback`,
-          },
-        });
-        if (error) throw error;
-        setMessage("確認メールを送信しました。メールをご確認ください。");
-      } else {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-        if (error) throw error;
-        router.push("/themes");
-        router.refresh();
-      }
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+      if (error) throw error;
+      setSent(true);
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "認証中にエラーが発生しました"
+        err instanceof Error ? err.message : "メールの送信に失敗しました"
       );
     } finally {
       setLoading(false);
@@ -66,6 +51,36 @@ export default function LoginPage() {
     }
   };
 
+  // マジックリンク送信完了画面
+  if (sent) {
+    return (
+      <div className="bg-background flex min-h-screen items-center justify-center px-4">
+        <div className="pen-fade-in w-full max-w-sm text-center">
+          <div className="bg-accent/10 mx-auto mb-6 inline-flex h-16 w-16 items-center justify-center rounded-2xl">
+            <Mail className="text-accent h-8 w-8" />
+          </div>
+          <h1 className="mb-3 text-xl font-bold">メールを確認してください</h1>
+          <p className="text-muted-foreground mb-2 text-sm leading-relaxed">
+            <span className="font-bold">{email}</span> に
+            ログインリンクを送信しました。
+          </p>
+          <p className="text-muted-foreground mb-8 text-sm">
+            メール内のリンクをクリックするとログインできます。
+          </p>
+          <button
+            onClick={() => {
+              setSent(false);
+              setEmail("");
+            }}
+            className="text-accent text-sm font-bold hover:underline"
+          >
+            別のメールアドレスで試す
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-background flex min-h-screen items-center justify-center px-4">
       <div className="pen-fade-in w-full max-w-sm">
@@ -77,9 +92,7 @@ export default function LoginPage() {
             <PenLine className="h-7 w-7" />
             pen
           </Link>
-          <p className="text-muted-foreground text-sm">
-            {isSignUp ? "アカウントを作成" : "ログイン"}
-          </p>
+          <p className="text-muted-foreground text-sm">ログイン / 新規登録</p>
         </div>
 
         {/* Google Login */}
@@ -115,8 +128,8 @@ export default function LoginPage() {
           <div className="bg-border h-px flex-1" />
         </div>
 
-        {/* Email Form */}
-        <form onSubmit={handleEmailAuth} className="space-y-3">
+        {/* Magic Link Form */}
+        <form onSubmit={handleMagicLink} className="space-y-3">
           <div>
             <input
               type="email"
@@ -127,20 +140,12 @@ export default function LoginPage() {
               className="pen-input"
             />
           </div>
-          <div>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="パスワード"
-              required
-              minLength={6}
-              className="pen-input"
-            />
-          </div>
+          <p className="text-muted-foreground text-xs">
+            パスワード不要。メールに届くリンクからログインできます。
+          </p>
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || !email.trim()}
             className="pen-btn pen-btn-primary w-full py-3"
           >
             {loading ? (
@@ -148,32 +153,13 @@ export default function LoginPage() {
             ) : (
               <Mail className="h-4 w-4" />
             )}
-            {isSignUp ? "アカウント作成" : "メールでログイン"}
+            ログインリンクを送信
           </button>
         </form>
 
         {error && (
           <p className="text-danger mt-3 text-center text-sm">{error}</p>
         )}
-        {message && (
-          <p className="text-accent mt-3 text-center text-sm">{message}</p>
-        )}
-
-        <p className="text-muted-foreground mt-6 text-center text-sm">
-          {isSignUp
-            ? "すでにアカウントをお持ちですか？"
-            : "アカウントをお持ちでないですか？"}{" "}
-          <button
-            onClick={() => {
-              setIsSignUp(!isSignUp);
-              setError(null);
-              setMessage(null);
-            }}
-            className="text-accent font-bold hover:underline"
-          >
-            {isSignUp ? "ログイン" : "新規登録"}
-          </button>
-        </p>
 
         <div className="text-muted-foreground mt-8 text-center text-xs">
           <Link href="/terms" className="hover:underline">

@@ -5,7 +5,7 @@ import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
 import { deleteArticle, getArticle } from "@/lib/actions/articles";
 import type { Article } from "@/types";
-import { ArrowLeft, Check, Copy, Trash2 } from "lucide-react";
+import { ArrowLeft, Check, Copy, MessageSquare, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
@@ -38,7 +38,6 @@ function ArticleDetailContent() {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      // Fallback
       const textarea = document.createElement("textarea");
       textarea.value = article.content;
       document.body.appendChild(textarea);
@@ -110,7 +109,7 @@ function ArticleDetailContent() {
           </div>
 
           {/* アクションボタン */}
-          <div className="mb-6 flex gap-2">
+          <div className="mb-6 flex flex-wrap gap-2">
             <button
               onClick={handleCopy}
               className={`pen-btn ${copied ? "pen-btn-accent" : "pen-btn-accent"}`}
@@ -127,6 +126,15 @@ function ArticleDetailContent() {
                 </>
               )}
             </button>
+            {article.theme_id && (
+              <Link
+                href={`/themes/${article.theme_id}/interview?articleId=${article.id}`}
+                className="pen-btn pen-btn-secondary"
+              >
+                <MessageSquare className="h-4 w-4" />
+                追加インタビュー
+              </Link>
+            )}
             <button
               onClick={handleDelete}
               className="text-muted-foreground hover:bg-danger/10 hover:text-danger rounded-lg px-3 py-2 text-sm transition-colors"
