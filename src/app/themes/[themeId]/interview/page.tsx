@@ -60,6 +60,19 @@ function InterviewContent() {
       const msgResult = await getInterview(interviewResult.data.id);
       if (msgResult.success) {
         setMessages(msgResult.data.messages);
+        // メッセージが0件なら最初のAI質問を自動取得
+        if (msgResult.data.messages.length === 0) {
+          setLoading(false);
+          setSending(true);
+          await fetchAIResponseDirect(
+            interviewResult.data.id,
+            [],
+            themeResult.success ? themeResult.data : null,
+            memosResult.success ? memosResult.data : []
+          );
+          setSending(false);
+          return;
+        }
       }
     }
 
@@ -85,19 +98,29 @@ function InterviewContent() {
     setSending(false);
   };
 
-  // AI応答を取得
+  // AI応答を取得（state依存版 - handleSend等から呼ぶ）
   const fetchAIResponse = async (
     interviewId: string,
     currentMessages: InterviewMessage[]
+  ) => {
+    return fetchAIResponseDirect(interviewId, currentMessages, theme, memos);
+  };
+
+  // AI応答を取得（引数直接指定版 - load等から呼ぶ）
+  const fetchAIResponseDirect = async (
+    interviewId: string,
+    currentMessages: InterviewMessage[],
+    themeData: Theme | null,
+    memosData: Memo[]
   ) => {
     try {
       const res = await fetch("/api/interview", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          themeTitle: theme?.title ?? "",
-          themeDescription: theme?.description ?? "",
-          memos: memos.map((m) => ({ content: m.content })),
+          themeTitle: themeData?.title ?? "",
+          themeDescription: themeData?.description ?? "",
+          memos: memosData.map((m) => ({ content: m.content })),
           messages: currentMessages.map((m) => ({
             role: m.role,
             content: m.content,
@@ -112,7 +135,7 @@ function InterviewContent() {
       const saveResult = await addMessage(
         interviewId,
         "assistant",
-        data.content
+        data.response
       );
       if (saveResult.success) {
         setMessages((prev) => [...prev, saveResult.data]);
