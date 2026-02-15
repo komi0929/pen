@@ -35,6 +35,10 @@ function InterviewContent() {
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
+  // 重複API呼び出し防止用ref
+  const isLoadingRef = useRef(false);
+  const isFetchingRef = useRef(false);
+
   const scrollToBottom = () => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -43,41 +47,103 @@ function InterviewContent() {
     scrollToBottom();
   }, [messages]);
 
+  // AI応答を取得（共通関数）
+  const fetchAI = useCallback(
+    async (
+      interviewId: string,
+      currentMessages: InterviewMessage[],
+      themeData: Theme | null,
+      memosData: Memo[]
+    ) => {
+      // 重複呼び出し防止
+      if (isFetchingRef.current) return;
+      isFetchingRef.current = true;
+
+      try {
+        const res = await fetch("/api/interview", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            themeTitle: themeData?.title ?? "",
+            themeDescription: themeData?.description ?? "",
+            memos: memosData.map((m) => ({ content: m.content })),
+            messages: currentMessages.map((m) => ({
+              role: m.role,
+              content: m.content,
+            })),
+          }),
+        });
+
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+        if (!data.response) throw new Error("AI応答が空です");
+
+        // AI応答をDB保存
+        const saveResult = await addMessage(
+          interviewId,
+          "assistant",
+          data.response
+        );
+        if (saveResult.success) {
+          setMessages((prev) => [...prev, saveResult.data]);
+        }
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : "AI応答の取得に失敗しました"
+        );
+      } finally {
+        isFetchingRef.current = false;
+      }
+    },
+    []
+  );
+
   // 初期ロード
   const load = useCallback(async () => {
-    const [themeResult, memosResult, interviewResult] = await Promise.all([
-      getTheme(themeId),
-      getMemos(themeId),
-      getActiveInterview(themeId),
-    ]);
+    // 重複ロード防止
+    if (isLoadingRef.current) return;
+    isLoadingRef.current = true;
 
-    if (themeResult.success) setTheme(themeResult.data);
-    if (memosResult.success) setMemos(memosResult.data);
+    try {
+      const [themeResult, memosResult, interviewResult] = await Promise.all([
+        getTheme(themeId),
+        getMemos(themeId),
+        getActiveInterview(themeId),
+      ]);
 
-    if (interviewResult.success && interviewResult.data) {
-      setInterview(interviewResult.data);
-      // 既存メッセージをロード
-      const msgResult = await getInterview(interviewResult.data.id);
-      if (msgResult.success) {
-        setMessages(msgResult.data.messages);
-        // メッセージが0件なら最初のAI質問を自動取得
-        if (msgResult.data.messages.length === 0) {
-          setLoading(false);
-          setSending(true);
-          await fetchAIResponseDirect(
-            interviewResult.data.id,
-            [],
-            themeResult.success ? themeResult.data : null,
-            memosResult.success ? memosResult.data : []
-          );
-          setSending(false);
-          return;
+      const loadedTheme = themeResult.success ? themeResult.data : null;
+      const loadedMemos = memosResult.success ? memosResult.data : [];
+
+      if (loadedTheme) setTheme(loadedTheme);
+      if (memosResult.success) setMemos(loadedMemos);
+
+      if (interviewResult.success && interviewResult.data) {
+        setInterview(interviewResult.data);
+        // 既存メッセージをロード
+        const msgResult = await getInterview(interviewResult.data.id);
+        if (msgResult.success) {
+          setMessages(msgResult.data.messages);
+          // メッセージが0件なら最初のAI質問を自動取得
+          if (msgResult.data.messages.length === 0) {
+            setLoading(false);
+            setSending(true);
+            await fetchAI(
+              interviewResult.data.id,
+              [],
+              loadedTheme,
+              loadedMemos
+            );
+            setSending(false);
+            return;
+          }
         }
       }
-    }
 
-    setLoading(false);
-  }, [themeId]);
+      setLoading(false);
+    } finally {
+      isLoadingRef.current = false;
+    }
+  }, [themeId, fetchAI]);
 
   useEffect(() => {
     load();
@@ -85,72 +151,24 @@ function InterviewContent() {
 
   // インタビュー開始
   const handleStart = async () => {
+    if (sending) return; // 二重クリック防止
     setSending(true);
     setError(null);
     const result = await createInterview(themeId, 1000);
     if (result.success) {
       setInterview(result.data);
       // 最初のAI質問を取得
-      await fetchAIResponse(result.data.id, []);
+      await fetchAI(result.data.id, [], theme, memos);
     } else {
       setError(result.error);
     }
     setSending(false);
   };
 
-  // AI応答を取得（state依存版 - handleSend等から呼ぶ）
-  const fetchAIResponse = async (
-    interviewId: string,
-    currentMessages: InterviewMessage[]
-  ) => {
-    return fetchAIResponseDirect(interviewId, currentMessages, theme, memos);
-  };
-
-  // AI応答を取得（引数直接指定版 - load等から呼ぶ）
-  const fetchAIResponseDirect = async (
-    interviewId: string,
-    currentMessages: InterviewMessage[],
-    themeData: Theme | null,
-    memosData: Memo[]
-  ) => {
-    try {
-      const res = await fetch("/api/interview", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          themeTitle: themeData?.title ?? "",
-          themeDescription: themeData?.description ?? "",
-          memos: memosData.map((m) => ({ content: m.content })),
-          messages: currentMessages.map((m) => ({
-            role: m.role,
-            content: m.content,
-          })),
-        }),
-      });
-
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
-
-      // AI応答をDB保存
-      const saveResult = await addMessage(
-        interviewId,
-        "assistant",
-        data.response
-      );
-      if (saveResult.success) {
-        setMessages((prev) => [...prev, saveResult.data]);
-      }
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "AI応答の取得に失敗しました"
-      );
-    }
-  };
-
   // ユーザーメッセージ送信
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || !interview) return;
+    if (!input.trim() || !interview || sending) return;
 
     setSending(true);
     setError(null);
@@ -162,7 +180,7 @@ function InterviewContent() {
       setMessages(updatedMessages);
       setInput("");
       // AI応答取得
-      await fetchAIResponse(interview.id, updatedMessages);
+      await fetchAI(interview.id, updatedMessages, theme, memos);
     } else {
       setError(userResult.error);
     }
@@ -173,7 +191,7 @@ function InterviewContent() {
 
   // インタビュー完了
   const handleComplete = async () => {
-    if (!interview) return;
+    if (!interview || completing) return;
     setCompleting(true);
     const result = await completeInterview(interview.id);
     if (result.success) {
