@@ -25,9 +25,11 @@ export async function POST(request: NextRequest) {
 
     // Gemini AI を使用したインタビュー
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
-
     const systemPrompt = buildSystemPrompt(themeTitle, themeDescription, memos);
+    const model = genAI.getGenerativeModel({
+      model: "gemini-2.0-flash",
+      systemInstruction: systemPrompt,
+    });
 
     // 会話履歴を構築
     const chatHistory = (messages ?? []).map(
@@ -39,7 +41,6 @@ export async function POST(request: NextRequest) {
 
     const chat = model.startChat({
       history: chatHistory,
-      systemInstruction: systemPrompt,
     });
 
     // 最初の質問 or 会話の続き
