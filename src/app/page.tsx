@@ -158,13 +158,6 @@ export default function HomePage() {
               </Link>
             </div>
           </section>
-
-          {/* 運営情報 */}
-          <div className="text-muted-foreground pt-6 text-center text-sm">
-            <p className="font-bold">運営</p>
-            <p>株式会社ヒトコト</p>
-            <p>代表者: 小南優作</p>
-          </div>
         </div>
       </main>
       <Footer />
