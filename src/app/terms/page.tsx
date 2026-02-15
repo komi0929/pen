@@ -134,7 +134,7 @@ export default function TermsPage() {
               </p>
             </section>
 
-            <div className="border-border mt-8 border-t pt-6">
+            <div className="mt-8 pt-6">
               <p className="font-bold">運営会社</p>
               <p>株式会社ヒトコト</p>
               <p>代表者: 小南優作</p>

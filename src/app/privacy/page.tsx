@@ -126,7 +126,7 @@ export default function PrivacyPage() {
               <p>本ポリシーに関するお問い合わせは、以下までご連絡ください。</p>
             </section>
 
-            <div className="border-border mt-8 border-t pt-6">
+            <div className="mt-8 pt-6">
               <p className="font-bold">運営会社</p>
               <p>株式会社ヒトコト</p>
               <p>代表者: 小南優作</p>
