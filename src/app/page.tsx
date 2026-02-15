@@ -9,7 +9,7 @@ export default function HomePage() {
       <Header />
       <main className="flex-1">
         {/* Hero */}
-        <section className="pen-container pen-fade-in py-20 text-center">
+        <section className="pen-container pen-fade-in pt-20 pb-24 text-center">
           <div className="bg-primary mb-6 inline-flex h-16 w-16 items-center justify-center rounded-2xl text-white">
             <PenLine className="h-8 w-8" />
           </div>
@@ -31,7 +31,7 @@ export default function HomePage() {
         </section>
 
         {/* Features */}
-        <section className="pen-container py-16">
+        <section className="pen-container pt-16 pb-20">
           <div className="grid gap-6 md:grid-cols-3">
             <div className="pen-card text-center">
               <div className="bg-muted mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl">
@@ -67,7 +67,7 @@ export default function HomePage() {
         </section>
 
         {/* How it works */}
-        <section className="bg-muted py-16">
+        <section className="bg-muted pt-16 pb-20">
           <div className="pen-container">
             <h2 className="mb-10 text-center text-2xl font-bold">使い方</h2>
             <div className="grid gap-8 md:grid-cols-4">
@@ -103,6 +103,20 @@ export default function HomePage() {
               ))}
             </div>
           </div>
+        </section>
+
+        {/* Bottom CTA */}
+        <section className="pen-container py-20 text-center">
+          <h2 className="mb-4 text-2xl font-bold">さっそく始めてみましょう</h2>
+          <p className="text-muted-foreground mx-auto mb-8 max-w-md text-sm leading-relaxed">
+            アカウント登録は無料。テーマを作って、AIと対話するだけで記事が完成します。
+          </p>
+          <Link
+            href="/login"
+            className="pen-btn pen-btn-accent px-8 py-3 text-base"
+          >
+            無料で始める
+          </Link>
         </section>
       </main>
       <Footer />
