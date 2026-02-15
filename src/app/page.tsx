@@ -1,6 +1,13 @@
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
-import { FileText, MessageSquare, PenLine, Sparkles } from "lucide-react";
+import {
+  FileText,
+  Lightbulb,
+  MessageSquare,
+  PenLine,
+  Sparkles,
+  StickyNote,
+} from "lucide-react";
 import Link from "next/link";
 
 export default function HomePage() {
@@ -8,118 +15,157 @@ export default function HomePage() {
     <div className="flex min-h-screen flex-col">
       <Header />
       <main className="flex-1">
-        {/* Hero */}
-        <section className="bg-muted/50 pen-fade-in pt-24 pb-16 text-center">
-          <div className="pen-container">
-            <div className="bg-primary mb-8 inline-flex h-16 w-16 items-center justify-center rounded-2xl text-white">
+        <div className="pen-container pen-fade-in py-8">
+          {/* ヒーロー */}
+          <div className="mb-12 text-center">
+            <div className="bg-primary mx-auto mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl text-white">
               <PenLine className="h-8 w-8" />
             </div>
-            <h1 className="mb-4 text-4xl font-bold tracking-tight">
-              あなたの思考を、
-              <br />
-              <span className="text-accent">記事</span>に変える。
-            </h1>
-            <p className="text-muted-foreground mx-auto mb-10 max-w-md text-lg leading-relaxed">
-              AIインタビューを通じて、あなたの考えを整理し、
-              noteに投稿できる記事を自動生成します。
+            <h1 className="mb-3 text-3xl font-bold tracking-tight">penとは</h1>
+            <p className="text-muted-foreground mx-auto max-w-lg text-lg leading-relaxed">
+              あなたの頭の中にある考えを、AIとの対話を通じて
+              noteに投稿できる記事に変えるツールです。
             </p>
-            <Link
-              href="/login"
-              className="pen-btn pen-btn-accent px-8 py-3 text-base"
-            >
-              無料で始める
-            </Link>
           </div>
-        </section>
 
-        {/* Features */}
-        <section className="pen-container pt-20 pb-20">
-          <div className="grid gap-6 md:grid-cols-3">
-            <div className="pen-card text-center">
-              <div className="bg-muted mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl">
-                <MessageSquare className="text-accent h-6 w-6" />
-              </div>
-              <h3 className="mb-2 font-bold">AIインタビュー</h3>
-              <p className="text-muted-foreground text-sm leading-relaxed">
-                AIが質問を投げかけ、あなたの回答を引き出します。
-                自然な対話で思考を深堀りします。
+          {/* コンセプト */}
+          <section className="mb-12">
+            <h2 className="mb-6 text-xl font-bold">✍️ コンセプト</h2>
+            <div className="bg-muted rounded-xl p-6">
+              <p className="mb-4 leading-relaxed">
+                「書きたいことはあるのに、うまく言葉にできない」——
+                そんな経験はありませんか？
+              </p>
+              <p className="mb-4 leading-relaxed">
+                penは、AIインタビューを通じてあなたの考えを引き出し、
+                整理し、読みやすい記事に変換するツールです。
+                ブログや記事を書くハードルを極限まで下げることを目指しています。
+              </p>
+              <p className="leading-relaxed">
+                テーマを設定し、メモを書き、AIと対話するだけ。
+                あとはpenが記事を仕上げます。
               </p>
             </div>
-            <div className="pen-card text-center">
-              <div className="bg-muted mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl">
-                <Sparkles className="text-accent h-6 w-6" />
-              </div>
-              <h3 className="mb-2 font-bold">自動記事生成</h3>
-              <p className="text-muted-foreground text-sm leading-relaxed">
-                インタビュー内容から、noteに最適化された
-                読みやすい記事を自動生成します。
-              </p>
-            </div>
-            <div className="pen-card text-center">
-              <div className="bg-muted mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl">
-                <FileText className="text-accent h-6 w-6" />
-              </div>
-              <h3 className="mb-2 font-bold">コピー＆投稿</h3>
-              <p className="text-muted-foreground text-sm leading-relaxed">
-                生成された記事をワンクリックでコピー。
-                そのままnoteに投稿できます。
-              </p>
-            </div>
-          </div>
-        </section>
+          </section>
 
-        {/* How it works */}
-        <section className="bg-muted pt-16 pb-20">
-          <div className="pen-container">
-            <h2 className="mb-10 text-center text-2xl font-bold">使い方</h2>
-            <div className="grid gap-8 md:grid-cols-4">
+          {/* 使い方 */}
+          <section className="mb-12">
+            <h2 className="mb-6 text-xl font-bold">📖 使い方</h2>
+            <div className="space-y-4">
               {[
                 {
-                  step: "01",
-                  title: "テーマを決める",
-                  desc: "書きたい記事のテーマを設定",
+                  step: "1",
+                  icon: Lightbulb,
+                  title: "テーマを作る",
+                  desc: "書きたいテーマを設定します。「副業で学んだこと」「最近読んだ本の感想」など、自由に。",
                 },
                 {
-                  step: "02",
-                  title: "メモを追加",
-                  desc: "思いついたことをメモに残す",
+                  step: "2",
+                  icon: StickyNote,
+                  title: "メモを書く",
+                  desc: "テーマについて思いついたことを、断片的でOK。箇条書きでもメモでも自由に書き溜めます。",
                 },
                 {
-                  step: "03",
-                  title: "インタビュー",
-                  desc: "AIが質問、あなたが回答",
+                  step: "3",
+                  icon: MessageSquare,
+                  title: "AIインタビュー",
+                  desc: "AIがあなたに質問を投げかけます。対話を通じて、自分の考えが整理されていきます。",
                 },
                 {
-                  step: "04",
-                  title: "記事完成",
-                  desc: "自動生成された記事をコピー",
+                  step: "4",
+                  icon: FileText,
+                  title: "記事が完成",
+                  desc: "インタビュー内容から、noteに最適化された読みやすい記事が自動生成されます。ワンクリックでコピー可能。",
                 },
               ].map((item) => (
-                <div key={item.step} className="text-center">
-                  <div className="text-accent mb-2 text-3xl font-bold">
-                    {item.step}
+                <div
+                  key={item.step}
+                  className="border-border bg-card flex items-start gap-4 rounded-xl border p-4"
+                >
+                  <div className="bg-muted flex h-10 w-10 shrink-0 items-center justify-center rounded-lg">
+                    <item.icon className="text-accent h-5 w-5" />
                   </div>
-                  <h3 className="mb-1 font-bold">{item.title}</h3>
-                  <p className="text-muted-foreground text-sm">{item.desc}</p>
+                  <div>
+                    <h3 className="mb-1 font-bold">
+                      <span className="text-accent mr-2">Step {item.step}</span>
+                      {item.title}
+                    </h3>
+                    <p className="text-muted-foreground text-sm leading-relaxed">
+                      {item.desc}
+                    </p>
+                  </div>
                 </div>
               ))}
             </div>
-          </div>
-        </section>
+          </section>
 
-        {/* Bottom CTA */}
-        <section className="pen-container py-20 text-center">
-          <h2 className="mb-4 text-2xl font-bold">さっそく始めてみましょう</h2>
-          <p className="text-muted-foreground mx-auto mb-8 max-w-md text-sm leading-relaxed">
-            アカウント登録は無料。テーマを作って、AIと対話するだけで記事が完成します。
-          </p>
-          <Link
-            href="/login"
-            className="pen-btn pen-btn-accent px-8 py-3 text-base"
-          >
-            無料で始める
-          </Link>
-        </section>
+          {/* 特徴 */}
+          <section className="mb-12">
+            <h2 className="mb-6 text-xl font-bold">✨ 特徴</h2>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {[
+                {
+                  icon: Sparkles,
+                  title: "AIが考えを引き出す",
+                  desc: "ただ生成するのではなく、対話を通じてあなたの本音を引き出します。",
+                },
+                {
+                  icon: FileText,
+                  title: "note最適化",
+                  desc: "生成される記事はnoteのフォーマットに最適化。すぐに投稿できます。",
+                },
+                {
+                  icon: StickyNote,
+                  title: "メモから始められる",
+                  desc: "完璧な文章は不要。断片的なメモからでも記事が作れます。",
+                },
+                {
+                  icon: PenLine,
+                  title: "シンプルなUI",
+                  desc: "余計な機能は一切なし。書くことだけに集中できるデザインです。",
+                },
+              ].map((item) => (
+                <div
+                  key={item.title}
+                  className="border-border bg-card rounded-xl border p-5"
+                >
+                  <div className="bg-muted mb-3 inline-flex h-10 w-10 items-center justify-center rounded-lg">
+                    <item.icon className="text-accent h-5 w-5" />
+                  </div>
+                  <h3 className="mb-1 font-bold">{item.title}</h3>
+                  <p className="text-muted-foreground text-sm leading-relaxed">
+                    {item.desc}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* CTA — ログインブロック */}
+          <section className="mb-12 text-center">
+            <div className="bg-muted rounded-xl p-8">
+              <h2 className="mb-4 text-2xl font-bold">
+                さっそく始めてみましょう
+              </h2>
+              <p className="text-muted-foreground mx-auto mb-8 max-w-md text-sm leading-relaxed">
+                アカウント登録は無料。テーマを作って、AIと対話するだけで記事が完成します。
+              </p>
+              <Link
+                href="/login"
+                className="pen-btn pen-btn-primary px-8 py-3 text-base"
+              >
+                無料で始める
+              </Link>
+            </div>
+          </section>
+
+          {/* 運営情報 */}
+          <div className="text-muted-foreground pt-6 text-center text-sm">
+            <p className="font-bold">運営</p>
+            <p>株式会社ヒトコト</p>
+            <p>代表者: 小南優作</p>
+          </div>
+        </div>
       </main>
       <Footer />
     </div>

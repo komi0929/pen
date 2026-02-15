@@ -7,7 +7,7 @@ export function Footer() {
         {/* #1: target size improved with py-2 px-1 */}
         <div className="mb-4 flex justify-center gap-2">
           <Link
-            href="/about"
+            href="/"
             className="hover:bg-muted hover:text-foreground rounded-lg px-3 py-2 transition-colors"
           >
             penとは
