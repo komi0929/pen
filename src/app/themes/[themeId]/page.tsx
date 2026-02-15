@@ -72,7 +72,7 @@ function ThemeDetailContent() {
     <div className="flex min-h-screen flex-col">
       <Header />
       <main className="flex-1">
-        <div className="pen-container pen-fade-in py-8">
+        <div className="pen-container pen-fade-in pt-12 pb-8">
           <Link
             href="/themes"
             className="text-muted-foreground hover:bg-muted hover:text-foreground mb-6 inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors"

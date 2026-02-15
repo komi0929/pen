@@ -15,7 +15,7 @@ export default function HomePage() {
     <div className="flex min-h-screen flex-col">
       <Header />
       <main className="flex-1">
-        <div className="pen-container pen-fade-in py-8">
+        <div className="pen-container pen-fade-in pt-12 pb-8">
           {/* ヒーロー */}
           <div className="mb-12 text-center">
             <div className="bg-primary mx-auto mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl text-white">

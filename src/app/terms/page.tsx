@@ -6,7 +6,7 @@ export default function TermsPage() {
     <div className="flex min-h-screen flex-col">
       <Header />
       <main className="flex-1">
-        <div className="pen-container pen-fade-in py-8">
+        <div className="pen-container pen-fade-in pt-12 pb-8">
           <h1 className="mb-8 text-2xl font-bold">利用規約</h1>
 
           <div className="prose prose-sm max-w-none space-y-6 text-sm leading-relaxed">

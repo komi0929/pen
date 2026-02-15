@@ -68,7 +68,7 @@ function ThemesContent() {
     <div className="flex min-h-screen flex-col">
       <Header />
       <main className="flex-1">
-        <div className="pen-container pen-fade-in py-8">
+        <div className="pen-container pen-fade-in pt-12 pb-8">
           <div className="mb-8 flex items-center justify-between">
             <h1 className="text-2xl font-bold">テーマ</h1>
             <button
