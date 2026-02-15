@@ -9,29 +9,31 @@ export default function HomePage() {
       <Header />
       <main className="flex-1">
         {/* Hero */}
-        <section className="pen-container pen-fade-in pt-20 pb-24 text-center">
-          <div className="bg-primary mb-6 inline-flex h-16 w-16 items-center justify-center rounded-2xl text-white">
-            <PenLine className="h-8 w-8" />
+        <section className="bg-muted/50 pen-fade-in pt-24 pb-16 text-center">
+          <div className="pen-container">
+            <div className="bg-primary mb-8 inline-flex h-16 w-16 items-center justify-center rounded-2xl text-white">
+              <PenLine className="h-8 w-8" />
+            </div>
+            <h1 className="mb-4 text-4xl font-bold tracking-tight">
+              あなたの思考を、
+              <br />
+              <span className="text-accent">記事</span>に変える。
+            </h1>
+            <p className="text-muted-foreground mx-auto mb-10 max-w-md text-lg leading-relaxed">
+              AIインタビューを通じて、あなたの考えを整理し、
+              noteに投稿できる記事を自動生成します。
+            </p>
+            <Link
+              href="/login"
+              className="pen-btn pen-btn-accent px-8 py-3 text-base"
+            >
+              無料で始める
+            </Link>
           </div>
-          <h1 className="mb-4 text-4xl font-bold tracking-tight">
-            あなたの思考を、
-            <br />
-            <span className="text-accent">記事</span>に変える。
-          </h1>
-          <p className="text-muted-foreground mx-auto mb-8 max-w-md text-lg leading-relaxed">
-            AIインタビューを通じて、あなたの考えを整理し、
-            noteに投稿できる記事を自動生成します。
-          </p>
-          <Link
-            href="/login"
-            className="pen-btn pen-btn-accent px-8 py-3 text-base"
-          >
-            無料で始める
-          </Link>
         </section>
 
         {/* Features */}
-        <section className="pen-container pt-16 pb-20">
+        <section className="pen-container pt-20 pb-20">
           <div className="grid gap-6 md:grid-cols-3">
             <div className="pen-card text-center">
               <div className="bg-muted mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl">
