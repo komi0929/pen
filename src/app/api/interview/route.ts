@@ -31,26 +31,45 @@ export async function POST(request: NextRequest) {
       systemInstruction: systemPrompt,
     });
 
-    // 会話履歴を構築
-    const chatHistory = (messages ?? []).map(
+    // 会話履歴を構築（Gemini APIは最初のメッセージがuserである必要がある）
+    const rawHistory = (messages ?? []).map(
       (m: { role: string; content: string }) => ({
         role: m.role === "assistant" ? "model" : "user",
         parts: [{ text: m.content }],
       })
     );
 
+    // 履歴の先頭がmodelの場合、初期プロンプトをuser側として挿入
+    if (rawHistory.length > 0 && rawHistory[0].role === "model") {
+      rawHistory.unshift({
+        role: "user",
+        parts: [
+          {
+            text: "インタビューを開始してください。最初の質問をしてください。",
+          },
+        ],
+      });
+    }
+
+    // sendMessageに渡すpromptと、startChatに渡すhistoryを分離
+    // historyは最後のメッセージを除いたもの、promptは最後のメッセージ
+    let prompt: string;
+    let chatHistory: typeof rawHistory;
+
+    if (messageCount === 0) {
+      // 最初の質問を生成
+      prompt = "インタビューを開始してください。最初の質問をしてください。";
+      chatHistory = [];
+    } else {
+      // 履歴の最後のメッセージをpromptとし、残りをhistoryにする
+      chatHistory = rawHistory.slice(0, -1);
+      const lastMsg = rawHistory[rawHistory.length - 1];
+      prompt = lastMsg.parts[0].text;
+    }
+
     const chat = model.startChat({
       history: chatHistory,
     });
-
-    // 最初の質問 or 会話の続き
-    let prompt: string;
-    if (messageCount === 0) {
-      prompt = "インタビューを開始してください。最初の質問をしてください。";
-    } else {
-      const lastUserMessage = messages[messages.length - 1];
-      prompt = lastUserMessage?.content ?? "続けてください";
-    }
 
     // リトライ付きでメッセージ送信（429対策）
     let response: string | null = null;
