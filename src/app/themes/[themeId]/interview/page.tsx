@@ -3,7 +3,6 @@
 import { AuthGuard } from "@/components/AuthGuard";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
-import { createArticle, updateArticle } from "@/lib/actions/articles";
 import {
   addMessage,
   completeInterview,
@@ -91,9 +90,7 @@ function InterviewContent() {
   const [aiReadiness, setAiReadiness] = useState(-1);
   const [targetLength, setTargetLength] = useState(1000);
 
-  // 完了確認ダイアログ
-  const [showCompleteDialog, setShowCompleteDialog] = useState(false);
-  const [generating, setGenerating] = useState(false);
+  const [completing, setCompleting] = useState(false);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -293,75 +290,39 @@ function InterviewContent() {
     setSending(false);
   };
 
-  // 完了ボタンクリック → 確認ダイアログ表示
-  const handleCompleteClick = () => {
-    setShowCompleteDialog(true);
-  };
-
-  // 記事生成して完了
+  // 記事を生成して完了（ノンブロッキング）
   const handleGenerateAndComplete = async () => {
-    if (!interview || generating) return;
-    setGenerating(true);
-    setError(null);
+    if (!interview || completing) return;
+    setCompleting(true);
 
-    try {
-      // 1. 記事生成API呼び出し
-      const res = await fetch("/api/generate-article", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          themeTitle: theme?.title ?? "",
-          themeDescription: theme?.description ?? "",
-          targetLength: interview.target_length,
-          memos: memos.map((m) => ({ content: m.content })),
-          messages: messages.map((m) => ({
-            role: m.role,
-            content: m.content,
-          })),
-        }),
-      });
+    // バックグラウンドAPIに全処理を委譲 → 即座に遷移
+    fetch("/api/generate-article-async", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        themeId,
+        interviewId: interview.id,
+        themeTitle: theme?.title ?? "",
+        themeDescription: theme?.description ?? "",
+        targetLength: interview.target_length,
+        memos: memos.map((m) => ({ content: m.content })),
+        messages: messages.map((m) => ({
+          role: m.role,
+          content: m.content,
+        })),
+        articleId: articleId ?? undefined,
+      }),
+      keepalive: true, // ページ遷移後もリクエスト継続
+    });
 
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
-
-      // 2. 記事をDB保存（追加インタビューの場合は既存記事を上書き）
-      let savedArticleId: string;
-      if (articleId) {
-        const updateResult = await updateArticle(
-          articleId,
-          data.title,
-          data.content
-        );
-        if (!updateResult.success) throw new Error(updateResult.error);
-        savedArticleId = articleId;
-      } else {
-        const articleResult = await createArticle(
-          themeId,
-          interview.id,
-          data.title,
-          data.content
-        );
-        if (!articleResult.success) throw new Error(articleResult.error);
-        savedArticleId = articleResult.data.id;
-      }
-
-      // 3. インタビューを完了ステータスに更新
-      await completeInterview(interview.id);
-
-      // 4. 生成された記事ページへ遷移
-      router.push(`/articles/${savedArticleId}`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "記事の生成に失敗しました");
-      setShowCompleteDialog(false);
-    } finally {
-      setGenerating(false);
-    }
+    // 即座にテーマ一覧へ遷移（記事はバックグラウンドで生成される）
+    router.push("/themes");
   };
 
   // 記事生成せずに完了
   const handleCompleteOnly = async () => {
-    if (!interview || generating) return;
-    setGenerating(true);
+    if (!interview || completing) return;
+    setCompleting(true);
     await completeInterview(interview.id);
     router.push(`/themes/${themeId}`);
   };
@@ -508,20 +469,33 @@ function InterviewContent() {
               <ArrowLeft className="h-4 w-4" />
               戻る
             </Link>
-            <button
-              onClick={handleCompleteClick}
-              disabled={messages.length < 2 || sending}
-              className={`pen-btn ${
-                isReady ? "pen-btn-accent shadow-lg" : "pen-btn-secondary"
-              } transition-all`}
-            >
-              {isReady ? (
-                <FileText className="h-4 w-4" />
-              ) : (
-                <Check className="h-4 w-4" />
-              )}
-              {isReady ? "記事を生成する" : "インタビューを完了する"}
-            </button>
+            {/* 記事生成ボタン + 生成せず完了ボタン */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleGenerateAndComplete}
+                disabled={messages.length < 2 || sending || completing}
+                className={`pen-btn ${
+                  isReady ? "pen-btn-accent shadow-lg" : "pen-btn-secondary"
+                } transition-all`}
+              >
+                {completing ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : isReady ? (
+                  <FileText className="h-4 w-4" />
+                ) : (
+                  <Check className="h-4 w-4" />
+                )}
+                {isReady ? "記事を生成する" : "完了して記事を生成"}
+              </button>
+              <button
+                onClick={handleCompleteOnly}
+                disabled={messages.length < 2 || sending || completing}
+                className="pen-btn pen-btn-secondary text-xs"
+                title="記事を生成せずにインタビューのみ完了"
+              >
+                生成せず完了
+              </button>
+            </div>
           </div>
 
           {error && (
@@ -603,54 +577,7 @@ function InterviewContent() {
         </div>
       </main>
 
-      {/* 完了確認ダイアログ */}
-      {showCompleteDialog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-card w-full max-w-md rounded-2xl p-6 shadow-2xl">
-            <h3 className="mb-2 text-lg font-bold">インタビューを完了する</h3>
-            <p className="text-muted-foreground mb-6 text-sm leading-relaxed">
-              インタビュー内容をもとに、AIが記事を自動生成します。
-              生成には30秒ほどかかる場合があります。
-            </p>
-
-            {generating && (
-              <div className="mb-4 flex items-center gap-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
-                <Loader2 className="h-5 w-5 shrink-0 animate-spin" />
-                <span>記事を生成中です... しばらくお待ちください</span>
-              </div>
-            )}
-
-            <div className="flex flex-col gap-2">
-              <button
-                onClick={handleGenerateAndComplete}
-                disabled={generating}
-                className="pen-btn pen-btn-accent w-full justify-center py-3"
-              >
-                {generating ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <FileText className="h-4 w-4" />
-                )}
-                記事を生成して完了する
-              </button>
-              <button
-                onClick={handleCompleteOnly}
-                disabled={generating}
-                className="pen-btn pen-btn-secondary w-full justify-center py-2.5"
-              >
-                記事を生成せずに完了する
-              </button>
-              <button
-                onClick={() => setShowCompleteDialog(false)}
-                disabled={generating}
-                className="text-muted-foreground mt-1 text-sm hover:underline"
-              >
-                インタビューを続ける
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* モーダル廃止: 完了ボタンはインラインに統合済み */}
     </div>
   );
 }

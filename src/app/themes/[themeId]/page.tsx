@@ -4,19 +4,21 @@ import { AuthGuard } from "@/components/AuthGuard";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
 import { getActiveInterview } from "@/lib/actions/interviews";
-import { getMemos } from "@/lib/actions/memos";
+import { createMemo, deleteMemo, getMemos } from "@/lib/actions/memos";
 import { getTheme } from "@/lib/actions/themes";
 import type { Interview, Memo, Theme } from "@/types";
 import {
   ArrowLeft,
   FileText,
+  Loader2,
   MessageSquare,
-  PenLine,
+  Send,
   StickyNote,
+  Trash2,
 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 function ThemeDetailContent() {
   const params = useParams();
@@ -28,6 +30,12 @@ function ThemeDetailContent() {
     null
   );
   const [loading, setLoading] = useState(true);
+
+  // メモ入力
+  const [content, setContent] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const load = useCallback(async () => {
     const [themeResult, memosResult, interviewResult] = await Promise.all([
@@ -45,6 +53,38 @@ function ThemeDetailContent() {
   useEffect(() => {
     load();
   }, [load]);
+
+  const handleCreateMemo = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!content.trim()) return;
+    setCreating(true);
+    setError(null);
+    const result = await createMemo(themeId, content.trim());
+    if (result.success) {
+      setMemos((prev) => [...prev, result.data]);
+      setContent("");
+      textareaRef.current?.focus();
+    } else {
+      setError(result.error);
+    }
+    setCreating(false);
+  };
+
+  const handleDeleteMemo = async (memoId: string) => {
+    const result = await deleteMemo(memoId);
+    if (result.success) {
+      setMemos((prev) => prev.filter((m) => m.id !== memoId));
+    } else {
+      setError(result.error);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault();
+      handleCreateMemo(e as unknown as React.FormEvent);
+    }
+  };
 
   if (loading) {
     return (
@@ -81,6 +121,7 @@ function ThemeDetailContent() {
             テーマ一覧に戻る
           </Link>
 
+          {/* テーマ情報 */}
           <div className="mb-8">
             <h1 className="mb-2 text-2xl font-bold">{theme.title}</h1>
             {theme.description && (
@@ -88,92 +129,100 @@ function ThemeDetailContent() {
             )}
           </div>
 
-          <div className="grid gap-4 md:grid-cols-3">
-            {/* メモ */}
-            <Link
-              href={`/themes/${themeId}/memos`}
-              className="pen-card flex flex-col items-center py-8 text-center"
-            >
-              <div className="bg-muted mb-3 inline-flex h-12 w-12 items-center justify-center rounded-xl">
-                <StickyNote className="text-accent h-6 w-6" />
-              </div>
-              <h3 className="mb-1 font-bold">メモ</h3>
-              <p className="text-muted-foreground mb-3 text-sm">
-                思いついたことを書き溜める
-              </p>
-              <span className="pen-badge">{memos.length}件のメモ</span>
-            </Link>
+          {/* メモ入力フォーム */}
+          <form onSubmit={handleCreateMemo} className="pen-card mb-6">
+            <textarea
+              ref={textareaRef}
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="メモを入力... (Ctrl+Enterで追加)"
+              className="pen-textarea"
+              rows={3}
+              autoFocus
+            />
+            <div className="mt-3 flex items-center justify-between">
+              <span className="text-muted-foreground text-xs">
+                {memos.length}件のメモ
+              </span>
+              <button
+                type="submit"
+                disabled={creating || !content.trim()}
+                className="pen-btn pen-btn-accent"
+              >
+                {creating ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
+                追加
+              </button>
+            </div>
+          </form>
 
-            {/* インタビュー */}
-            <Link
-              href={`/themes/${themeId}/interview`}
-              className="pen-card flex flex-col items-center py-8 text-center"
-            >
-              <div className="bg-muted mb-3 inline-flex h-12 w-12 items-center justify-center rounded-xl">
-                <MessageSquare className="text-accent h-6 w-6" />
-              </div>
-              <h3 className="mb-1 font-bold">インタビュー</h3>
-              <p className="text-muted-foreground mb-3 text-sm">
-                AIと対話して考えを深める
-              </p>
-              {activeInterview ? (
-                <span className="pen-badge bg-accent/10 text-accent">
-                  進行中
-                </span>
-              ) : (
-                <span className="pen-badge">開始する</span>
-              )}
-            </Link>
+          {error && (
+            <p className="text-danger mb-4 text-center text-sm">{error}</p>
+          )}
 
-            {/* 記事 */}
-            <Link
-              href={`/articles?theme=${themeId}`}
-              className="pen-card flex flex-col items-center py-8 text-center"
-            >
-              <div className="bg-muted mb-3 inline-flex h-12 w-12 items-center justify-center rounded-xl">
-                <FileText className="text-accent h-6 w-6" />
-              </div>
-              <h3 className="mb-1 font-bold">記事</h3>
-              <p className="text-muted-foreground mb-3 text-sm">
-                生成された記事を確認
-              </p>
-              <span className="pen-badge">記事を見る</span>
-            </Link>
-          </div>
-
-          {/* メモプレビュー */}
+          {/* メモ一覧 */}
           {memos.length > 0 && (
-            <div className="mt-8">
-              <div className="mb-3 flex items-center justify-between">
-                <h2 className="font-bold">
-                  <PenLine className="mr-1.5 inline h-4 w-4" />
-                  最近のメモ
-                </h2>
-                <Link
-                  href={`/themes/${themeId}/memos`}
-                  className="text-accent text-sm hover:underline"
+            <div className="mb-8 space-y-3">
+              {memos.map((memo) => (
+                <div
+                  key={memo.id}
+                  className="group border-border bg-card flex items-start gap-3 rounded-lg border px-4 py-3"
                 >
-                  すべて見る
-                </Link>
-              </div>
-              <div className="space-y-2">
-                {memos
-                  .slice(-3)
-                  .reverse()
-                  .map((memo) => (
-                    <div
-                      key={memo.id}
-                      className="border-border bg-card rounded-lg border px-4 py-3 text-sm"
-                    >
-                      <p className="line-clamp-2">{memo.content}</p>
-                      <p className="text-muted-foreground mt-1 text-xs">
-                        {new Date(memo.created_at).toLocaleString("ja-JP")}
-                      </p>
-                    </div>
-                  ))}
-              </div>
+                  <div className="bg-accent mt-1 h-2.5 w-2.5 shrink-0 rounded-full" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                      {memo.content}
+                    </p>
+                    <p className="text-muted-foreground mt-1 text-xs">
+                      {new Date(memo.created_at).toLocaleString("ja-JP")}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => handleDeleteMemo(memo.id)}
+                    className="text-muted-foreground hover:bg-danger/10 hover:text-danger shrink-0 rounded-lg p-2 transition-all md:opacity-0 md:group-hover:opacity-100"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
             </div>
           )}
+
+          {/* アクションボタン */}
+          <div className="border-border bg-card rounded-xl border p-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6">
+              {/* インタビュー */}
+              <Link
+                href={`/themes/${themeId}/interview`}
+                className="pen-btn pen-btn-accent flex-1 justify-center py-3 text-base"
+              >
+                <MessageSquare className="h-5 w-5" />
+                {activeInterview
+                  ? "インタビューを続ける"
+                  : "AIインタビューを始める"}
+              </Link>
+
+              {/* 記事一覧 */}
+              <Link
+                href={`/articles?theme=${themeId}`}
+                className="pen-btn pen-btn-secondary flex-1 justify-center py-3"
+              >
+                <FileText className="h-4 w-4" />
+                記事を見る
+              </Link>
+            </div>
+
+            {memos.length === 0 && (
+              <p className="text-muted-foreground mt-4 text-center text-xs">
+                <StickyNote className="mr-1 inline h-3 w-3" />
+                メモを書いてからインタビューを始めると、より良い記事が生成されます
+              </p>
+            )}
+          </div>
         </div>
       </main>
       <Footer />
