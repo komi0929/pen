@@ -18,6 +18,45 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+/** 準備度に応じたステータス情報 */
+function getReadinessInfo(readiness: number) {
+  if (readiness < 0) return { label: "", color: "", bgColor: "", message: "" };
+  if (readiness < 20)
+    return {
+      label: "導入",
+      color: "bg-red-400",
+      bgColor: "bg-red-100",
+      message: "まだ始まったばかりです",
+    };
+  if (readiness < 40)
+    return {
+      label: "基本情報",
+      color: "bg-orange-400",
+      bgColor: "bg-orange-100",
+      message: "基本的な情報が集まってきました",
+    };
+  if (readiness < 60)
+    return {
+      label: "深堀り中",
+      color: "bg-yellow-400",
+      bgColor: "bg-yellow-100",
+      message: "素材が集まってきています",
+    };
+  if (readiness < 80)
+    return {
+      label: "あと少し",
+      color: "bg-green-400",
+      bgColor: "bg-green-100",
+      message: "あと少しで記事が書けます",
+    };
+  return {
+    label: "準備完了",
+    color: "bg-emerald-500",
+    bgColor: "bg-emerald-100",
+    message: "記事を書く準備ができました！",
+  };
+}
+
 function InterviewContent() {
   const params = useParams();
   const router = useRouter();
@@ -32,6 +71,7 @@ function InterviewContent() {
   const [sending, setSending] = useState(false);
   const [completing, setCompleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [readiness, setReadiness] = useState(-1);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -55,7 +95,6 @@ function InterviewContent() {
       themeData: Theme | null,
       memosData: Memo[]
     ) => {
-      // 重複呼び出し防止
       if (isFetchingRef.current) return;
       isFetchingRef.current = true;
 
@@ -77,6 +116,11 @@ function InterviewContent() {
         const data = await res.json();
         if (data.error) throw new Error(data.error);
         if (!data.response) throw new Error("AI応答が空です");
+
+        // 準備度を更新
+        if (typeof data.readiness === "number" && data.readiness >= 0) {
+          setReadiness(data.readiness);
+        }
 
         // AI応答をDB保存
         const saveResult = await addMessage(
@@ -100,7 +144,6 @@ function InterviewContent() {
 
   // 初期ロード
   const load = useCallback(async () => {
-    // 重複ロード防止
     if (isLoadingRef.current) return;
     isLoadingRef.current = true;
 
@@ -119,11 +162,9 @@ function InterviewContent() {
 
       if (interviewResult.success && interviewResult.data) {
         setInterview(interviewResult.data);
-        // 既存メッセージをロード
         const msgResult = await getInterview(interviewResult.data.id);
         if (msgResult.success) {
           setMessages(msgResult.data.messages);
-          // メッセージが0件なら最初のAI質問を自動取得
           if (msgResult.data.messages.length === 0) {
             setLoading(false);
             setSending(true);
@@ -151,13 +192,12 @@ function InterviewContent() {
 
   // インタビュー開始
   const handleStart = async () => {
-    if (sending) return; // 二重クリック防止
+    if (sending) return;
     setSending(true);
     setError(null);
     const result = await createInterview(themeId, 1000);
     if (result.success) {
       setInterview(result.data);
-      // 最初のAI質問を取得
       await fetchAI(result.data.id, [], theme, memos);
     } else {
       setError(result.error);
@@ -173,13 +213,11 @@ function InterviewContent() {
     setSending(true);
     setError(null);
 
-    // ユーザーメッセージ保存
     const userResult = await addMessage(interview.id, "user", input.trim());
     if (userResult.success) {
       const updatedMessages = [...messages, userResult.data];
       setMessages(updatedMessages);
       setInput("");
-      // AI応答取得
       await fetchAI(interview.id, updatedMessages, theme, memos);
     } else {
       setError(userResult.error);
@@ -270,13 +308,17 @@ function InterviewContent() {
     );
   }
 
+  const info = getReadinessInfo(readiness);
+  const isReady = readiness >= 80;
+
   // チャットUI
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
       <main className="flex-1">
         <div className="pen-container pen-fade-in py-8">
-          <div className="mb-6 flex items-center justify-between">
+          {/* ヘッダー: 戻るボタン + 完了ボタン */}
+          <div className="mb-4 flex items-center justify-between">
             <Link
               href={`/themes/${themeId}`}
               className="text-muted-foreground hover:bg-muted hover:text-foreground inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors"
@@ -287,7 +329,9 @@ function InterviewContent() {
             <button
               onClick={handleComplete}
               disabled={completing || messages.length < 2}
-              className="pen-btn pen-btn-accent"
+              className={`pen-btn ${
+                isReady ? "pen-btn-accent animate-pulse" : "pen-btn-secondary"
+              }`}
             >
               {completing ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -297,6 +341,36 @@ function InterviewContent() {
               インタビューを完了
             </button>
           </div>
+
+          {/* 準備度プログレスバー */}
+          {readiness >= 0 && (
+            <div className="mb-6">
+              <div className="mb-1.5 flex items-center justify-between">
+                <span className="text-muted-foreground text-xs font-medium">
+                  記事素材の準備度
+                </span>
+                <span className="text-xs font-bold">
+                  {readiness}%
+                  {info.label && (
+                    <span className="text-muted-foreground ml-1 font-normal">
+                      — {info.label}
+                    </span>
+                  )}
+                </span>
+              </div>
+              <div
+                className={`h-2 w-full overflow-hidden rounded-full ${info.bgColor}`}
+              >
+                <div
+                  className={`h-full rounded-full transition-all duration-700 ease-out ${info.color}`}
+                  style={{ width: `${readiness}%` }}
+                />
+              </div>
+              <p className="text-muted-foreground mt-1 text-xs">
+                {info.message}
+              </p>
+            </div>
+          )}
 
           {error && (
             <p className="text-danger mb-4 text-center text-sm">{error}</p>

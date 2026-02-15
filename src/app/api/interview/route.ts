@@ -13,14 +13,14 @@ export async function POST(request: NextRequest) {
 
     if (!apiKey) {
       // APIキー未設定時はモック応答
-      const response = generateMockResponse(
+      const mock = generateMockResponse(
         themeTitle,
         themeDescription,
         memos,
         messages,
         messageCount
       );
-      return NextResponse.json({ response });
+      return NextResponse.json(mock);
     }
 
     // Gemini AI を使用したインタビュー
@@ -52,16 +52,13 @@ export async function POST(request: NextRequest) {
     }
 
     // sendMessageに渡すpromptと、startChatに渡すhistoryを分離
-    // historyは最後のメッセージを除いたもの、promptは最後のメッセージ
     let prompt: string;
     let chatHistory: typeof rawHistory;
 
     if (messageCount === 0) {
-      // 最初の質問を生成
       prompt = "インタビューを開始してください。最初の質問をしてください。";
       chatHistory = [];
     } else {
-      // 履歴の最後のメッセージをpromptとし、残りをhistoryにする
       chatHistory = rawHistory.slice(0, -1);
       const lastMsg = rawHistory[rawHistory.length - 1];
       prompt = lastMsg.parts[0].text;
@@ -72,11 +69,11 @@ export async function POST(request: NextRequest) {
     });
 
     // リトライ付きでメッセージ送信（429対策）
-    let response: string | null = null;
+    let rawResponse: string | null = null;
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
         const result = await chat.sendMessage(prompt);
-        response = result.response.text();
+        rawResponse = result.response.text();
         break;
       } catch (retryError: unknown) {
         const isRateLimit =
@@ -89,7 +86,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({ response });
+    // [[READY:XX]] をパースして分離
+    const { text: response, readiness } = parseReadiness(rawResponse ?? "");
+
+    return NextResponse.json({ response, readiness });
   } catch (error) {
     console.error("Interview API error:", error);
     const message = error instanceof Error ? error.message : "不明なエラー";
@@ -98,6 +98,18 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+/**
+ * AI応答から [[READY:XX]] をパースし、表示テキストと準備度を分離する
+ */
+function parseReadiness(text: string): { text: string; readiness: number } {
+  const match = text.match(/\[\[READY:(\d{1,3})\]\]/);
+  const readiness = match
+    ? Math.min(100, Math.max(0, parseInt(match[1], 10)))
+    : -1;
+  const cleanText = text.replace(/\s*\[\[READY:\d{1,3}\]\]\s*/g, "").trim();
+  return { text: cleanText, readiness };
 }
 
 function buildSystemPrompt(
@@ -120,43 +132,76 @@ ${themeDescription ? `説明: ${themeDescription}` : ""}${memoSection}
 1. 一度に1つの質問だけをする（複数の質問を同時にしない）
 2. ユーザーの回答を深掘りし、具体的なエピソードや感情を引き出す
 3. 共感を示しながら、自然な対話を心がける
-4. 5〜8回のやり取りで十分な素材が集まるようにする
-5. 質問は短く、分かりやすく
-6. 回答には「なるほど」「面白いですね」などの相槌を入れる
-7. メモがある場合は、メモの内容に触れながら質問する
-8. 敬語で話す（ですます調）
-9. 絵文字は使わない`;
+4. 質問は短く、分かりやすく
+5. 回答には「なるほど」「面白いですね」などの相槌を入れる
+6. メモがある場合は、メモの内容に触れながら質問する
+7. 敬語で話す（ですます調）
+8. 絵文字は使わない
+
+## 記事素材の準備度評価（必須）
+あなたは毎回の応答の最後に、記事を書くための素材がどれくらい集まったかを評価してください。
+応答テキストの**最終行**に以下のフォーマットで準備度を記載してください：
+
+[[READY:XX]]
+
+XXは0〜100の整数で、以下の基準に従ってください：
+
+- **0〜20**: まだ始まったばかり。テーマの背景や動機がわかっていない
+- **20〜40**: 基本的な情報は得たが、具体的なエピソードや感情が不足
+- **40〜60**: いくつかのエピソードや考えが出てきた。もう少し深堀りが必要
+- **60〜80**: 良い素材が揃ってきた。あと1〜2問で十分になりそう
+- **80〜100**: 記事を書くための十分な素材が集まった
+
+**重要なルール：**
+- 準備度が80以上になったら、質問の前に「十分な素材が集まりました。このままインタビューを完了して記事を生成できます。もちろん、まだ伝えたいことがあれば続けてもOKです。」と自然に伝えてから、念のためもう1つ質問をする
+- 準備度が80以上でも、ユーザーが続けたい場合は対応する
+- 最初の質問（会話開始時）は必ず [[READY:5]] とする
+- ユーザーの回答が短い・浅い場合は準備度を大きく上げない
+- ユーザーの回答が具体的で豊かな場合は準備度を積極的に上げる
+
+このタグはユーザーには表示されません。必ず毎回付与してください。`;
 }
 
 function generateMockResponse(
   themeTitle: string,
   themeDescription: string,
-  memos: any[] | null,
-  messages: any[] | null,
+  memos: { content: string }[] | null,
+  messages: { role: string; content: string }[] | null,
   messageCount: number
-): string {
-  const userMessages =
-    messages?.filter((m: { role: string }) => m.role === "user") ?? [];
+): { response: string; readiness: number } {
+  const userMessages = messages?.filter((m) => m.role === "user") ?? [];
 
   if (messageCount === 0) {
-    return memos && memos.length > 0
-      ? `「${themeTitle}」について、メモを拝見しました。\n\n特に「${memos[0].content.slice(0, 30)}...」が気になりました。\n\nこのテーマについて記事を書こうと思ったきっかけを教えていただけますか？`
-      : `「${themeTitle}」について記事を書くんですね！\n\n${themeDescription ? `「${themeDescription}」とのことですが、` : ""}まず、このテーマに興味を持ったきっかけを教えてください。`;
+    const response =
+      memos && memos.length > 0
+        ? `「${themeTitle}」について、メモを拝見しました。\n\n特に「${memos[0].content.slice(0, 30)}...」が気になりました。\n\nこのテーマについて記事を書こうと思ったきっかけを教えていただけますか？`
+        : `「${themeTitle}」について記事を書くんですね！\n\n${themeDescription ? `「${themeDescription}」とのことですが、` : ""}まず、このテーマに興味を持ったきっかけを教えてください。`;
+    return { response, readiness: 5 };
   } else if (userMessages.length <= 2) {
     const depthQuestions = [
       "なるほど！具体的なエピソードや例はありますか？",
       "それは面白いですね。読者にとって一番伝えたいポイントは何ですか？",
       "もう少し詳しく聞かせてください。なぜそう考えるようになりましたか？",
     ];
-    return depthQuestions[userMessages.length - 1] ?? depthQuestions[0];
+    return {
+      response: depthQuestions[userMessages.length - 1] ?? depthQuestions[0],
+      readiness: 20 + userMessages.length * 10,
+    };
   } else if (userMessages.length <= 4) {
     const expandQuestions = [
       "素晴らしいですね。他に補足したいことや、読者に知ってほしいことはありますか？",
       "この経験から学んだことや、変化したことはありますか？",
       "最後に、このテーマについて一言でまとめるとしたら、どう表現しますか？",
     ];
-    return expandQuestions[userMessages.length - 3] ?? expandQuestions[0];
+    return {
+      response: expandQuestions[userMessages.length - 3] ?? expandQuestions[0],
+      readiness: 50 + (userMessages.length - 2) * 15,
+    };
   } else {
-    return "ありがとうございます。十分な素材が集まりました！\n\n「インタビュー完了」ボタンを押すと、これまでの会話をもとに記事を生成します。";
+    return {
+      response:
+        "十分な素材が集まりました。このままインタビューを完了して記事を生成できます。もちろん、まだ伝えたいことがあれば続けてもOKです。\n\n最後に、この記事を通じて読者に一番伝えたいメッセージは何ですか？",
+      readiness: 90,
+    };
   }
 }
