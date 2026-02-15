@@ -23,6 +23,9 @@ export function Header() {
         <Link href="/" className="flex items-center gap-2 text-lg font-bold">
           <PenLine className="h-5 w-5" />
           <span>pen</span>
+          <span className="text-muted-foreground text-xs font-normal">
+            produced by komi
+          </span>
         </Link>
 
         <nav className="flex items-center gap-1">
