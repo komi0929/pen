@@ -52,8 +52,23 @@ export async function POST(request: NextRequest) {
       prompt = lastUserMessage?.content ?? "続けてください";
     }
 
-    const result = await chat.sendMessage(prompt);
-    const response = result.response.text();
+    // リトライ付きでメッセージ送信（429対策）
+    let response: string | null = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const result = await chat.sendMessage(prompt);
+        response = result.response.text();
+        break;
+      } catch (retryError: unknown) {
+        const isRateLimit =
+          retryError instanceof Error && retryError.message.includes("429");
+        if (isRateLimit && attempt < 2) {
+          await new Promise((r) => setTimeout(r, (attempt + 1) * 2000));
+          continue;
+        }
+        throw retryError;
+      }
+    }
 
     return NextResponse.json({ response });
   } catch (error) {
