@@ -4,7 +4,10 @@ import { NextResponse } from "next/server";
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  const next = searchParams.get("next") ?? "/themes";
+  const rawNext = searchParams.get("next") ?? "/themes";
+  // オープンリダイレクト防止: 相対パスのみ許可
+  const next =
+    rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/themes";
 
   if (code) {
     const supabase = await createClient();
