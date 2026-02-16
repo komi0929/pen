@@ -20,6 +20,3 @@ CREATE INDEX IF NOT EXISTS idx_interview_messages_interview_id ON interview_mess
 CREATE INDEX IF NOT EXISTS idx_articles_user_id ON articles(user_id);
 CREATE INDEX IF NOT EXISTS idx_articles_theme_id ON articles(theme_id);
 
--- analytics_events: イベント名・日付での集計
-CREATE INDEX IF NOT EXISTS idx_analytics_events_name_date ON analytics_events(event_name, created_at);
-CREATE INDEX IF NOT EXISTS idx_analytics_events_user_id ON analytics_events(user_id);
