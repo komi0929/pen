@@ -15,6 +15,8 @@ export interface Theme {
   updated_at: string;
   memo_count?: number;
   article_count?: number;
+  latest_memo_at?: string | null;
+  latest_article_at?: string | null;
 }
 
 export interface Memo {

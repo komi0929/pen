@@ -17,6 +17,46 @@ export async function getThemes(): Promise<ActionResult<Theme[]>> {
 
     if (error) throw error;
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const themeIds = (themes ?? []).map((t: any) => t.id);
+
+    // 各テーマの最新メモ日時を取得
+    const memoLatestMap: Record<string, string> = {};
+    if (themeIds.length > 0) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: memos } = await (supabase as any)
+        .from("memos")
+        .select("theme_id, created_at")
+        .in("theme_id", themeIds)
+        .order("created_at", { ascending: false });
+      if (memos) {
+        for (const m of memos) {
+          if (!memoLatestMap[m.theme_id]) {
+            memoLatestMap[m.theme_id] = m.created_at;
+          }
+        }
+      }
+    }
+
+    // 各テーマの最新記事日時を取得
+    const articleLatestMap: Record<string, string> = {};
+    if (themeIds.length > 0) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: articles } = await (supabase as any)
+        .from("articles")
+        .select("theme_id, created_at")
+        .in("theme_id", themeIds)
+        .order("created_at", { ascending: false });
+      if (articles) {
+        for (const a of articles) {
+          if (!articleLatestMap[a.theme_id]) {
+            articleLatestMap[a.theme_id] = a.created_at;
+          }
+        }
+      }
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const result = (themes ?? []).map((t: any) => ({
       id: t.id,
       user_id: t.user_id,
@@ -30,7 +70,31 @@ export async function getThemes(): Promise<ActionResult<Theme[]>> {
         Array.isArray(t.articles) && t.articles.length > 0
           ? t.articles[0].count
           : 0,
+      latest_memo_at: memoLatestMap[t.id] || null,
+      latest_article_at: articleLatestMap[t.id] || null,
     })) as Theme[];
+
+    // ソート: 記事なし（メモ最新順）→ 記事あり（記事制作日時最新順）
+    result.sort((a, b) => {
+      const aHasArticle = (a.article_count ?? 0) > 0;
+      const bHasArticle = (b.article_count ?? 0) > 0;
+
+      // 記事なしグループを先に
+      if (!aHasArticle && bHasArticle) return -1;
+      if (aHasArticle && !bHasArticle) return 1;
+
+      if (!aHasArticle && !bHasArticle) {
+        // 両方記事なし → メモ最新日時の降順（メモがないものは最後）
+        const aDate = a.latest_memo_at || a.updated_at;
+        const bDate = b.latest_memo_at || b.updated_at;
+        return new Date(bDate).getTime() - new Date(aDate).getTime();
+      }
+
+      // 両方記事あり → 記事制作日時の降順
+      const aDate = a.latest_article_at || a.updated_at;
+      const bDate = b.latest_article_at || b.updated_at;
+      return new Date(bDate).getTime() - new Date(aDate).getTime();
+    });
 
     return { success: true, data: result };
   } catch (err) {

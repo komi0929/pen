@@ -154,8 +154,14 @@ function ThemesContent() {
             <div className="grid gap-4 sm:grid-cols-2">
               {themes.map((theme) => (
                 <div key={theme.id} className="pen-card group relative">
+                  {(theme.article_count ?? 0) > 0 && (
+                    <span className="absolute top-3 right-3 z-10 flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-bold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
+                      <FileText className="h-3 w-3" />
+                      記事あり
+                    </span>
+                  )}
                   <Link href={`/themes/${theme.id}`} className="block">
-                    <h3 className="mb-1 font-bold">{theme.title}</h3>
+                    <h3 className="mb-1 pr-20 font-bold">{theme.title}</h3>
                     {theme.description && (
                       <p className="text-muted-foreground mb-2 line-clamp-2 text-sm">
                         {theme.description}
@@ -166,12 +172,6 @@ function ThemesContent() {
                         <StickyNote className="h-3 w-3" />
                         メモ {theme.memo_count ?? 0}件
                       </span>
-                      {(theme.article_count ?? 0) > 0 && (
-                        <span className="text-accent flex items-center gap-1 font-bold">
-                          <FileText className="h-3 w-3" />
-                          記事あり
-                        </span>
-                      )}
                       <span>
                         {new Date(theme.created_at).toLocaleDateString("ja-JP")}
                       </span>
