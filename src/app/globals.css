@@ -194,7 +194,8 @@ h4 {
 .pen-container {
   max-width: 48rem;
   margin: 0 auto;
-  padding: 0 1rem; /* 16px — 8pt grid ✓ */
+  padding-left: 1rem; /* 16px — 8pt grid ✓ */
+  padding-right: 1rem;
 }
 
 /* Chat bubble */
