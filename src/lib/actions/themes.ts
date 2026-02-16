@@ -10,22 +10,31 @@ export async function getThemes(): Promise<ActionResult<Theme[]>> {
 
     const { data: themes, error } = await supabase
       .from("themes")
-      .select("*, memos(count)")
+      .select("*, memos(count), articles(count)")
       .order("updated_at", { ascending: false });
 
     if (error) throw error;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const result = (themes ?? []).map((t: any) => ({
-      id: t.id,
-      user_id: t.user_id,
-      title: t.title,
-      description: t.description,
-      created_at: t.created_at,
-      updated_at: t.updated_at,
-      memo_count:
-        Array.isArray(t.memos) && t.memos.length > 0 ? t.memos[0].count : 0,
-    })) as Theme[];
+    const result = (themes ?? [])
+      .filter((t: any) => {
+        // 記事が生成済みのテーマは除外
+        const articleCount =
+          Array.isArray(t.articles) && t.articles.length > 0
+            ? t.articles[0].count
+            : 0;
+        return articleCount === 0;
+      })
+      .map((t: any) => ({
+        id: t.id,
+        user_id: t.user_id,
+        title: t.title,
+        description: t.description,
+        created_at: t.created_at,
+        updated_at: t.updated_at,
+        memo_count:
+          Array.isArray(t.memos) && t.memos.length > 0 ? t.memos[0].count : 0,
+      })) as Theme[];
 
     return { success: true, data: result };
   } catch (err) {
