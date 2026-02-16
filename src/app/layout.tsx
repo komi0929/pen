@@ -1,6 +1,7 @@
 import { AuthProvider } from "@/contexts/AuthContext";
 import type { Metadata } from "next";
 import { Noto_Sans_JP } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 
 const noto = Noto_Sans_JP({
@@ -9,6 +10,8 @@ const noto = Noto_Sans_JP({
   weight: ["400", "700"],
   display: "swap",
 });
+
+const GA_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
 
 export const metadata: Metadata = {
   title: "pen — AIライティングツール",
@@ -28,6 +31,24 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ja">
+      <head>
+        {GA_ID && (
+          <>
+            <Script
+              src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
+              strategy="afterInteractive"
+            />
+            <Script id="gtag-init" strategy="afterInteractive">
+              {`
+                window.dataLayer = window.dataLayer || [];
+                function gtag(){dataLayer.push(arguments);}
+                gtag('js', new Date());
+                gtag('config', '${GA_ID}');
+              `}
+            </Script>
+          </>
+        )}
+      </head>
       <body className={`${noto.variable} antialiased`}>
         <AuthProvider>{children}</AuthProvider>
       </body>
