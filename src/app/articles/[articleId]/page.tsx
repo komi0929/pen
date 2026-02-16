@@ -1,5 +1,7 @@
 "use client";
 
+import { trackClientEvent } from "@/lib/analytics-client";
+
 import { AuthGuard } from "@/components/AuthGuard";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
@@ -41,6 +43,7 @@ function ArticleDetailContent() {
     const result = await getArticle(articleId);
     if (result.success) {
       setArticle(result.data);
+      trackClientEvent("article_viewed", { article_id: articleId });
     }
     setLoading(false);
   }, [articleId]);
@@ -54,6 +57,7 @@ function ArticleDetailContent() {
     try {
       await navigator.clipboard.writeText(article.content);
       setCopied(true);
+      trackClientEvent("article_copied", { article_id: article.id });
       setTimeout(() => setCopied(false), 2000);
     } catch {
       const textarea = document.createElement("textarea");

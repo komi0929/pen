@@ -1,5 +1,6 @@
 "use server";
 
+import { trackEvent } from "@/lib/analytics";
 import { createClient } from "@/lib/supabase/server";
 import type { ActionResult, Interview, InterviewMessage } from "@/types";
 
@@ -27,6 +28,10 @@ export async function createInterview(
       .single();
 
     if (error) throw error;
+    trackEvent("interview_started", {
+      theme_id: themeId,
+      interview_id: data.id,
+    });
     return { success: true, data: data as unknown as Interview };
   } catch (err) {
     return {
@@ -131,6 +136,9 @@ export async function addMessage(
       .single();
 
     if (error) throw error;
+    if (role === "user") {
+      trackEvent("interview_message_sent", { interview_id: interviewId });
+    }
     return { success: true, data: data as unknown as InterviewMessage };
   } catch (err) {
     return {

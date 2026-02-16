@@ -130,6 +130,18 @@ export async function POST(request: NextRequest) {
         word_count: wordCount,
       });
     }
+    // 4. Analyticsイベント記録
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase.from("analytics_events") as any).insert({
+      user_id: user.id,
+      event_name: "interview_completed",
+      event_data: {
+        interview_id: interviewId,
+        theme_id: themeId,
+        word_count: wordCount,
+        message_count: messages?.length ?? 0,
+      },
+    });
 
     return NextResponse.json({ success: true });
   } catch (error) {

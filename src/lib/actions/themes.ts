@@ -1,5 +1,6 @@
 "use server";
 
+import { trackEvent } from "@/lib/analytics";
 import { createClient } from "@/lib/supabase/server";
 import type { ActionResult, Theme } from "@/types";
 
@@ -15,7 +16,6 @@ export async function getThemes(): Promise<ActionResult<Theme[]>> {
 
     if (error) throw error;
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const result = (themes ?? [])
       .filter((t: any) => {
         // 記事が生成済みのテーマは除外
@@ -100,6 +100,7 @@ export async function createTheme(
       .single();
 
     if (error) throw error;
+    trackEvent("theme_created", { theme_id: data.id });
     return { success: true, data: data as unknown as Theme };
   } catch (err) {
     return {
