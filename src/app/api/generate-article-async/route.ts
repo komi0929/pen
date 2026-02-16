@@ -18,8 +18,9 @@ export async function POST(request: NextRequest) {
       targetLength,
       memos,
       messages,
-      articleId, // 追加インタビュー時の既存記事ID
+      articleId: existingArticleId,
     } = body;
+    let articleId = existingArticleId as string | undefined;
 
     // 1. インタビューを完了ステータスに更新
     const supabase = await createClient();
@@ -121,14 +122,21 @@ export async function POST(request: NextRequest) {
     } else {
       // 新規記事
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (supabase.from("articles") as any).insert({
-        theme_id: themeId,
-        interview_id: interviewId,
-        user_id: user.id,
-        title,
-        content,
-        word_count: wordCount,
-      });
+      const { data: insertedArticle } = await (supabase.from("articles") as any)
+        .insert({
+          theme_id: themeId,
+          interview_id: interviewId,
+          user_id: user.id,
+          title,
+          content,
+          word_count: wordCount,
+        })
+        .select("id")
+        .single();
+
+      if (insertedArticle) {
+        articleId = insertedArticle.id;
+      }
     }
     // 4. Analyticsイベント記録
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -143,7 +151,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, articleId: articleId ?? null });
   } catch (error) {
     console.error("Async article generation error:", error);
     const message = error instanceof Error ? error.message : "不明なエラー";

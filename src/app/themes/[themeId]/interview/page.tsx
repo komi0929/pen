@@ -19,8 +19,10 @@ import {
   FileText,
   Loader2,
   MessageSquare,
+  PenLine,
   Send,
   SkipForward,
+  Sparkles,
 } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
@@ -91,6 +93,10 @@ function InterviewContent() {
   const [targetLength, setTargetLength] = useState(1000);
 
   const [completing, setCompleting] = useState(false);
+  const [generatedArticleId, setGeneratedArticleId] = useState<string | null>(
+    null
+  );
+  const [generationComplete, setGenerationComplete] = useState(false);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -290,33 +296,47 @@ function InterviewContent() {
     setSending(false);
   };
 
-  // 記事を生成して完了（ノンブロッキング）
+  // 記事を生成して完了（待機画面を表示）
   const handleGenerateAndComplete = async () => {
     if (!interview || completing) return;
     setCompleting(true);
+    setError(null);
 
-    // バックグラウンドAPIに全処理を委譲 → 即座に遷移
-    fetch("/api/generate-article-async", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        themeId,
-        interviewId: interview.id,
-        themeTitle: theme?.title ?? "",
-        themeDescription: theme?.description ?? "",
-        targetLength: interview.target_length,
-        memos: memos.map((m) => ({ content: m.content })),
-        messages: messages.map((m) => ({
-          role: m.role,
-          content: m.content,
-        })),
-        articleId: articleId ?? undefined,
-      }),
-      keepalive: true, // ページ遷移後もリクエスト継続
-    });
+    try {
+      const res = await fetch("/api/generate-article-async", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          themeId,
+          interviewId: interview.id,
+          themeTitle: theme?.title ?? "",
+          themeDescription: theme?.description ?? "",
+          targetLength: interview.target_length,
+          memos: memos.map((m) => ({ content: m.content })),
+          messages: messages.map((m) => ({
+            role: m.role,
+            content: m.content,
+          })),
+          articleId: articleId ?? undefined,
+        }),
+      });
 
-    // 即座にテーマ一覧へ遷移（記事はバックグラウンドで生成される）
-    router.push("/themes");
+      const json = await res.json();
+      if (json.success && json.articleId) {
+        setGeneratedArticleId(json.articleId);
+        setGenerationComplete(true);
+        // 3秒後に記事詳細へ自動遷移
+        setTimeout(() => {
+          router.push(`/articles/${json.articleId}`);
+        }, 3000);
+      } else {
+        setError(json.error || "記事の生成に失敗しました");
+        setCompleting(false);
+      }
+    } catch {
+      setError("記事の生成中にエラーが発生しました");
+      setCompleting(false);
+    }
   };
 
   // 記事生成せずに完了
@@ -417,6 +437,66 @@ function InterviewContent() {
           </div>
         </main>
         <Footer />
+      </div>
+    );
+  }
+
+  // 記事執筆中の待機画面
+  if (completing) {
+    return (
+      <div className="flex min-h-screen flex-col">
+        <Header />
+        <main className="flex flex-1 items-center justify-center">
+          <div className="pen-fade-in w-full max-w-md px-4 text-center">
+            {generationComplete ? (
+              // 完成メッセージ
+              <>
+                <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-green-100">
+                  <Sparkles className="h-10 w-10 text-green-600" />
+                </div>
+                <h2 className="mb-2 text-2xl font-bold">
+                  記事が完成しました！
+                </h2>
+                <p className="text-muted-foreground mb-6 text-sm">
+                  まもなく記事の画面に移動します...
+                </p>
+                {generatedArticleId && (
+                  <Link
+                    href={`/articles/${generatedArticleId}`}
+                    className="pen-btn pen-btn-accent inline-flex px-6 py-3"
+                  >
+                    <FileText className="h-4 w-4" />
+                    記事を見る
+                  </Link>
+                )}
+              </>
+            ) : (
+              // 執筆中アニメーション
+              <>
+                <div className="bg-muted mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full">
+                  <PenLine className="text-accent h-10 w-10 animate-pulse" />
+                </div>
+                <h2 className="mb-2 text-2xl font-bold">記事を執筆中...</h2>
+                <p className="text-muted-foreground mb-6 text-sm">
+                  AIがインタビュー内容をもとに記事を作成しています。
+                  <br />
+                  しばらくお待ちください。
+                </p>
+                <div className="mx-auto h-1 w-48 overflow-hidden rounded-full bg-gray-200">
+                  <div
+                    className="bg-accent h-full animate-pulse rounded-full"
+                    style={{
+                      width: "60%",
+                      animation:
+                        "pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite, shimmer 3s ease-in-out infinite",
+                    }}
+                  />
+                </div>
+                {error && <p className="text-danger mt-4 text-sm">{error}</p>}
+              </>
+            )}
+          </div>
+        </main>
       </div>
     );
   }
@@ -528,6 +608,24 @@ function InterviewContent() {
                 </div>
               </div>
             )}
+
+            {/* チャット内インライン「記事を生成する」ボタン */}
+            {isReady &&
+              !sending &&
+              messages.length > 0 &&
+              messages[messages.length - 1].role === "assistant" && (
+                <div className="flex justify-center">
+                  <button
+                    onClick={handleGenerateAndComplete}
+                    disabled={completing}
+                    className="pen-btn pen-btn-accent animate-in fade-in slide-in-from-bottom-2 px-6 py-3 text-base shadow-lg"
+                  >
+                    <FileText className="h-5 w-5" />
+                    記事を生成する
+                  </button>
+                </div>
+              )}
+
             <div ref={chatEndRef} />
           </div>
 
