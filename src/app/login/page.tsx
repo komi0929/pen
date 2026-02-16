@@ -3,38 +3,97 @@
 import { createClient } from "@/lib/supabase/client";
 import { Loader2, Mail, PenLine } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+
+const RATE_LIMIT_SECONDS = 60;
+const STORAGE_KEY_EMAIL = "pen_login_email";
+const STORAGE_KEY_SENT_AT = "pen_login_sent_at";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
   const supabase = createClient();
 
-  const handleMagicLink = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email.trim()) return;
-    setLoading(true);
-    setError(null);
+  // 前回入力したメールアドレスを復元
+  useEffect(() => {
+    const saved = localStorage.getItem(STORAGE_KEY_EMAIL);
+    if (saved) setEmail(saved);
 
-    try {
-      const { error } = await supabase.auth.signInWithOtp({
-        email,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-        },
-      });
-      if (error) throw error;
-      setSent(true);
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "メールの送信に失敗しました"
-      );
-    } finally {
-      setLoading(false);
+    // レートリミットのクールダウンを復元
+    const sentAt = localStorage.getItem(STORAGE_KEY_SENT_AT);
+    if (sentAt) {
+      const elapsed = Math.floor((Date.now() - Number(sentAt)) / 1000);
+      if (elapsed < RATE_LIMIT_SECONDS) {
+        setCooldown(RATE_LIMIT_SECONDS - elapsed);
+      }
     }
-  };
+  }, []);
+
+  // クールダウンタイマー
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const timer = setInterval(() => {
+      setCooldown((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [cooldown]);
+
+  const handleMagicLink = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!email.trim() || cooldown > 0) return;
+      setLoading(true);
+      setError(null);
+
+      try {
+        // メールアドレスを記憶
+        localStorage.setItem(STORAGE_KEY_EMAIL, email.trim());
+
+        const { error } = await supabase.auth.signInWithOtp({
+          email: email.trim(),
+          options: {
+            emailRedirectTo: `${window.location.origin}/auth/callback`,
+          },
+        });
+        if (error) throw error;
+
+        // レートリミット防止: 送信時刻を記録
+        localStorage.setItem(STORAGE_KEY_SENT_AT, String(Date.now()));
+        setCooldown(RATE_LIMIT_SECONDS);
+        setSent(true);
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "メールの送信に失敗しました";
+
+        // Supabaseのレートリミットエラーを日本語化
+        if (message.toLowerCase().includes("rate limit")) {
+          setError(
+            "メールの送信回数制限に達しました。1分ほど待ってから再度お試しください。"
+          );
+          setCooldown(RATE_LIMIT_SECONDS);
+          localStorage.setItem(STORAGE_KEY_SENT_AT, String(Date.now()));
+        } else if (message.toLowerCase().includes("email")) {
+          setError(
+            "メールアドレスに問題があります。正しいアドレスを入力してください。"
+          );
+        } else {
+          setError(message);
+        }
+      } finally {
+        setLoading(false);
+      }
+    },
+    [email, cooldown, supabase.auth]
+  );
 
   const handleGoogleLogin = async () => {
     setLoading(true);
@@ -64,13 +123,34 @@ export default function LoginPage() {
             <span className="font-bold">{email}</span> に
             ログインリンクを送信しました。
           </p>
-          <p className="text-muted-foreground mb-8 text-sm">
+          <p className="text-muted-foreground mb-6 text-sm">
             メール内のリンクをクリックするとログインできます。
           </p>
+
+          {/* 再送信ボタン */}
+          <div className="mb-4">
+            {cooldown > 0 ? (
+              <p className="text-muted-foreground text-sm">
+                再送信まで <span className="font-bold">{cooldown}秒</span>
+              </p>
+            ) : (
+              <button
+                onClick={() => {
+                  setSent(false);
+                  setError(null);
+                }}
+                className="pen-btn pen-btn-secondary text-sm"
+              >
+                ログインリンクを再送信
+              </button>
+            )}
+          </div>
+
           <button
             onClick={() => {
               setSent(false);
               setEmail("");
+              setError(null);
             }}
             className="text-accent text-sm font-bold hover:underline"
           >
@@ -145,7 +225,7 @@ export default function LoginPage() {
           </p>
           <button
             type="submit"
-            disabled={loading || !email.trim()}
+            disabled={loading || !email.trim() || cooldown > 0}
             className="pen-btn pen-btn-primary w-full py-3"
           >
             {loading ? (
@@ -153,7 +233,7 @@ export default function LoginPage() {
             ) : (
               <Mail className="h-4 w-4" />
             )}
-            ログインリンクを送信
+            {cooldown > 0 ? `再送信まで ${cooldown}秒` : "ログインリンクを送信"}
           </button>
         </form>
 
