@@ -3,9 +3,24 @@
 import { AuthGuard } from "@/components/AuthGuard";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
-import { deleteArticle, getArticle } from "@/lib/actions/articles";
+import type { InterviewMessage } from "@/lib/actions/articles";
+import {
+  deleteArticle,
+  getArticle,
+  getInterviewMessages,
+} from "@/lib/actions/articles";
 import type { Article } from "@/types";
-import { ArrowLeft, Check, Copy, MessageSquare, Trash2 } from "lucide-react";
+import {
+  ArrowLeft,
+  Bot,
+  Check,
+  ChevronDown,
+  ChevronUp,
+  Copy,
+  MessageSquare,
+  Trash2,
+  User,
+} from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
@@ -18,6 +33,9 @@ function ArticleDetailContent() {
   const [article, setArticle] = useState<Article | null>(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [showInterview, setShowInterview] = useState(false);
+  const [messages, setMessages] = useState<InterviewMessage[]>([]);
+  const [loadingMessages, setLoadingMessages] = useState(false);
 
   const load = useCallback(async () => {
     const result = await getArticle(articleId);
@@ -57,6 +75,23 @@ function ArticleDetailContent() {
     if (result.success) {
       router.push("/articles");
     }
+  };
+
+  const handleToggleInterview = async () => {
+    if (showInterview) {
+      setShowInterview(false);
+      return;
+    }
+    if (!article?.interview_id) return;
+    if (messages.length === 0) {
+      setLoadingMessages(true);
+      const result = await getInterviewMessages(article.interview_id);
+      if (result.success) {
+        setMessages(result.data);
+      }
+      setLoadingMessages(false);
+    }
+    setShowInterview(true);
   };
 
   if (loading) {
@@ -126,6 +161,21 @@ function ArticleDetailContent() {
                 </>
               )}
             </button>
+            {article.interview_id && (
+              <button
+                onClick={handleToggleInterview}
+                className="pen-btn pen-btn-secondary"
+              >
+                <MessageSquare className="h-4 w-4" />
+                インタビューを見返す
+                {showInterview ? (
+                  <ChevronUp className="h-3 w-3" />
+                ) : (
+                  <ChevronDown className="h-3 w-3" />
+                )}
+              </button>
+            )}
+            {/* 追加インタビュー（一時的に非表示・再開時にコメント解除）
             {article.theme_id && (
               <Link
                 href={`/themes/${article.theme_id}/interview?articleId=${article.id}`}
@@ -135,6 +185,7 @@ function ArticleDetailContent() {
                 追加インタビュー
               </Link>
             )}
+            */}
             <button
               onClick={handleDelete}
               className="text-muted-foreground hover:bg-danger/10 hover:text-danger rounded-lg px-3 py-2 text-sm transition-colors"
@@ -143,6 +194,64 @@ function ArticleDetailContent() {
               削除
             </button>
           </div>
+
+          {/* インタビュー履歴 */}
+          {showInterview && (
+            <div className="pen-fade-in mb-6">
+              <div className="border-border rounded-xl border">
+                <div className="border-border border-b px-5 py-3">
+                  <h3 className="flex items-center gap-2 text-sm font-bold">
+                    <MessageSquare className="h-4 w-4" />
+                    インタビュー履歴
+                  </h3>
+                </div>
+                {loadingMessages ? (
+                  <div className="flex justify-center py-8">
+                    <div className="pen-spinner" />
+                  </div>
+                ) : messages.length === 0 ? (
+                  <div className="py-8 text-center">
+                    <p className="text-muted-foreground text-sm">
+                      インタビューの記録がありません
+                    </p>
+                  </div>
+                ) : (
+                  <div className="divide-border divide-y">
+                    {messages.map((msg) => (
+                      <div
+                        key={msg.id}
+                        className={`flex gap-3 px-5 py-4 ${
+                          msg.role === "assistant" ? "bg-muted/30" : ""
+                        }`}
+                      >
+                        <div
+                          className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${
+                            msg.role === "assistant"
+                              ? "bg-foreground text-background"
+                              : "bg-muted text-muted-foreground"
+                          }`}
+                        >
+                          {msg.role === "assistant" ? (
+                            <Bot className="h-3.5 w-3.5" />
+                          ) : (
+                            <User className="h-3.5 w-3.5" />
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-muted-foreground mb-1 text-xs font-bold">
+                            {msg.role === "assistant" ? "AI" : "あなた"}
+                          </p>
+                          <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                            {msg.content}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* 記事本文 */}
           <article className="pen-card">

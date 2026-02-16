@@ -171,3 +171,43 @@ export async function updateArticle(
     };
   }
 }
+
+export type InterviewMessage = {
+  id: string;
+  role: "assistant" | "user";
+  content: string;
+  created_at: string;
+};
+
+export async function getInterviewMessages(
+  interviewId: string
+): Promise<ActionResult<InterviewMessage[]>> {
+  try {
+    const supabase = await createClient();
+    if (!supabase) return { success: false, error: "DB接続エラー" };
+
+    const { data, error } = await supabase
+      .from("interview_messages")
+      .select("*")
+      .eq("interview_id", interviewId)
+      .order("created_at", { ascending: true });
+
+    if (error) throw error;
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const messages = (data ?? []).map((m: any) => ({
+      id: m.id,
+      role: m.role as "assistant" | "user",
+      content: m.content,
+      created_at: m.created_at,
+    }));
+
+    return { success: true, data: messages };
+  } catch (err) {
+    return {
+      success: false,
+      error:
+        err instanceof Error ? err.message : "メッセージの取得に失敗しました",
+    };
+  }
+}
