@@ -112,7 +112,7 @@ export async function getTheme(themeId: string): Promise<ActionResult<Theme>> {
 
     const { data, error } = await supabase
       .from("themes")
-      .select("*, memos(count)")
+      .select("*, memos(count), articles(count)")
       .eq("id", themeId)
       .single();
 
@@ -129,6 +129,10 @@ export async function getTheme(themeId: string): Promise<ActionResult<Theme>> {
       updated_at: d.updated_at,
       memo_count:
         Array.isArray(d.memos) && d.memos.length > 0 ? d.memos[0].count : 0,
+      article_count:
+        Array.isArray(d.articles) && d.articles.length > 0
+          ? d.articles[0].count
+          : 0,
     };
 
     return { success: true, data: theme };
