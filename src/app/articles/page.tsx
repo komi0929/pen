@@ -41,7 +41,7 @@ function ArticlesContent() {
     <div className="flex min-h-screen flex-col">
       <Header />
       <main className="flex-1">
-        <div className="pen-container pen-fade-in pt-20 pb-8">
+        <div className="pen-container pen-fade-in pt-14 pb-8">
           <h1 className="mb-8 text-2xl font-bold">
             <FileText className="text-accent mr-2 inline h-6 w-6" />
             記事

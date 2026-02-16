@@ -6,7 +6,7 @@ export default function PrivacyPage() {
     <div className="flex min-h-screen flex-col">
       <Header />
       <main className="flex-1">
-        <div className="pen-container pen-fade-in pt-20 pb-8">
+        <div className="pen-container pen-fade-in pt-14 pb-8">
           <h1 className="mb-8 text-2xl font-bold">プライバシーポリシー</h1>
 
           <div className="prose prose-sm max-w-none space-y-6 text-sm leading-relaxed">
