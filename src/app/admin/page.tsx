@@ -1,5 +1,7 @@
 "use client";
 
+import { ImprovementRequestsAdmin } from "./ImprovementRequestsAdmin";
+
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
 import type { KPISummary } from "@/lib/actions/admin";
@@ -477,6 +479,14 @@ function AdminDashboardContent({ adminCode }: { adminCode: string }) {
                 </div>
               )}
             </div>
+          </section>
+
+          {/* ===== 改善要望 ===== */}
+          <section className="mb-8">
+            <h2 className="mb-4 flex items-center gap-2 text-lg font-bold">
+              💡 改善要望
+            </h2>
+            <ImprovementRequestsAdmin />
           </section>
         </div>
       </main>

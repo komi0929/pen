@@ -14,7 +14,7 @@ const noto = Noto_Sans_JP({
 const GA_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
 
 export const metadata: Metadata = {
-  title: "pen — AIライティングツール",
+  title: "pen — AIインタビュー＆記事制作",
   description:
     "AIインタビューを通じて、あなたの思考をnote記事に変換するライティングツール",
   metadataBase: new URL("https://pen.hitokoto.tech"),
@@ -22,11 +22,11 @@ export const metadata: Metadata = {
     canonical: "/",
   },
   icons: {
-    icon: "/favicon.ico",
+    icon: "/icon.svg",
     apple: "/apple-touch-icon.png",
   },
   openGraph: {
-    title: "pen — AIライティングツール",
+    title: "pen — AIインタビュー＆記事制作",
     description: "AIインタビューで記事を生成",
     type: "website",
     url: "https://pen.hitokoto.tech",
@@ -37,13 +37,13 @@ export const metadata: Metadata = {
         url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: "pen — AIライティングツール",
+        alt: "pen — AIインタビュー＆記事制作",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "pen — AIライティングツール",
+    title: "pen — AIインタビュー＆記事制作",
     description: "AIインタビューで記事を生成",
     images: ["/og-image.png"],
   },
