@@ -73,7 +73,8 @@ export async function getImprovementHistory(): Promise<ImprovementHistory[]> {
   const { data, error } = await (supabase as any)
     .from("improvement_history")
     .select("*")
-    .order("date", { ascending: false });
+    .order("date", { ascending: false })
+    .order("created_at", { ascending: false });
 
   if (error || !data) return [];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
