@@ -1,6 +1,5 @@
 "use client";
 
-import { AuthGuard } from "@/components/AuthGuard";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
 import type { KPISummary } from "@/lib/actions/admin";
@@ -14,28 +13,137 @@ import {
   ArrowDown,
   ArrowUp,
   BarChart3,
+  Eye,
+  FileText,
+  Globe,
+  Lock,
   Minus,
   Settings2,
+  Timer,
   ToggleLeft,
   ToggleRight,
+  TrendingUp,
+  UserPlus,
+  Users,
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
-function AdminDashboardContent() {
+// ===== GA型定義 =====
+interface GAOverview {
+  pageViews: number;
+  activeUsers: number;
+  sessions: number;
+  newUsers: number;
+  avgSessionDuration: number;
+}
+
+interface GATopPage {
+  path: string;
+  pageViews: number;
+  activeUsers: number;
+}
+
+interface GAReport {
+  overview: GAOverview;
+  overviewYesterday: GAOverview;
+  topPages: GATopPage[];
+}
+
+// ===== 管理者コード入力画面 =====
+function AdminCodeGate({ onAuth }: { onAuth: (code: string) => void }) {
+  const [code, setCode] = useState("");
+  const [error, setError] = useState("");
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (code === "0929") {
+      onAuth(code);
+    } else {
+      setError("管理者コードが正しくありません");
+      setCode("");
+    }
+  };
+
+  return (
+    <div className="flex min-h-screen flex-col">
+      <Header />
+      <main className="flex flex-1 items-center justify-center">
+        <div className="pen-fade-in w-full max-w-sm px-4">
+          <div className="border-border bg-card rounded-2xl border p-8 text-center">
+            <div className="bg-muted mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full">
+              <Lock className="text-muted-foreground h-6 w-6" />
+            </div>
+            <h1 className="mb-1 text-xl font-bold">管理者ダッシュボード</h1>
+            <p className="text-muted-foreground mb-6 text-sm">
+              管理者コードを入力してください
+            </p>
+            <form onSubmit={handleSubmit}>
+              <input
+                type="password"
+                value={code}
+                onChange={(e) => {
+                  setCode(e.target.value);
+                  setError("");
+                }}
+                placeholder="管理者コード"
+                className="border-border bg-background mb-3 w-full rounded-lg border px-4 py-2.5 text-center text-lg tracking-widest focus:ring-2 focus:ring-black/10 focus:outline-none"
+                autoFocus
+              />
+              {error && (
+                <p className="mb-3 text-sm font-medium text-red-500">{error}</p>
+              )}
+              <button
+                type="submit"
+                className="bg-foreground text-background w-full rounded-lg px-4 py-2.5 text-sm font-bold transition-opacity hover:opacity-80"
+              >
+                ログイン
+              </button>
+            </form>
+          </div>
+        </div>
+      </main>
+      <Footer />
+    </div>
+  );
+}
+
+// ===== ダッシュボード本体 =====
+function AdminDashboardContent({ adminCode }: { adminCode: string }) {
   const [kpi, setKpi] = useState<KPISummary | null>(null);
   const [flags, setFlags] = useState<FeatureFlag[]>([]);
+  const [gaReport, setGaReport] = useState<GAReport | null>(null);
+  const [gaError, setGaError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [togglingKey, setTogglingKey] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    // Supabase KPI + Feature Flags
     const [kpiResult, flagsResult] = await Promise.all([
       getKPISummary(),
       getFeatureFlags(),
     ]);
     if (kpiResult.success) setKpi(kpiResult.data);
     if (flagsResult.success) setFlags(flagsResult.data);
+
+    // GA Data API
+    try {
+      const res = await fetch("/api/admin/ga", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: adminCode }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setGaReport(json.data); // null = GA未設定
+      } else {
+        setGaError(json.error);
+      }
+    } catch {
+      setGaError("GA データの取得に失敗しました");
+    }
+
     setLoading(false);
-  }, []);
+  }, [adminCode]);
 
   useEffect(() => {
     load();
@@ -75,6 +183,13 @@ function AdminDashboardContent() {
     );
   };
 
+  // 秒数をフォーマット
+  const formatDuration = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = Math.round(seconds % 60);
+    return m > 0 ? `${m}分${s}秒` : `${s}秒`;
+  };
+
   if (loading) {
     return (
       <div className="flex min-h-screen flex-col">
@@ -87,31 +202,42 @@ function AdminDashboardContent() {
   }
 
   const summaryCards = [
-    {
-      label: "ログイン",
-      key: "login_completed",
-    },
-    {
-      label: "テーマ作成",
-      key: "theme_created",
-    },
-    {
-      label: "メモ追加",
-      key: "memo_created",
-    },
-    {
-      label: "インタビュー開始",
-      key: "interview_started",
-    },
-    {
-      label: "インタビュー完了",
-      key: "interview_completed",
-    },
-    {
-      label: "記事コピー",
-      key: "article_copied",
-    },
+    { label: "ログイン", key: "login_completed" },
+    { label: "テーマ作成", key: "theme_created" },
+    { label: "メモ追加", key: "memo_created" },
+    { label: "インタビュー開始", key: "interview_started" },
+    { label: "インタビュー完了", key: "interview_completed" },
+    { label: "記事コピー", key: "article_copied" },
   ];
+
+  const gaCards = gaReport
+    ? [
+        {
+          label: "ページビュー",
+          icon: Eye,
+          today: gaReport.overview.pageViews,
+          yesterday: gaReport.overviewYesterday.pageViews,
+        },
+        {
+          label: "アクティブユーザー",
+          icon: Users,
+          today: gaReport.overview.activeUsers,
+          yesterday: gaReport.overviewYesterday.activeUsers,
+        },
+        {
+          label: "セッション",
+          icon: Globe,
+          today: gaReport.overview.sessions,
+          yesterday: gaReport.overviewYesterday.sessions,
+        },
+        {
+          label: "新規ユーザー",
+          icon: UserPlus,
+          today: gaReport.overview.newUsers,
+          yesterday: gaReport.overviewYesterday.newUsers,
+        },
+      ]
+    : [];
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -123,12 +249,120 @@ function AdminDashboardContent() {
             <h1 className="text-2xl font-bold">ダッシュボード</h1>
           </div>
 
-          {/* ===== KPIサマリーカード ===== */}
+          {/* ===== GA サイト概要 ===== */}
           <section className="mb-8">
             <h2 className="mb-4 flex items-center gap-2 text-lg font-bold">
-              📊 今日の数字
+              <TrendingUp className="h-5 w-5" />
+              Google Analytics
               <span className="text-muted-foreground text-sm font-normal">
-                （vs 昨日）
+                （今日 vs 昨日）
+              </span>
+            </h2>
+            {gaReport ? (
+              <>
+                <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  {gaCards.map((card) => {
+                    const Icon = card.icon;
+                    return (
+                      <div
+                        key={card.label}
+                        className="border-border bg-card rounded-xl border p-4"
+                      >
+                        <div className="text-muted-foreground mb-2 flex items-center gap-1.5">
+                          <Icon className="h-3.5 w-3.5" />
+                          <span className="text-xs">{card.label}</span>
+                        </div>
+                        <div className="flex items-end gap-2">
+                          <span className="text-2xl font-bold">
+                            {card.today.toLocaleString()}
+                          </span>
+                          {renderDelta(card.today, card.yesterday)}
+                        </div>
+                        <p className="text-muted-foreground mt-1 text-xs">
+                          昨日: {card.yesterday.toLocaleString()}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* 滞在時間 */}
+                <div className="border-border bg-card mb-4 flex items-center gap-4 rounded-xl border px-5 py-3">
+                  <Timer className="text-muted-foreground h-4 w-4" />
+                  <div>
+                    <p className="text-muted-foreground text-xs">
+                      平均セッション時間
+                    </p>
+                    <p className="font-bold">
+                      {formatDuration(gaReport.overview.avgSessionDuration)}
+                    </p>
+                  </div>
+                  <div className="ml-auto text-right">
+                    <p className="text-muted-foreground text-xs">昨日</p>
+                    <p className="text-sm">
+                      {formatDuration(
+                        gaReport.overviewYesterday.avgSessionDuration
+                      )}
+                    </p>
+                  </div>
+                </div>
+
+                {/* ページ別PVランキング */}
+                {gaReport.topPages.length > 0 && (
+                  <div className="border-border bg-card overflow-hidden rounded-xl border">
+                    <div className="border-border flex items-center gap-2 border-b px-5 py-3">
+                      <FileText className="text-muted-foreground h-4 w-4" />
+                      <h3 className="text-sm font-bold">
+                        ページ別PV（Top {gaReport.topPages.length}）
+                      </h3>
+                    </div>
+                    <div className="divide-border divide-y">
+                      {gaReport.topPages.map((page, i) => (
+                        <div
+                          key={page.path}
+                          className="flex items-center gap-3 px-5 py-2.5"
+                        >
+                          <span className="text-muted-foreground w-5 text-right text-xs font-bold">
+                            {i + 1}
+                          </span>
+                          <span className="min-w-0 flex-1 truncate text-sm">
+                            {page.path}
+                          </span>
+                          <span className="text-sm font-bold">
+                            {page.pageViews.toLocaleString()}
+                          </span>
+                          <span className="text-muted-foreground text-xs">
+                            PV
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : gaError ? (
+              <div className="border-border bg-card rounded-xl border px-5 py-6 text-center">
+                <p className="text-muted-foreground text-sm">{gaError}</p>
+              </div>
+            ) : (
+              <div className="border-border bg-card rounded-xl border px-5 py-6 text-center">
+                <p className="text-muted-foreground text-sm">
+                  Google Analytics 未設定
+                </p>
+                <p className="text-muted-foreground mt-1 text-xs">
+                  .env.local に GA_PROPERTY_ID, GA_CLIENT_EMAIL, GA_PRIVATE_KEY
+                  を設定してください
+                </p>
+              </div>
+            )}
+          </section>
+
+          {/* ===== 自前KPIサマリーカード ===== */}
+          <section className="mb-8">
+            <h2 className="mb-4 flex items-center gap-2 text-lg font-bold">
+              📊 アプリ内KPI
+              <span className="text-muted-foreground text-sm font-normal">
+                （今日 vs 昨日）
               </span>
             </h2>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
@@ -251,10 +485,29 @@ function AdminDashboardContent() {
   );
 }
 
+// ===== ページコンポーネント =====
 export default function AdminDashboardPage() {
-  return (
-    <AuthGuard>
-      <AdminDashboardContent />
-    </AuthGuard>
-  );
+  const [authed, setAuthed] = useState(false);
+  const [adminCode, setAdminCode] = useState("");
+
+  // sessionStorageから復帰
+  useEffect(() => {
+    const saved = sessionStorage.getItem("pen_admin_code");
+    if (saved === "0929") {
+      setAuthed(true);
+      setAdminCode(saved);
+    }
+  }, []);
+
+  const handleAuth = (code: string) => {
+    sessionStorage.setItem("pen_admin_code", code);
+    setAdminCode(code);
+    setAuthed(true);
+  };
+
+  if (!authed) {
+    return <AdminCodeGate onAuth={handleAuth} />;
+  }
+
+  return <AdminDashboardContent adminCode={adminCode} />;
 }
