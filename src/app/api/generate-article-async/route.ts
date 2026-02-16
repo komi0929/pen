@@ -8,20 +8,20 @@ import { NextRequest, NextResponse } from "next/server";
  * クライアントは即座に遷移可能
  */
 export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json();
-    const {
-      themeId,
-      interviewId,
-      themeTitle,
-      themeDescription,
-      targetLength,
-      memos,
-      messages,
-      articleId: existingArticleId,
-    } = body;
-    let articleId = existingArticleId as string | undefined;
+  const body = await request.json();
+  const {
+    themeId,
+    interviewId,
+    themeTitle,
+    themeDescription,
+    targetLength,
+    memos,
+    messages,
+    articleId: existingArticleId,
+  } = body;
+  let articleId = existingArticleId as string | undefined;
 
+  try {
     // 1. インタビューを完了ステータスに更新
     const supabase = await createClient();
     if (!supabase) {
@@ -158,9 +158,26 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, articleId: articleId ?? null });
   } catch (error) {
     console.error("Async article generation error:", error);
+
+    // 記事生成に失敗した場合、インタビューをactiveに戻してリカバリ可能にする
+    try {
+      const supabase = await createClient();
+      if (supabase) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (supabase.from("interviews") as any)
+          .update({ status: "active", updated_at: new Date().toISOString() })
+          .eq("id", interviewId);
+      }
+    } catch {
+      // ステータス復帰失敗はログのみ
+      console.error("Failed to revert interview status");
+    }
+
     const message = error instanceof Error ? error.message : "不明なエラー";
     return NextResponse.json(
-      { error: `記事の生成中にエラーが発生しました: ${message}` },
+      {
+        error: `記事の生成に失敗しました。インタビューのデータは保存されているので、再度お試しいただけます。: ${message}`,
+      },
       { status: 500 }
     );
   }

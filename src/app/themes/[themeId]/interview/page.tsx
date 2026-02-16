@@ -115,6 +115,16 @@ function InterviewContent() {
     scrollToBottom();
   }, [messages]);
 
+  // インタビュー中のブラウザ離脱防止
+  useEffect(() => {
+    if (!interview || messages.length === 0 || completing) return;
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [interview, messages.length, completing]);
+
   // テキストエリア自動拡張
   const autoResize = (el: HTMLTextAreaElement) => {
     el.style.height = "auto";
@@ -548,13 +558,22 @@ function InterviewContent() {
         <div className="pen-container pen-fade-in py-6">
           {/* ヘッダー: 戻る + 完了ボタン */}
           <div className="mb-4 flex items-center justify-between">
-            <Link
-              href={`/themes/${themeId}`}
+            <button
+              onClick={() => {
+                if (
+                  messages.length >= 2 &&
+                  !window.confirm(
+                    "インタビューを中断しますか？\n\n入力済みの会話は保存されています。あとで「インタビューを続ける」から再開できます。"
+                  )
+                )
+                  return;
+                router.push(`/themes/${themeId}`);
+              }}
               className="text-muted-foreground hover:bg-muted hover:text-foreground inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors"
             >
               <ArrowLeft className="h-4 w-4" />
               戻る
-            </Link>
+            </button>
             {/* 記事生成ボタン + 生成せず完了ボタン */}
             <div className="flex items-center gap-2">
               <button

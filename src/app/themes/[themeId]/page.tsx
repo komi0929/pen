@@ -71,6 +71,7 @@ function ThemeDetailContent() {
   };
 
   const handleDeleteMemo = async (memoId: string) => {
+    if (!window.confirm("このメモを削除しますか？")) return;
     const result = await deleteMemo(memoId);
     if (result.success) {
       setMemos((prev) => prev.filter((m) => m.id !== memoId));
