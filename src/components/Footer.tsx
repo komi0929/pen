@@ -4,7 +4,7 @@ export function Footer() {
   return (
     <footer className="mt-auto py-8">
       <div className="pen-container text-muted-foreground text-center text-sm">
-        <div className="flex justify-center gap-2">
+        <div className="flex flex-col items-center gap-1 sm:flex-row sm:justify-center sm:gap-2">
           <Link
             href="/"
             className="hover:bg-muted hover:text-foreground rounded-lg px-3 py-2 transition-colors"
