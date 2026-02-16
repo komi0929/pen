@@ -1,12 +1,6 @@
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
-import {
-  FileText,
-  Lightbulb,
-  MessageSquare,
-  PenLine,
-  StickyNote,
-} from "lucide-react";
+import { Lightbulb, MessageSquare, PenLine, StickyNote } from "lucide-react";
 import Link from "next/link";
 
 export default function HomePage() {
@@ -53,26 +47,20 @@ export default function HomePage() {
                 {
                   step: "1",
                   icon: Lightbulb,
-                  title: "テーマを作る",
+                  title: "テーマ設定",
                   desc: "書きたいテーマを設定します。「副業で学んだこと」「最近読んだ本の感想」など、自由に。",
                 },
                 {
                   step: "2",
                   icon: StickyNote,
-                  title: "メモを書く",
-                  desc: "テーマについて思いついたことを、断片的でOK。箇条書きでもメモでも自由に書き溜めます。",
+                  title: "メモを追加",
+                  desc: "テーマについて思いついたことを、断片的でOK。これをもとにインタビューが行われます。",
                 },
                 {
                   step: "3",
                   icon: MessageSquare,
                   title: "AIインタビュー",
-                  desc: "AIがあなたに質問を投げかけます。対話を通じて、自分の考えが整理されていきます。",
-                },
-                {
-                  step: "4",
-                  icon: FileText,
-                  title: "記事が完成",
-                  desc: "インタビュー内容から、noteに最適化された読みやすい記事が自動生成されます。ワンクリックでコピー可能。",
+                  desc: "AIがあなたに質問を投げかけます。対話を通じて、記事が出来上がります。",
                 },
               ].map((item) => (
                 <div
