@@ -34,6 +34,7 @@ export function Header() {
               <Link
                 href="/themes"
                 className={navLink("/themes", pathname.startsWith("/themes"))}
+                aria-label="テーマ"
               >
                 <Lightbulb className="h-4 w-4" />
                 <span className="hidden sm:inline">テーマ</span>
@@ -44,12 +45,14 @@ export function Header() {
                   "/articles",
                   pathname.startsWith("/articles")
                 )}
+                aria-label="記事"
               >
                 <FileText className="h-4 w-4" />
                 <span className="hidden sm:inline">記事</span>
               </Link>
               <button
                 onClick={signOut}
+                aria-label="ログアウト"
                 className="text-muted-foreground hover:bg-danger/10 hover:text-danger flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-sm transition-colors"
               >
                 <LogOut className="h-4 w-4" />

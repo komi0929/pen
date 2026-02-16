@@ -2,6 +2,7 @@
 
 import { trackEvent } from "@/lib/analytics";
 import { createClient } from "@/lib/supabase/server";
+import { idSchema, memoSchema, validate } from "@/lib/validations";
 import type { ActionResult, Memo } from "@/types";
 
 export async function getMemos(themeId: string): Promise<ActionResult<Memo[]>> {
@@ -29,6 +30,9 @@ export async function createMemo(
   themeId: string,
   content: string
 ): Promise<ActionResult<Memo>> {
+  const v = validate(memoSchema, { themeId, content });
+  if (!v.success) return { success: false, error: v.error };
+
   try {
     const supabase = await createClient();
     if (!supabase) return { success: false, error: "DB接続エラー" };
@@ -56,6 +60,9 @@ export async function createMemo(
 }
 
 export async function deleteMemo(memoId: string): Promise<ActionResult> {
+  const v = validate(idSchema, { id: memoId });
+  if (!v.success) return { success: false, error: v.error };
+
   try {
     const supabase = await createClient();
     if (!supabase) return { success: false, error: "DB接続エラー" };

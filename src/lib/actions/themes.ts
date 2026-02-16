@@ -2,6 +2,7 @@
 
 import { trackEvent } from "@/lib/analytics";
 import { createClient } from "@/lib/supabase/server";
+import { idSchema, themeSchema, validate } from "@/lib/validations";
 import type { ActionResult, Theme } from "@/types";
 
 export async function getThemes(): Promise<ActionResult<Theme[]>> {
@@ -84,6 +85,9 @@ export async function createTheme(
   title: string,
   description: string = ""
 ): Promise<ActionResult<Theme>> {
+  const v = validate(themeSchema, { title, description });
+  if (!v.success) return { success: false, error: v.error };
+
   try {
     const supabase = await createClient();
     if (!supabase) return { success: false, error: "DB接続エラー" };
@@ -115,6 +119,11 @@ export async function updateTheme(
   title: string,
   description: string = ""
 ): Promise<ActionResult<Theme>> {
+  const vId = validate(idSchema, { id: themeId });
+  if (!vId.success) return { success: false, error: vId.error };
+  const v = validate(themeSchema, { title, description });
+  if (!v.success) return { success: false, error: v.error };
+
   try {
     const supabase = await createClient();
     if (!supabase) return { success: false, error: "DB接続エラー" };
@@ -141,6 +150,9 @@ export async function updateTheme(
 }
 
 export async function deleteTheme(themeId: string): Promise<ActionResult> {
+  const v = validate(idSchema, { id: themeId });
+  if (!v.success) return { success: false, error: v.error };
+
   try {
     const supabase = await createClient();
     if (!supabase) return { success: false, error: "DB接続エラー" };

@@ -2,12 +2,16 @@
 
 import { trackEvent } from "@/lib/analytics";
 import { createClient } from "@/lib/supabase/server";
+import { interviewSchema, validate } from "@/lib/validations";
 import type { ActionResult, Interview, InterviewMessage } from "@/types";
 
 export async function createInterview(
   themeId: string,
   targetLength: number
 ): Promise<ActionResult<Interview>> {
+  const v = validate(interviewSchema, { themeId, targetLength });
+  if (!v.success) return { success: false, error: v.error };
+
   try {
     const supabase = await createClient();
     if (!supabase) return { success: false, error: "DB接続エラー" };

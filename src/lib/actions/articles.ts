@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { articleSchema, idSchema, validate } from "@/lib/validations";
 import type { ActionResult, Article } from "@/types";
 
 export async function getArticles(): Promise<ActionResult<Article[]>> {
@@ -85,6 +86,9 @@ export async function createArticle(
   title: string,
   content: string
 ): Promise<ActionResult<Article>> {
+  const v = validate(articleSchema, { themeId, interviewId, title, content });
+  if (!v.success) return { success: false, error: v.error };
+
   try {
     const supabase = await createClient();
     if (!supabase) return { success: false, error: "DB接続エラー" };
@@ -120,6 +124,9 @@ export async function createArticle(
 }
 
 export async function deleteArticle(articleId: string): Promise<ActionResult> {
+  const v = validate(idSchema, { id: articleId });
+  if (!v.success) return { success: false, error: v.error };
+
   try {
     const supabase = await createClient();
     if (!supabase) return { success: false, error: "DB接続エラー" };
