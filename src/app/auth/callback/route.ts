@@ -14,17 +14,21 @@ export async function GET(request: Request) {
     if (supabase) {
       const { error } = await supabase.auth.exchangeCodeForSession(code);
       if (!error) {
-        // ログイン成功イベントを記録
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        if (user) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          await (supabase.from("analytics_events") as any).insert({
-            user_id: user.id,
-            event_name: "login_completed",
-            event_data: { method: code ? "oauth" : "magic_link" },
-          });
+        // ログイン成功イベントを記録（失敗してもログイン処理は続行）
+        try {
+          const {
+            data: { user },
+          } = await supabase.auth.getUser();
+          if (user) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            await (supabase.from("analytics_events") as any).insert({
+              user_id: user.id,
+              event_name: "login_completed",
+              event_data: { method: "magic_link" },
+            });
+          }
+        } catch {
+          // analytics失敗はサイレントに処理
         }
         return NextResponse.redirect(`${origin}${next}`);
       }

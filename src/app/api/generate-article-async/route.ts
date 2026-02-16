@@ -138,18 +138,22 @@ export async function POST(request: NextRequest) {
         articleId = insertedArticle.id;
       }
     }
-    // 4. Analyticsイベント記録
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (supabase.from("analytics_events") as any).insert({
-      user_id: user.id,
-      event_name: "interview_completed",
-      event_data: {
-        interview_id: interviewId,
-        theme_id: themeId,
-        word_count: wordCount,
-        message_count: messages?.length ?? 0,
-      },
-    });
+    // 4. Analyticsイベント記録（失敗しても記事生成は成功させる）
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (supabase.from("analytics_events") as any).insert({
+        user_id: user.id,
+        event_name: "interview_completed",
+        event_data: {
+          interview_id: interviewId,
+          theme_id: themeId,
+          word_count: wordCount,
+          message_count: messages?.length ?? 0,
+        },
+      });
+    } catch {
+      // analyticsテーブル未作成でも記事保存には影響しない
+    }
 
     return NextResponse.json({ success: true, articleId: articleId ?? null });
   } catch (error) {

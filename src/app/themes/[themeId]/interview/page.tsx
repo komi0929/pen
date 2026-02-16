@@ -343,8 +343,14 @@ function InterviewContent() {
   const handleCompleteOnly = async () => {
     if (!interview || completing) return;
     setCompleting(true);
-    await completeInterview(interview.id);
-    router.push(`/themes/${themeId}`);
+    setError(null);
+    try {
+      await completeInterview(interview.id);
+      router.push(`/themes/${themeId}`);
+    } catch {
+      setError("インタビューの完了に失敗しました");
+      setCompleting(false);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {

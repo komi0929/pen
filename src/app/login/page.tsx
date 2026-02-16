@@ -17,6 +17,14 @@ export default function LoginPage() {
   const [cooldown, setCooldown] = useState(0);
   const supabase = createClient();
 
+  // 認証コールバックからのエラーを表示
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("error") === "auth_failed") {
+      setError("認証に失敗しました。もう一度お試しください。");
+    }
+  }, []);
+
   // 前回入力したメールアドレスを復元
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY_EMAIL);

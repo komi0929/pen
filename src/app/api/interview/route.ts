@@ -1,8 +1,20 @@
+import { createClient } from "@/lib/supabase/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(request: NextRequest) {
   try {
+    // 認証チェック
+    const supabase = await createClient();
+    if (supabase) {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        return NextResponse.json({ error: "認証が必要です" }, { status: 401 });
+      }
+    }
+
     const body = await request.json();
     const { themeTitle, themeDescription, memos, messages, isSkip } = body;
 

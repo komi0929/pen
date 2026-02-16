@@ -65,7 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       {/* ログアウト確認ダイアログ */}
       {showLogoutConfirm && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+        <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/50 backdrop-blur-sm">
           <div className="pen-fade-in bg-card mx-4 w-full max-w-sm rounded-2xl p-6 shadow-xl">
             <h2 className="mb-2 text-lg font-bold">ログアウトしますか？</h2>
             <p className="text-muted-foreground mb-6 text-sm">
