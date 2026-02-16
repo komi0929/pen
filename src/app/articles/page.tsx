@@ -94,7 +94,7 @@ function ArticlesContent() {
                   </Link>
                   <button
                     onClick={() => handleDelete(article.id)}
-                    className="text-muted-foreground hover:bg-danger/10 hover:text-danger absolute top-3 right-3 rounded-lg p-2 transition-all md:opacity-0 md:group-hover:opacity-100"
+                    className="text-muted-foreground hover:bg-danger/10 hover:text-danger absolute right-3 bottom-3 rounded-lg p-2 transition-all md:opacity-0 md:group-hover:opacity-100"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
