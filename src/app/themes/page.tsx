@@ -70,7 +70,10 @@ function ThemesContent() {
       <main className="flex-1">
         <div className="pen-container pen-fade-in pt-14 pb-8">
           <div className="mb-8 flex items-center justify-between">
-            <h1 className="text-2xl font-bold">テーマ</h1>
+            <h1 className="flex items-center gap-2 text-2xl font-bold">
+              <Lightbulb className="h-6 w-6" />
+              テーマ
+            </h1>
             <button
               onClick={() => setShowForm(!showForm)}
               className="pen-btn pen-btn-accent"
