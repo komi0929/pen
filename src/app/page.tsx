@@ -5,7 +5,6 @@ import {
   Lightbulb,
   MessageSquare,
   PenLine,
-  Sparkles,
   StickyNote,
 } from "lucide-react";
 import Link from "next/link";
@@ -94,48 +93,6 @@ export default function HomePage() {
                       {item.desc}
                     </p>
                   </div>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          {/* 特徴 */}
-          <section className="mb-12">
-            <h2 className="mb-6 text-xl font-bold">✨ 特徴</h2>
-            <div className="grid gap-4 sm:grid-cols-2">
-              {[
-                {
-                  icon: Sparkles,
-                  title: "AIが考えを引き出す",
-                  desc: "ただ生成するのではなく、対話を通じてあなたの本音を引き出します。",
-                },
-                {
-                  icon: FileText,
-                  title: "note最適化",
-                  desc: "生成される記事はnoteのフォーマットに最適化。すぐに投稿できます。",
-                },
-                {
-                  icon: StickyNote,
-                  title: "メモから始められる",
-                  desc: "完璧な文章は不要。断片的なメモからでも記事が作れます。",
-                },
-                {
-                  icon: PenLine,
-                  title: "シンプルなUI",
-                  desc: "余計な機能は一切なし。書くことだけに集中できるデザインです。",
-                },
-              ].map((item) => (
-                <div
-                  key={item.title}
-                  className="border-border bg-card rounded-xl border p-5"
-                >
-                  <div className="bg-muted mb-3 inline-flex h-10 w-10 items-center justify-center rounded-lg">
-                    <item.icon className="text-accent h-5 w-5" />
-                  </div>
-                  <h3 className="mb-1 font-bold">{item.title}</h3>
-                  <p className="text-muted-foreground text-sm leading-relaxed">
-                    {item.desc}
-                  </p>
                 </div>
               ))}
             </div>
