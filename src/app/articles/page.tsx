@@ -29,6 +29,8 @@ function ArticlesContent() {
   }, [load]);
 
   const handleDelete = async (articleId: string) => {
+    if (!window.confirm("この記事を削除しますか？この操作は取り消せません。"))
+      return;
     const result = await deleteArticle(articleId);
     if (result.success) {
       setArticles((prev) => prev.filter((a) => a.id !== articleId));

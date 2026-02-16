@@ -5,7 +5,15 @@ import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
 import { createTheme, deleteTheme, getThemes } from "@/lib/actions/themes";
 import type { Theme } from "@/types";
-import { Lightbulb, Loader2, Plus, StickyNote, Trash2, X } from "lucide-react";
+import {
+  FileText,
+  Lightbulb,
+  Loader2,
+  Plus,
+  StickyNote,
+  Trash2,
+  X,
+} from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
@@ -158,6 +166,12 @@ function ThemesContent() {
                         <StickyNote className="h-3 w-3" />
                         メモ {theme.memo_count ?? 0}件
                       </span>
+                      {(theme.article_count ?? 0) > 0 && (
+                        <span className="text-accent flex items-center gap-1 font-bold">
+                          <FileText className="h-3 w-3" />
+                          記事あり
+                        </span>
+                      )}
                       <span>
                         {new Date(theme.created_at).toLocaleDateString("ja-JP")}
                       </span>
