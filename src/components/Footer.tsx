@@ -12,6 +12,12 @@ export function Footer() {
             penとは
           </Link>
           <Link
+            href="/improvements"
+            className="hover:bg-muted hover:text-foreground rounded-lg px-3 py-2 transition-colors"
+          >
+            改善計画
+          </Link>
+          <Link
             href="/terms"
             className="hover:bg-muted hover:text-foreground rounded-lg px-3 py-2 transition-colors"
           >

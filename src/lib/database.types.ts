@@ -149,6 +149,71 @@ export interface Database {
           updated_at?: string;
         };
       };
+      improvement_requests: {
+        Row: {
+          id: string;
+          user_id: string | null;
+          title: string;
+          description: string;
+          is_official: boolean;
+          likes_count: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id?: string | null;
+          title: string;
+          description?: string;
+          is_official?: boolean;
+          likes_count?: number;
+          created_at?: string;
+        };
+        Update: {
+          title?: string;
+          description?: string;
+          is_official?: boolean;
+          likes_count?: number;
+        };
+      };
+      improvement_likes: {
+        Row: {
+          id: string;
+          request_id: string;
+          user_id: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          request_id: string;
+          user_id: string;
+          created_at?: string;
+        };
+        Update: {
+          request_id?: string;
+          user_id?: string;
+        };
+      };
+      improvement_history: {
+        Row: {
+          id: string;
+          title: string;
+          description: string;
+          date: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          title: string;
+          description?: string;
+          date: string;
+          created_at?: string;
+        };
+        Update: {
+          title?: string;
+          description?: string;
+          date?: string;
+        };
+      };
     };
     Views: {
       [key: string]: {
