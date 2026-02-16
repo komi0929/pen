@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
         targetLength ?? 2000
       );
       const model = genAI.getGenerativeModel({
-        model: "gemini-3-flash",
+        model: "gemini-3-flash-preview",
         systemInstruction: systemPrompt,
       });
 

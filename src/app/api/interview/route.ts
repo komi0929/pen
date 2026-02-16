@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     const genAI = new GoogleGenerativeAI(apiKey);
     const systemPrompt = buildSystemPrompt(themeTitle, themeDescription, memos);
     const model = genAI.getGenerativeModel({
-      model: "gemini-3-flash",
+      model: "gemini-3-flash-preview",
       systemInstruction: systemPrompt,
     });
 
