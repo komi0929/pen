@@ -158,3 +158,32 @@ export async function toggleLike(
     return { success: false, liked: false, error: "エラーが発生しました" };
   }
 }
+
+/**
+ * 改善履歴を追加する（管理者用）
+ * devワークフローやAPIから呼び出される
+ */
+export async function addImprovementHistory(
+  title: string,
+  description: string,
+  date?: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const supabase = await createClient();
+    if (!supabase) return { success: false, error: "接続エラー" };
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabase as any)
+      .from("improvement_history")
+      .insert({
+        title,
+        description,
+        date: date ?? new Date().toISOString().split("T")[0],
+      });
+
+    if (error) return { success: false, error: error.message };
+    return { success: true };
+  } catch {
+    return { success: false, error: "エラーが発生しました" };
+  }
+}
