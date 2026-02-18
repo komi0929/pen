@@ -5,9 +5,30 @@ import { Loader2, Mail, PenLine } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
-const RATE_LIMIT_SECONDS = 60;
+const COOLDOWN_SECONDS = 60;
+const RATE_LIMIT_COOLDOWN_SECONDS = 120;
 const STORAGE_KEY_EMAIL = "pen_login_email";
 const STORAGE_KEY_SENT_AT = "pen_login_sent_at";
+const STORAGE_KEY_COOLDOWN = "pen_login_cooldown";
+
+// Supabase のレート制限エラーかどうかを判定
+function isRateLimitError(err: unknown): boolean {
+  if (err && typeof err === "object") {
+    const e = err as Record<string, unknown>;
+    // Supabase AuthApiError の code プロパティ
+    if (e.code === "over_email_send_rate_limit") return true;
+    // status 429 もレート制限
+    if (e.status === 429) return true;
+  }
+  // フォールバック: メッセージに "rate limit" を含む場合
+  if (
+    err instanceof Error &&
+    err.message.toLowerCase().includes("rate limit")
+  ) {
+    return true;
+  }
+  return false;
+}
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -25,17 +46,22 @@ export default function LoginPage() {
     }
   }, []);
 
-  // 前回入力したメールアドレスを復元
+  // 前回入力したメールアドレスとクールダウンを復元
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY_EMAIL);
     if (saved) setEmail(saved);
 
     // レートリミットのクールダウンを復元
     const sentAt = localStorage.getItem(STORAGE_KEY_SENT_AT);
+    const savedCooldown = Number(
+      localStorage.getItem(STORAGE_KEY_COOLDOWN) || COOLDOWN_SECONDS
+    );
     if (sentAt) {
       const elapsed = Math.floor((Date.now() - Number(sentAt)) / 1000);
-      if (elapsed < RATE_LIMIT_SECONDS) {
-        setCooldown(RATE_LIMIT_SECONDS - elapsed);
+      if (elapsed < savedCooldown) {
+        setCooldown(savedCooldown - elapsed);
+        // 送信済み状態も復元
+        setSent(true);
       }
     }
   }, []);
@@ -54,6 +80,13 @@ export default function LoginPage() {
     }, 1000);
     return () => clearInterval(timer);
   }, [cooldown]);
+
+  // クールダウン状態を保存するヘルパー
+  const startCooldown = useCallback((seconds: number) => {
+    setCooldown(seconds);
+    localStorage.setItem(STORAGE_KEY_SENT_AT, String(Date.now()));
+    localStorage.setItem(STORAGE_KEY_COOLDOWN, String(seconds));
+  }, []);
 
   const handleMagicLink = useCallback(
     async (e: React.FormEvent) => {
@@ -74,33 +107,29 @@ export default function LoginPage() {
         });
         if (error) throw error;
 
-        // レートリミット防止: 送信時刻を記録
-        localStorage.setItem(STORAGE_KEY_SENT_AT, String(Date.now()));
-        setCooldown(RATE_LIMIT_SECONDS);
+        // 送信成功: クールダウン開始
+        startCooldown(COOLDOWN_SECONDS);
         setSent(true);
       } catch (err) {
-        const message =
-          err instanceof Error ? err.message : "メールの送信に失敗しました";
-
-        // Supabaseのレートリミットエラーを日本語化
-        if (message.toLowerCase().includes("rate limit")) {
+        if (isRateLimitError(err)) {
+          // レート制限エラー: 長めのクールダウンを設定
           setError(
-            "メールの送信回数制限に達しました。1分ほど待ってから再度お試しください。"
+            "メールの送信回数制限に達しました。しばらく待ってから再度お試しください。"
           );
-          setCooldown(RATE_LIMIT_SECONDS);
-          localStorage.setItem(STORAGE_KEY_SENT_AT, String(Date.now()));
-        } else if (message.toLowerCase().includes("email")) {
-          setError(
-            "メールアドレスに問題があります。正しいアドレスを入力してください。"
-          );
+          startCooldown(RATE_LIMIT_COOLDOWN_SECONDS);
         } else {
+          // その他のエラー: 元メッセージをそのまま表示
+          const message =
+            err instanceof Error
+              ? err.message
+              : "メールの送信に失敗しました。時間をおいて再度お試しください。";
           setError(message);
         }
       } finally {
         setLoading(false);
       }
     },
-    [email, cooldown, supabase.auth]
+    [email, cooldown, supabase.auth, startCooldown]
   );
 
   const handleGoogleLogin = async () => {
@@ -134,6 +163,8 @@ export default function LoginPage() {
           <p className="text-muted-foreground mb-6 text-sm">
             メール内のリンクをクリックするとログインできます。
           </p>
+
+          {error && <p className="text-danger mb-4 text-sm">{error}</p>}
 
           {/* 再送信ボタン */}
           <div className="mb-4">
