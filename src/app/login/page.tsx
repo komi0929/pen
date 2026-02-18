@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
 const COOLDOWN_SECONDS = 60;
-const RATE_LIMIT_COOLDOWN_SECONDS = 120;
+const RATE_LIMIT_COOLDOWN_SECONDS = 60;
 const STORAGE_KEY_EMAIL = "pen_login_email";
 const STORAGE_KEY_SENT_AT = "pen_login_sent_at";
 const STORAGE_KEY_COOLDOWN = "pen_login_cooldown";
