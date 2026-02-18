@@ -18,6 +18,12 @@ export function Footer() {
             改善計画
           </Link>
           <Link
+            href="/ai-system"
+            className="hover:bg-muted hover:text-foreground rounded-lg px-3 py-2 transition-colors"
+          >
+            AIのしくみ
+          </Link>
+          <Link
             href="/terms"
             className="hover:bg-muted hover:text-foreground rounded-lg px-3 py-2 transition-colors"
           >

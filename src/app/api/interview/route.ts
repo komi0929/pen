@@ -1,3 +1,4 @@
+import { buildInterviewPrompt } from "@/lib/prompts/registry";
 import { createClient } from "@/lib/supabase/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextRequest, NextResponse } from "next/server";
@@ -44,7 +45,7 @@ export async function POST(request: NextRequest) {
 
     // Gemini AI を使用したインタビュー
     const genAI = new GoogleGenerativeAI(apiKey);
-    const systemPrompt = buildSystemPrompt(
+    const systemPrompt = buildInterviewPrompt(
       themeTitle,
       themeDescription,
       memos,
@@ -134,68 +135,6 @@ function parseReadiness(text: string): { text: string; readiness: number } {
     : -1;
   const cleanText = text.replace(/\s*\[\[READY:\d{1,3}\]\]\s*/g, "").trim();
   return { text: cleanText, readiness };
-}
-
-function buildSystemPrompt(
-  themeTitle: string,
-  themeDescription: string,
-  memos: { content: string }[] | null,
-  referenceArticles?: { title: string; content: string }[] | null
-): string {
-  const memoSection =
-    memos && memos.length > 0
-      ? `\n\nユーザーのメモ:\n${memos.map((m, i) => `${i + 1}. ${m.content}`).join("\n")}`
-      : "";
-
-  const refArticleSection =
-    referenceArticles && referenceArticles.length > 0
-      ? `\n\n## 参考記事（前提情報）\n以下の記事はユーザーが過去に作成した関連記事です。この内容は既知の情報として扱い、同じ質問を繰り返さないでください。この記事の内容を踏まえた上で、新しい角度や深い洞察を引き出す質問をしてください。\n\n${referenceArticles.map((a, i) => `### 参考記事${i + 1}: 「${a.title}」\n${a.content}`).join("\n\n")}`
-      : "";
-
-  return `あなたはプロのライターインタビュアーです。ユーザーがnoteに投稿する記事を書くための素材を引き出すインタビューを行います。
-
-## インタビュー対象テーマ
-タイトル: ${themeTitle}
-${themeDescription ? `説明: ${themeDescription}` : ""}${memoSection}${refArticleSection}
-
-## インタビューのルール
-1. 一度に1つの質問だけをする（複数の質問を同時にしない）
-2. ユーザーの回答を深掘りし、具体的なエピソードや感情を引き出す
-3. 共感を示しながら、自然な対話を心がける
-4. 質問は短く、分かりやすく
-5. 回答には「なるほど」「面白いですね」などの相槌を入れる
-6. メモがある場合は、メモの内容に触れながら質問する
-7. 敬語で話す（ですます調）
-8. 絵文字は使わない
-9. ユーザーが質問をスキップした場合は、無理に深堀りせず別の話題で質問する
-10. 参考記事がある場合は、その内容と重複する質問を避け、続編や発展的な話題を重視する
-
-## 記事素材の準備度評価（必須）
-あなたは毎回の応答の最後に、記事を書くための素材がどれくらい集まったかを評価してください。
-応答テキストの**最終行**に以下のフォーマットで準備度を記載してください：
-
-[[READY:XX]]
-
-XXは0〜100の整数で、以下の基準に従ってください：
-
-- **0〜15**: まだ始まったばかり。テーマの背景や動機がわかっていない
-- **15〜30**: 基本的な導入情報は得たが、具体的なエピソードが不足
-- **30〜50**: いくつかのエピソードが出てきた。もう少し深堀りが必要
-- **50〜70**: 良い素材が揃ってきた。あと2〜3問で十分になりそう
-- **70〜80**: 十分な素材が集まった。記事を書ける状態
-
-80以上は使わないでください。最大値は80です。
-
-**重要なルール：**
-- 準備度が70以上になったら、通常の質問をやめて、以下のような完了提案メッセージを送ってください：
-  「ここまでのお話で、記事を書くための素材が十分に集まりました。このままインタビューを完了して、記事の生成に進むことができます。もし他に伝えたいことがあれば、もちろん続けていただけます。」
-  その後に「他に何か付け加えたいことはありますか？」と聞いてください
-- 最初の質問（会話開始時）は必ず [[READY:5]] とする
-- ユーザーの回答が短い・浅い場合は準備度を大きく上げない
-- ユーザーの回答が具体的で豊かな場合は準備度を積極的に上げる
-- スキップされた質問は準備度に影響しない
-
-このタグはユーザーには表示されません。必ず毎回付与してください。`;
 }
 
 function generateMockResponse(

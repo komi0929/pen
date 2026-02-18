@@ -1,11 +1,19 @@
+import { buildWritingPrompt } from "@/lib/prompts/registry";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { themeTitle, themeDescription, memos, messages, targetLength } =
-      body;
+    const {
+      themeTitle,
+      themeDescription,
+      memos,
+      messages,
+      targetLength,
+      pronoun,
+      writingStyle,
+    } = body;
 
     const apiKey = process.env.GEMINI_API_KEY;
 
@@ -21,11 +29,14 @@ export async function POST(request: NextRequest) {
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    const systemPrompt = buildArticlePrompt(
+    const systemPrompt = buildWritingPrompt(
       themeTitle,
       themeDescription,
       memos,
-      targetLength ?? 2000
+      targetLength ?? 2000,
+      undefined,
+      pronoun,
+      writingStyle
     );
     const model = genAI.getGenerativeModel({
       model: "gemini-3-flash-preview",
@@ -87,36 +98,6 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
-
-function buildArticlePrompt(
-  themeTitle: string,
-  themeDescription: string,
-  memos: { content: string }[] | null,
-  targetLength: number
-): string {
-  const memoSection =
-    memos && memos.length > 0
-      ? `\n\n参考メモ:\n${memos.map((m, i) => `${i + 1}. ${m.content}`).join("\n")}`
-      : "";
-
-  return `あなたはプロのライターです。インタビュー内容をもとに、noteに投稿する記事を作成してください。
-
-## 記事のテーマ
-タイトル: ${themeTitle}
-${themeDescription ? `説明: ${themeDescription}` : ""}${memoSection}
-
-## 記事作成のルール
-1. 最初の行に「# タイトル」形式で記事タイトルを付ける（テーマのタイトルをそのまま使わず、内容に合った魅力的なタイトルにする）
-2. 読者が共感しやすい、親しみやすい文章で書く
-3. 改行を適切に使い、読みやすくする
-4. 段落の区切りには空行を入れる
-5. 見出し（##）を使って構成を整理する
-6. ${targetLength.toLocaleString()}文字程度の記事にする
-7. インタビューの質問・回答形式そのままではなく、自然な記事に再構成する
-8. 「ですます調」を使用する
-9. noteの読者層を意識した、カジュアルだが内容のある文章にする
-10. マークダウン記法はnoteで使える範囲に限定する（#, ##, ###, **太字**, 改行）`;
 }
 
 function generateMockArticle(
