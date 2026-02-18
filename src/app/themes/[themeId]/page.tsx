@@ -3,13 +3,22 @@
 import { AuthGuard } from "@/components/AuthGuard";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
-import { getArticleRefs, removeArticleRef } from "@/lib/actions/article-refs";
+import {
+  addArticleRef,
+  getArticleRefs,
+  getArticlesForThemeRef,
+  removeArticleRef,
+} from "@/lib/actions/article-refs";
 import { getActiveInterview } from "@/lib/actions/interviews";
 import { createMemo, deleteMemo, getMemos } from "@/lib/actions/memos";
 import { getTheme } from "@/lib/actions/themes";
 import type { Interview, Memo, Theme, ThemeArticleRef } from "@/types";
 import {
   ArrowLeft,
+  BookmarkPlus,
+  Check,
+  ChevronDown,
+  ChevronUp,
   FileText,
   Loader2,
   MessageSquare,
@@ -21,6 +30,13 @@ import {
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+
+type AvailableArticle = {
+  id: string;
+  title: string;
+  theme_title: string;
+  already_added: boolean;
+};
 
 function ThemeDetailContent() {
   const params = useParams();
@@ -39,6 +55,15 @@ function ThemeDetailContent() {
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // 記事セレクター（テーマ側から記事を参考メモとして追加）
+  const [showArticleSelector, setShowArticleSelector] = useState(false);
+  const [availableArticles, setAvailableArticles] = useState<
+    AvailableArticle[]
+  >([]);
+  const [loadingArticles, setLoadingArticles] = useState(false);
+  const [addingArticle, setAddingArticle] = useState<string | null>(null);
+  const articleSelectorRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
     const [themeResult, memosResult, interviewResult, refsResult] =
@@ -102,6 +127,55 @@ function ThemeDetailContent() {
       setError(result.error);
     }
   };
+
+  // 記事セレクターの開閉
+  const handleToggleArticleSelector = async () => {
+    if (showArticleSelector) {
+      setShowArticleSelector(false);
+      return;
+    }
+    setLoadingArticles(true);
+    setShowArticleSelector(true);
+    const result = await getArticlesForThemeRef(themeId);
+    if (result.success) {
+      setAvailableArticles(result.data);
+    }
+    setLoadingArticles(false);
+  };
+
+  // 記事を参考メモとして追加
+  const handleAddArticleFromSelector = async (articleId: string) => {
+    setAddingArticle(articleId);
+    const result = await addArticleRef(themeId, articleId);
+    if (result.success) {
+      setAvailableArticles((prev) =>
+        prev.map((a) =>
+          a.id === articleId ? { ...a, already_added: true } : a
+        )
+      );
+      // リストを再取得して参考記事表示を更新
+      const refsResult = await getArticleRefs(themeId);
+      if (refsResult.success) setArticleRefs(refsResult.data);
+    } else {
+      setError(result.error);
+    }
+    setAddingArticle(null);
+  };
+
+  // 記事セレクター外クリックで閉じる
+  useEffect(() => {
+    if (!showArticleSelector) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        articleSelectorRef.current &&
+        !articleSelectorRef.current.contains(e.target as Node)
+      ) {
+        setShowArticleSelector(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showArticleSelector]);
 
   if (loading) {
     return (
@@ -179,15 +253,88 @@ function ThemeDetailContent() {
           </div>
 
           {/* 参考記事 */}
-          {articleRefs.length > 0 && (
-            <div className="mb-6">
-              <h2 className="text-muted-foreground mb-3 flex items-center gap-2 text-sm font-bold">
+          <div className="mb-6">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-muted-foreground flex items-center gap-2 text-sm font-bold">
                 <FileText className="h-4 w-4" />
-                参考記事（{articleRefs.length}件）
+                参考記事
+                {articleRefs.length > 0 && `（${articleRefs.length}件）`}
                 <span className="font-normal">
                   — インタビュー時に参照されます
                 </span>
               </h2>
+              <div className="relative" ref={articleSelectorRef}>
+                <button
+                  onClick={handleToggleArticleSelector}
+                  className="pen-btn pen-btn-secondary text-xs"
+                >
+                  <BookmarkPlus className="h-3.5 w-3.5" />
+                  記事を追加
+                  {showArticleSelector ? (
+                    <ChevronUp className="h-3 w-3" />
+                  ) : (
+                    <ChevronDown className="h-3 w-3" />
+                  )}
+                </button>
+                {showArticleSelector && (
+                  <div className="border-border bg-card absolute right-0 z-50 mt-2 w-80 rounded-xl border shadow-lg">
+                    <div className="border-border border-b px-4 py-3">
+                      <p className="text-sm font-bold">参考記事を選択</p>
+                      <p className="text-muted-foreground text-xs">
+                        過去の記事をこのテーマの参考として追加
+                      </p>
+                    </div>
+                    <div className="max-h-64 overflow-y-auto p-2">
+                      {loadingArticles ? (
+                        <div className="flex justify-center py-4">
+                          <Loader2 className="text-muted-foreground h-5 w-5 animate-spin" />
+                        </div>
+                      ) : availableArticles.length === 0 ? (
+                        <p className="text-muted-foreground py-4 text-center text-sm">
+                          追加可能な記事がありません
+                        </p>
+                      ) : (
+                        availableArticles.map((article) => (
+                          <button
+                            key={article.id}
+                            onClick={() =>
+                              !article.already_added &&
+                              handleAddArticleFromSelector(article.id)
+                            }
+                            disabled={
+                              addingArticle === article.id ||
+                              article.already_added
+                            }
+                            className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition-colors ${
+                              article.already_added
+                                ? "cursor-default opacity-50"
+                                : "hover:bg-muted cursor-pointer"
+                            }`}
+                          >
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate font-medium">
+                                {article.title}
+                              </p>
+                              {article.theme_title && (
+                                <p className="text-muted-foreground truncate text-xs">
+                                  {article.theme_title}
+                                </p>
+                              )}
+                            </div>
+                            {addingArticle === article.id ? (
+                              <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+                            ) : article.already_added ? (
+                              <Check className="text-accent h-4 w-4 shrink-0" />
+                            ) : null}
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+            {articleRefs.length > 0 && (
               <div className="space-y-2">
                 {articleRefs.map((ref) => (
                   <div
@@ -215,8 +362,13 @@ function ThemeDetailContent() {
                   </div>
                 ))}
               </div>
-            </div>
-          )}
+            )}
+            {articleRefs.length === 0 && !showArticleSelector && (
+              <p className="text-muted-foreground text-xs">
+                参考記事を追加すると、インタビュー時にAIが参照します
+              </p>
+            )}
+          </div>
 
           {/* メモ入力フォーム */}
           <form onSubmit={handleCreateMemo} className="pen-card mb-6">

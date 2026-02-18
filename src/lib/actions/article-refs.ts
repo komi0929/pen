@@ -173,3 +173,62 @@ export async function getThemesForArticleRef(
     };
   }
 }
+
+/**
+ * テーマに参考記事として追加可能な記事一覧を取得
+ * - このテーマの記事を除外
+ * - 既に追加済みの記事をマーク
+ */
+export async function getArticlesForThemeRef(themeId: string): Promise<
+  ActionResult<
+    {
+      id: string;
+      title: string;
+      theme_title: string;
+      already_added: boolean;
+    }[]
+  >
+> {
+  try {
+    const supabase = await createClient();
+    if (!supabase) return { success: false, error: "DB接続エラー" };
+
+    // ユーザーの全記事を取得（このテーマの記事を除外）
+    const { data: articles, error: articlesError } = await supabase
+      .from("articles")
+      .select("id, title, theme_id, themes(title)")
+      .neq("theme_id", themeId)
+      .order("created_at", { ascending: false });
+
+    if (articlesError) throw articlesError;
+
+    // 既に追加済みの参照を取得
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: existingRefs } = await (supabase as any)
+      .from("theme_article_refs")
+      .select("article_id")
+      .eq("theme_id", themeId);
+
+    const addedArticleIds = new Set(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (existingRefs ?? []).map((r: any) => r.article_id)
+    );
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result = (articles ?? []).map((a: any) => ({
+      id: a.id,
+      title: a.title || "無題の記事",
+      theme_title:
+        a.themes && typeof a.themes === "object" ? a.themes.title : "",
+      already_added: addedArticleIds.has(a.id),
+    }));
+
+    return { success: true, data: result };
+  } catch (err) {
+    return {
+      success: false,
+      error:
+        err instanceof Error ? err.message : "記事一覧の取得に失敗しました",
+    };
+  }
+}
