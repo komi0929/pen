@@ -16,7 +16,14 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { themeTitle, themeDescription, memos, messages, isSkip } = body;
+    const {
+      themeTitle,
+      themeDescription,
+      memos,
+      messages,
+      isSkip,
+      referenceArticles,
+    } = body;
 
     const messageCount = messages?.length ?? 0;
 
@@ -37,7 +44,12 @@ export async function POST(request: NextRequest) {
 
     // Gemini AI を使用したインタビュー
     const genAI = new GoogleGenerativeAI(apiKey);
-    const systemPrompt = buildSystemPrompt(themeTitle, themeDescription, memos);
+    const systemPrompt = buildSystemPrompt(
+      themeTitle,
+      themeDescription,
+      memos,
+      referenceArticles
+    );
     const model = genAI.getGenerativeModel({
       model: "gemini-3-flash-preview",
       systemInstruction: systemPrompt,
@@ -127,18 +139,24 @@ function parseReadiness(text: string): { text: string; readiness: number } {
 function buildSystemPrompt(
   themeTitle: string,
   themeDescription: string,
-  memos: { content: string }[] | null
+  memos: { content: string }[] | null,
+  referenceArticles?: { title: string; content: string }[] | null
 ): string {
   const memoSection =
     memos && memos.length > 0
       ? `\n\nユーザーのメモ:\n${memos.map((m, i) => `${i + 1}. ${m.content}`).join("\n")}`
       : "";
 
+  const refArticleSection =
+    referenceArticles && referenceArticles.length > 0
+      ? `\n\n## 参考記事（前提情報）\n以下の記事はユーザーが過去に作成した関連記事です。この内容は既知の情報として扱い、同じ質問を繰り返さないでください。この記事の内容を踏まえた上で、新しい角度や深い洞察を引き出す質問をしてください。\n\n${referenceArticles.map((a, i) => `### 参考記事${i + 1}: 「${a.title}」\n${a.content}`).join("\n\n")}`
+      : "";
+
   return `あなたはプロのライターインタビュアーです。ユーザーがnoteに投稿する記事を書くための素材を引き出すインタビューを行います。
 
 ## インタビュー対象テーマ
 タイトル: ${themeTitle}
-${themeDescription ? `説明: ${themeDescription}` : ""}${memoSection}
+${themeDescription ? `説明: ${themeDescription}` : ""}${memoSection}${refArticleSection}
 
 ## インタビューのルール
 1. 一度に1つの質問だけをする（複数の質問を同時にしない）
@@ -150,6 +168,7 @@ ${themeDescription ? `説明: ${themeDescription}` : ""}${memoSection}
 7. 敬語で話す（ですます調）
 8. 絵文字は使わない
 9. ユーザーが質問をスキップした場合は、無理に深堀りせず別の話題で質問する
+10. 参考記事がある場合は、その内容と重複する質問を避け、続編や発展的な話題を重視する
 
 ## 記事素材の準備度評価（必須）
 あなたは毎回の応答の最後に、記事を書くための素材がどれくらい集まったかを評価してください。

@@ -18,6 +18,7 @@ export async function POST(request: NextRequest) {
     memos,
     messages,
     articleId: existingArticleId,
+    referenceArticles,
   } = body;
   let articleId = existingArticleId as string | undefined;
 
@@ -55,7 +56,8 @@ export async function POST(request: NextRequest) {
         themeTitle,
         themeDescription,
         memos,
-        targetLength ?? 2000
+        targetLength ?? 2000,
+        referenceArticles
       );
       const model = genAI.getGenerativeModel({
         model: "gemini-3-flash-preview",
@@ -187,18 +189,24 @@ function buildArticlePrompt(
   themeTitle: string,
   themeDescription: string,
   memos: { content: string }[] | null,
-  targetLength: number
+  targetLength: number,
+  referenceArticles?: { title: string; content: string }[] | null
 ): string {
   const memoSection =
     memos && memos.length > 0
       ? `\n\n参考メモ:\n${memos.map((m, i) => `${i + 1}. ${m.content}`).join("\n")}`
       : "";
 
+  const refArticleSection =
+    referenceArticles && referenceArticles.length > 0
+      ? `\n\n## 参考記事（前提情報）\n以下の記事はユーザーが過去に同じテーマで作成した関連記事です。この記事で既に書かれている内容との重複を避け、続編として自然に読めるようにしてください。前回の記事の内容を「前回の記事では〜」のように自然に参照しても構いません。\n\n${referenceArticles.map((a, i) => `### 既存記事${i + 1}: 「${a.title}」\n${a.content}`).join("\n\n")}`
+      : "";
+
   return `あなたはプロのライターです。インタビュー内容をもとに、noteに投稿する記事を作成してください。
 
 ## 記事のテーマ
 タイトル: ${themeTitle}
-${themeDescription ? `説明: ${themeDescription}` : ""}${memoSection}
+${themeDescription ? `説明: ${themeDescription}` : ""}${memoSection}${refArticleSection}
 
 ## 記事作成のルール
 1. 最初の行に「# タイトル」形式で記事タイトルを付ける（テーマのタイトルをそのまま使わず、内容に合った魅力的なタイトルにする）
@@ -210,7 +218,8 @@ ${themeDescription ? `説明: ${themeDescription}` : ""}${memoSection}
 7. インタビューの質問・回答形式そのままではなく、自然な記事に再構成する
 8. 「ですます調」を使用する
 9. noteの読者層を意識した、カジュアルだが内容のある文章にする
-10. マークダウン記法はnoteで使える範囲に限定する（#, ##, ###, **太字**, 改行）`;
+10. マークダウン記法はnoteで使える範囲に限定する（#, ##, ###, **太字**, 改行）
+11. 参考記事がある場合は、内容の重複を避けつつ、テーマの発展・続編として書く`;
 }
 
 function generateMockArticle(

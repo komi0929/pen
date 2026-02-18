@@ -3,10 +3,11 @@
 import { AuthGuard } from "@/components/AuthGuard";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
+import { getArticleRefs, removeArticleRef } from "@/lib/actions/article-refs";
 import { getActiveInterview } from "@/lib/actions/interviews";
 import { createMemo, deleteMemo, getMemos } from "@/lib/actions/memos";
 import { getTheme } from "@/lib/actions/themes";
-import type { Interview, Memo, Theme } from "@/types";
+import type { Interview, Memo, Theme, ThemeArticleRef } from "@/types";
 import {
   ArrowLeft,
   FileText,
@@ -15,6 +16,7 @@ import {
   Send,
   StickyNote,
   Trash2,
+  X,
 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -29,6 +31,7 @@ function ThemeDetailContent() {
   const [activeInterview, setActiveInterview] = useState<Interview | null>(
     null
   );
+  const [articleRefs, setArticleRefs] = useState<ThemeArticleRef[]>([]);
   const [loading, setLoading] = useState(true);
 
   // メモ入力
@@ -38,15 +41,18 @@ function ThemeDetailContent() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const load = useCallback(async () => {
-    const [themeResult, memosResult, interviewResult] = await Promise.all([
-      getTheme(themeId),
-      getMemos(themeId),
-      getActiveInterview(themeId),
-    ]);
+    const [themeResult, memosResult, interviewResult, refsResult] =
+      await Promise.all([
+        getTheme(themeId),
+        getMemos(themeId),
+        getActiveInterview(themeId),
+        getArticleRefs(themeId),
+      ]);
 
     if (themeResult.success) setTheme(themeResult.data);
     if (memosResult.success) setMemos(memosResult.data);
     if (interviewResult.success) setActiveInterview(interviewResult.data);
+    if (refsResult.success) setArticleRefs(refsResult.data);
     setLoading(false);
   }, [themeId]);
 
@@ -84,6 +90,16 @@ function ThemeDetailContent() {
     if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
       e.preventDefault();
       handleCreateMemo(e as unknown as React.FormEvent);
+    }
+  };
+
+  const handleRemoveArticleRef = async (refId: string) => {
+    if (!window.confirm("この参考記事を削除しますか？")) return;
+    const result = await removeArticleRef(refId);
+    if (result.success) {
+      setArticleRefs((prev) => prev.filter((r) => r.id !== refId));
+    } else {
+      setError(result.error);
     }
   };
 
@@ -154,13 +170,53 @@ function ThemeDetailContent() {
               )}
             </div>
 
-            {memos.length === 0 && (
+            {memos.length === 0 && articleRefs.length === 0 && (
               <p className="text-muted-foreground mt-3 text-center text-xs">
                 <StickyNote className="mr-1 inline h-3 w-3" />
                 メモを書いてからインタビューを始めると、より良い記事が生成されます
               </p>
             )}
           </div>
+
+          {/* 参考記事 */}
+          {articleRefs.length > 0 && (
+            <div className="mb-6">
+              <h2 className="text-muted-foreground mb-3 flex items-center gap-2 text-sm font-bold">
+                <FileText className="h-4 w-4" />
+                参考記事（{articleRefs.length}件）
+                <span className="font-normal">
+                  — インタビュー時に参照されます
+                </span>
+              </h2>
+              <div className="space-y-2">
+                {articleRefs.map((ref) => (
+                  <div
+                    key={ref.id}
+                    className="group border-border bg-card flex items-start gap-3 rounded-lg border px-4 py-3"
+                  >
+                    <FileText className="text-accent mt-0.5 h-4 w-4 shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium">
+                        {ref.article_title || "無題の記事"}
+                      </p>
+                      {ref.source_theme_title && (
+                        <p className="text-muted-foreground mt-0.5 text-xs">
+                          元テーマ: {ref.source_theme_title}
+                        </p>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => handleRemoveArticleRef(ref.id)}
+                      aria-label="参考記事を削除"
+                      className="text-muted-foreground hover:bg-danger/10 hover:text-danger shrink-0 rounded-lg p-2 transition-all md:opacity-0 md:group-hover:opacity-100"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* メモ入力フォーム */}
           <form onSubmit={handleCreateMemo} className="pen-card mb-6">

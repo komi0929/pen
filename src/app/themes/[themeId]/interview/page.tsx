@@ -3,6 +3,7 @@
 import { AuthGuard } from "@/components/AuthGuard";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
+import { getArticleRefs } from "@/lib/actions/article-refs";
 import {
   addMessage,
   completeInterview,
@@ -12,7 +13,13 @@ import {
 } from "@/lib/actions/interviews";
 import { getMemos } from "@/lib/actions/memos";
 import { getTheme } from "@/lib/actions/themes";
-import type { Interview, InterviewMessage, Memo, Theme } from "@/types";
+import type {
+  Interview,
+  InterviewMessage,
+  Memo,
+  Theme,
+  ThemeArticleRef,
+} from "@/types";
 import {
   ArrowLeft,
   Check,
@@ -83,6 +90,7 @@ function InterviewContent() {
 
   const [theme, setTheme] = useState<Theme | null>(null);
   const [memos, setMemos] = useState<Memo[]>([]);
+  const [articleRefs, setArticleRefs] = useState<ThemeArticleRef[]>([]);
   const [interview, setInterview] = useState<Interview | null>(null);
   const [messages, setMessages] = useState<InterviewMessage[]>([]);
   const [input, setInput] = useState("");
@@ -138,12 +146,20 @@ function InterviewContent() {
       currentMessages: InterviewMessage[],
       themeData: Theme | null,
       memosData: Memo[],
-      isSkip = false
+      isSkip = false,
+      articleRefsData?: ThemeArticleRef[]
     ) => {
       if (isFetchingRef.current) return;
       isFetchingRef.current = true;
 
       try {
+        const refsForApi = (articleRefsData ?? articleRefs)
+          .filter((r) => r.article_title && r.article_content)
+          .map((r) => ({
+            title: r.article_title!,
+            content: r.article_content!,
+          }));
+
         const res = await fetch("/api/interview", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -156,6 +172,7 @@ function InterviewContent() {
               content: m.content,
             })),
             isSkip,
+            referenceArticles: refsForApi.length > 0 ? refsForApi : undefined,
           }),
         });
 
@@ -214,17 +231,21 @@ function InterviewContent() {
     isLoadingRef.current = true;
 
     try {
-      const [themeResult, memosResult, interviewResult] = await Promise.all([
-        getTheme(themeId),
-        getMemos(themeId),
-        getActiveInterview(themeId),
-      ]);
+      const [themeResult, memosResult, interviewResult, refsResult] =
+        await Promise.all([
+          getTheme(themeId),
+          getMemos(themeId),
+          getActiveInterview(themeId),
+          getArticleRefs(themeId),
+        ]);
 
       const loadedTheme = themeResult.success ? themeResult.data : null;
       const loadedMemos = memosResult.success ? memosResult.data : [];
+      const loadedRefs = refsResult.success ? refsResult.data : [];
 
       if (loadedTheme) setTheme(loadedTheme);
       if (memosResult.success) setMemos(loadedMemos);
+      setArticleRefs(loadedRefs);
 
       if (interviewResult.success && interviewResult.data) {
         setInterview(interviewResult.data);
@@ -238,7 +259,9 @@ function InterviewContent() {
               interviewResult.data.id,
               [],
               loadedTheme,
-              loadedMemos
+              loadedMemos,
+              false,
+              loadedRefs
             );
             setSending(false);
             return;
@@ -328,6 +351,12 @@ function InterviewContent() {
             content: m.content,
           })),
           articleId: articleId ?? undefined,
+          referenceArticles: articleRefs
+            .filter((r) => r.article_title && r.article_content)
+            .map((r) => ({
+              title: r.article_title!,
+              content: r.article_content!,
+            })),
         }),
       });
 
@@ -406,8 +435,14 @@ function InterviewContent() {
                 記事の素材を作りましょう。
               </p>
               {memos.length > 0 && (
-                <p className="text-muted-foreground mb-6 text-sm">
+                <p className="text-muted-foreground mb-2 text-sm">
                   📝 {memos.length}件のメモを参考にAIが質問を生成します
+                </p>
+              )}
+              {articleRefs.length > 0 && (
+                <p className="text-muted-foreground mb-6 text-sm">
+                  📄 {articleRefs.length}
+                  件の参考記事がインタビュー時に参照されます
                 </p>
               )}
 

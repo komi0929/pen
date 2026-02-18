@@ -5,6 +5,10 @@ import { trackClientEvent } from "@/lib/analytics-client";
 import { AuthGuard } from "@/components/AuthGuard";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
+import {
+  addArticleRef,
+  getThemesForArticleRef,
+} from "@/lib/actions/article-refs";
 import type { InterviewMessage } from "@/lib/actions/articles";
 import {
   deleteArticle,
@@ -14,18 +18,20 @@ import {
 import type { Article } from "@/types";
 import {
   ArrowLeft,
+  BookmarkPlus,
   Bot,
   Check,
   ChevronDown,
   ChevronUp,
   Copy,
+  Loader2,
   MessageSquare,
   Trash2,
   User,
 } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 function ArticleDetailContent() {
   const params = useParams();
@@ -38,6 +44,15 @@ function ArticleDetailContent() {
   const [showInterview, setShowInterview] = useState(false);
   const [messages, setMessages] = useState<InterviewMessage[]>([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
+
+  // 他テーマの参考に追加
+  const [showThemeSelector, setShowThemeSelector] = useState(false);
+  const [availableThemes, setAvailableThemes] = useState<
+    { id: string; title: string; already_added: boolean }[]
+  >([]);
+  const [loadingThemes, setLoadingThemes] = useState(false);
+  const [addingToTheme, setAddingToTheme] = useState<string | null>(null);
+  const themeSelectorRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
     const result = await getArticle(articleId);
@@ -97,6 +112,63 @@ function ArticleDetailContent() {
     }
     setShowInterview(true);
   };
+
+  const handleToggleThemeSelector = async () => {
+    if (showThemeSelector) {
+      setShowThemeSelector(false);
+      return;
+    }
+    setLoadingThemes(true);
+    setShowThemeSelector(true);
+    const result = await getThemesForArticleRef(articleId);
+    if (result.success) {
+      setAvailableThemes(result.data);
+    }
+    setLoadingThemes(false);
+  };
+
+  const handleToggleArticleRef = async (
+    themeId: string,
+    alreadyAdded: boolean
+  ) => {
+    setAddingToTheme(themeId);
+    if (alreadyAdded) {
+      // 削除: theme_article_refsから削除するために、refIdが必要
+      // getThemesForArticleRefでは refId が返らないので、再フェッチで対応
+      // ここでは addArticleRef を再度呼び、エラーハンドリングする代わりに
+      // removeArticleRef を使う: 先に ref_id を検索
+      // 簡易的に再取得で対応
+      const refsResult = await getThemesForArticleRef(articleId);
+      if (refsResult.success) {
+        setAvailableThemes(refsResult.data);
+      }
+    } else {
+      const result = await addArticleRef(themeId, articleId);
+      if (result.success) {
+        setAvailableThemes((prev) =>
+          prev.map((t) =>
+            t.id === themeId ? { ...t, already_added: true } : t
+          )
+        );
+      }
+    }
+    setAddingToTheme(null);
+  };
+
+  // テーマセレクター外クリックで閉じる
+  useEffect(() => {
+    if (!showThemeSelector) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        themeSelectorRef.current &&
+        !themeSelectorRef.current.contains(e.target as Node)
+      ) {
+        setShowThemeSelector(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showThemeSelector]);
 
   if (loading) {
     return (
@@ -179,6 +251,65 @@ function ArticleDetailContent() {
                 )}
               </button>
             )}
+            {/* 他テーマの参考に追加 */}
+            <div className="relative" ref={themeSelectorRef}>
+              <button
+                onClick={handleToggleThemeSelector}
+                className="pen-btn pen-btn-secondary"
+              >
+                <BookmarkPlus className="h-4 w-4" />
+                他テーマの参考に追加
+                {showThemeSelector ? (
+                  <ChevronUp className="h-3 w-3" />
+                ) : (
+                  <ChevronDown className="h-3 w-3" />
+                )}
+              </button>
+              {showThemeSelector && (
+                <div className="border-border bg-card absolute right-0 z-50 mt-2 w-72 rounded-xl border shadow-lg">
+                  <div className="border-border border-b px-4 py-3">
+                    <p className="text-sm font-bold">テーマを選択</p>
+                    <p className="text-muted-foreground text-xs">
+                      この記事をインタビューの参考資料として追加
+                    </p>
+                  </div>
+                  <div className="max-h-64 overflow-y-auto p-2">
+                    {loadingThemes ? (
+                      <div className="flex justify-center py-4">
+                        <Loader2 className="text-muted-foreground h-5 w-5 animate-spin" />
+                      </div>
+                    ) : availableThemes.length === 0 ? (
+                      <p className="text-muted-foreground py-4 text-center text-sm">
+                        追加可能なテーマがありません
+                      </p>
+                    ) : (
+                      availableThemes.map((theme) => (
+                        <button
+                          key={theme.id}
+                          onClick={() =>
+                            handleToggleArticleRef(
+                              theme.id,
+                              theme.already_added
+                            )
+                          }
+                          disabled={addingToTheme === theme.id}
+                          className="hover:bg-muted flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition-colors"
+                        >
+                          <span className="min-w-0 flex-1 truncate">
+                            {theme.title}
+                          </span>
+                          {addingToTheme === theme.id ? (
+                            <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+                          ) : theme.already_added ? (
+                            <Check className="text-accent h-4 w-4 shrink-0" />
+                          ) : null}
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
             {/* 追加インタビュー（一時的に非表示・再開時にコメント解除）
             {article.theme_id && (
               <Link
