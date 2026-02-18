@@ -19,6 +19,8 @@ export async function POST(request: NextRequest) {
     messages,
     articleId: existingArticleId,
     referenceArticles,
+    pronoun,
+    writingStyle,
   } = body;
   let articleId = existingArticleId as string | undefined;
 
@@ -57,7 +59,9 @@ export async function POST(request: NextRequest) {
         themeDescription,
         memos,
         targetLength ?? 2000,
-        referenceArticles
+        referenceArticles,
+        pronoun,
+        writingStyle
       );
       const model = genAI.getGenerativeModel({
         model: "gemini-3-flash-preview",
@@ -190,7 +194,9 @@ function buildArticlePrompt(
   themeDescription: string,
   memos: { content: string }[] | null,
   targetLength: number,
-  referenceArticles?: { title: string; content: string }[] | null
+  referenceArticles?: { title: string; content: string }[] | null,
+  pronoun?: string,
+  writingStyle?: string
 ): string {
   const memoSection =
     memos && memos.length > 0
@@ -201,6 +207,12 @@ function buildArticlePrompt(
     referenceArticles && referenceArticles.length > 0
       ? `\n\n## 参考記事（前提情報）\n以下の記事はユーザーが過去に同じテーマで作成した関連記事です。この記事で既に書かれている内容との重複を避け、続編として自然に読めるようにしてください。前回の記事の内容を「前回の記事では〜」のように自然に参照しても構いません。\n\n${referenceArticles.map((a, i) => `### 既存記事${i + 1}: 「${a.title}」\n${a.content}`).join("\n\n")}`
       : "";
+
+  const effectivePronoun = pronoun || "私";
+  const styleLabel =
+    writingStyle === "da_dearu"
+      ? "「だ・である調（常体）」"
+      : "「です・ます調（敬体）」";
 
   return `あなたはプロのライターです。インタビュー内容をもとに、noteに投稿する記事を作成してください。
 
@@ -216,10 +228,11 @@ ${themeDescription ? `説明: ${themeDescription}` : ""}${memoSection}${refArtic
 5. 見出し（##）を使って構成を整理する
 6. ${targetLength.toLocaleString()}文字程度の記事にする
 7. インタビューの質問・回答形式そのままではなく、自然な記事に再構成する
-8. 「ですます調」を使用する
-9. noteの読者層を意識した、カジュアルだが内容のある文章にする
-10. マークダウン記法はnoteで使える範囲に限定する（#, ##, ###, **太字**, 改行）
-11. 参考記事がある場合は、内容の重複を避けつつ、テーマの発展・続編として書く`;
+8. ${styleLabel}を使用する
+9. 一人称は「${effectivePronoun}」を使用する（他の一人称を混在させない）
+10. noteの読者層を意識した、カジュアルだが内容のある文章にする
+11. マークダウン記法はnoteで使える範囲に限定する（#, ##, ###, **太字**, 改行）
+12. 参考記事がある場合は、内容の重複を避けつつ、テーマの発展・続編として書く`;
 }
 
 function generateMockArticle(

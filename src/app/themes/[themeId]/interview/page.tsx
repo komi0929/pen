@@ -100,6 +100,13 @@ function InterviewContent() {
   const [aiReadiness, setAiReadiness] = useState(-1);
   const [targetLength, setTargetLength] = useState(1000);
 
+  // 文体設定
+  const [pronoun, setPronoun] = useState("私");
+  const [customPronoun, setCustomPronoun] = useState("");
+  const [writingStyle, setWritingStyle] = useState<"desu_masu" | "da_dearu">(
+    "desu_masu"
+  );
+
   const [completing, setCompleting] = useState(false);
   const [generatedArticleId, setGeneratedArticleId] = useState<string | null>(
     null
@@ -336,6 +343,8 @@ function InterviewContent() {
     setError(null);
 
     try {
+      const effectivePronoun =
+        pronoun === "_custom" ? customPronoun || "私" : pronoun;
       const res = await fetch("/api/generate-article-async", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -357,6 +366,8 @@ function InterviewContent() {
               title: r.article_title!,
               content: r.article_content!,
             })),
+          pronoun: effectivePronoun,
+          writingStyle,
         }),
       });
 
@@ -469,6 +480,84 @@ function InterviewContent() {
                 <p className="text-muted-foreground mt-2 text-xs">
                   生成される記事のおおよその文字数です
                 </p>
+              </div>
+
+              {/* 文体設定 */}
+              <div className="mx-auto mb-8 max-w-sm">
+                <div className="grid grid-cols-2 gap-6">
+                  {/* 一人称 */}
+                  <div>
+                    <label className="text-muted-foreground mb-2 block text-sm">
+                      一人称
+                    </label>
+                    <div className="space-y-2">
+                      {["私", "僕", "俺", "自分", "筆者"].map((p) => (
+                        <button
+                          key={p}
+                          onClick={() => setPronoun(p)}
+                          className={`w-full rounded-lg border px-3 py-2 text-sm font-medium transition-all ${
+                            pronoun === p
+                              ? "border-accent bg-accent/10 text-accent"
+                              : "border-border hover:bg-muted text-muted-foreground"
+                          }`}
+                        >
+                          {p}
+                        </button>
+                      ))}
+                      <button
+                        onClick={() => setPronoun("_custom")}
+                        className={`w-full rounded-lg border px-3 py-2 text-sm font-medium transition-all ${
+                          pronoun === "_custom"
+                            ? "border-accent bg-accent/10 text-accent"
+                            : "border-border hover:bg-muted text-muted-foreground"
+                        }`}
+                      >
+                        その他
+                      </button>
+                      {pronoun === "_custom" && (
+                        <input
+                          type="text"
+                          value={customPronoun}
+                          onChange={(e) => setCustomPronoun(e.target.value)}
+                          placeholder="例: わたし、ウチ..."
+                          className="border-border bg-card focus:border-accent w-full rounded-lg border px-3 py-2 text-sm outline-none"
+                          autoFocus
+                        />
+                      )}
+                    </div>
+                  </div>
+
+                  {/* 文体 */}
+                  <div>
+                    <label className="text-muted-foreground mb-2 block text-sm">
+                      文体
+                    </label>
+                    <div className="space-y-2">
+                      <button
+                        onClick={() => setWritingStyle("desu_masu")}
+                        className={`w-full rounded-lg border px-3 py-2 text-left transition-all ${
+                          writingStyle === "desu_masu"
+                            ? "border-accent bg-accent/10 text-accent"
+                            : "border-border hover:bg-muted text-muted-foreground"
+                        }`}
+                      >
+                        <p className="text-sm font-medium">です・ます調</p>
+                        <p className="text-xs opacity-70">敬体・丁寧な印象</p>
+                      </button>
+                      <button
+                        onClick={() => setWritingStyle("da_dearu")}
+                        className={`w-full rounded-lg border px-3 py-2 text-left transition-all ${
+                          writingStyle === "da_dearu"
+                            ? "border-accent bg-accent/10 text-accent"
+                            : "border-border hover:bg-muted text-muted-foreground"
+                        }`}
+                      >
+                        <p className="text-sm font-medium">だ・である調</p>
+                        <p className="text-xs opacity-70">常体・力強い印象</p>
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {error && <p className="text-danger mb-4 text-sm">{error}</p>}
