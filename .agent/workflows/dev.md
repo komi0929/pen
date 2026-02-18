@@ -84,6 +84,10 @@ npx supabase db push
 npx supabase gen types typescript --project-id eddujglramwfldshiagd > src/lib/database.types.ts
 ```
 
+## ⚠️ 再発防止ルール
+
+**作業開始前に必ず `/mistakes` を確認すること。**
+
 ## トラブルシューティング
 
 - **ビルド失敗**: `npm run build` のログを確認
