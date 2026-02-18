@@ -1,7 +1,7 @@
+import { CtaSection } from "@/components/CtaSection";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
 import { Lightbulb, MessageSquare, PenLine, StickyNote } from "lucide-react";
-import Link from "next/link";
 
 export default function HomePage() {
   return (
@@ -83,23 +83,8 @@ export default function HomePage() {
             </div>
           </section>
 
-          {/* CTA — ログインブロック */}
-          <section className="mb-12 text-center">
-            <div className="bg-muted rounded-xl p-8">
-              <h2 className="mb-4 text-2xl font-bold">
-                さっそく始めてみましょう
-              </h2>
-              <p className="text-muted-foreground mx-auto mb-8 max-w-md text-sm leading-relaxed">
-                アカウント登録は無料。テーマを作って、AIと対話するだけで記事が完成します。
-              </p>
-              <Link
-                href="/login"
-                className="pen-btn pen-btn-primary px-8 py-3 text-base"
-              >
-                無料で始める
-              </Link>
-            </div>
-          </section>
+          {/* CTA — 未ログインユーザーのみ表示 */}
+          <CtaSection />
         </div>
       </main>
       <Footer />
