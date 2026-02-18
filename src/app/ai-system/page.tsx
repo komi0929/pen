@@ -6,13 +6,13 @@ import {
   type PromptCategory,
   type PromptVersion,
 } from "@/lib/prompts/registry";
-import { Bot, History, MessageSquare, PenLine } from "lucide-react";
+import { History, MessageSquare, PenLine, Settings } from "lucide-react";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "AIのしくみ | pen",
+  title: "penの仕組み | pen",
   description:
-    "penのインタビュー・ライティングAIの仕組みとバージョン情報を公開しています。",
+    "penのインタビュー・ライティングの仕組みとバージョン情報を公開しています。",
 };
 
 function VersionCard({
@@ -108,13 +108,13 @@ export default function AiSystemPage() {
           {/* ヘッダー */}
           <div className="mb-10 text-center">
             <div className="bg-muted mx-auto mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl">
-              <Bot className="text-accent h-8 w-8" />
+              <Settings className="text-accent h-8 w-8" />
             </div>
             <h1 className="mb-3 text-3xl font-bold tracking-tight">
-              AIのしくみ
+              penの仕組み
             </h1>
             <p className="text-muted-foreground mx-auto max-w-lg text-sm leading-relaxed">
-              penでは、AIの仕組みをバージョン管理し、すべての記録を公開しています。
+              penでは、仕組みをバージョン管理し、すべての記録を公開しています。
               <br />
               インタビューとライティングのAIは継続的に改善されます。
             </p>
@@ -148,14 +148,14 @@ export default function AiSystemPage() {
           {/* インタビューAI */}
           <VersionCard
             category="interview"
-            label="🎤 インタビューAI"
+            label="インタビューAI"
             icon={MessageSquare}
           />
 
           {/* ライティングAI */}
           <VersionCard
             category="writing"
-            label="✍️ ライティングAI"
+            label="ライティングAI"
             icon={PenLine}
           />
         </div>

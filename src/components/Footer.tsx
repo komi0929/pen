@@ -21,7 +21,7 @@ export function Footer() {
             href="/ai-system"
             className="hover:bg-muted hover:text-foreground rounded-lg px-3 py-2 transition-colors"
           >
-            AIのしくみ
+            penの仕組み
           </Link>
           <Link
             href="/terms"
