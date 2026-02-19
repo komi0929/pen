@@ -2,6 +2,56 @@ import { buildWritingPrompt } from "@/lib/prompts/registry";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextRequest, NextResponse } from "next/server";
 
+/**
+ * 記事コンテンツのサニタイズ
+ * AIが生のプロンプトや英語メタ情報を出力した場合に除去する
+ */
+function sanitizeArticleContent(content: string): string {
+  const metaPatterns = [
+    /^\s*\*?\s*Title:\s/i,
+    /^\s*\*?\s*Tone:\s/i,
+    /^\s*\*?\s*Structure:\s/i,
+    /^\s*\*?\s*Length:\s/i,
+    /^\s*\*?\s*Perspective:\s/i,
+    /^\s*\*?\s*Platform:\s/i,
+    /^\s*\*?\s*Constraint:\s/i,
+    /^\s*\*?\s*Note-specific Markdown:\s/i,
+    /^\s*\*?\s*Specific instruction:\s/i,
+    /^\s*\*?\s*App Name:\s/i,
+    /^\s*\*?\s*Target:\s/i,
+    /^\s*\*?\s*Pain points:\s/i,
+    /^\s*\*?\s*Key Function:\s/i,
+    /^\s*\*?\s*USP\s*\(.*\):\s/i,
+    /^\s*\*?\s*Pricing\/Access:\s/i,
+    /^\s*\*?\s*Headline Ideas:\s*/i,
+    /^\s*\*?\s*Introduction:\s*/i,
+    /^\s*\*?\s*Body Paragraph\s/i,
+    /^\s*\*?\s*Drafting\s*\(/i,
+    /^\s*\*?\s*Polishing\s*\(/i,
+    /^\s*\*?\s*Self-Correction/i,
+  ];
+
+  const lines = content.split("\n");
+  const cleanedLines: string[] = [];
+  let metaLineCount = 0;
+
+  for (const line of lines) {
+    const isMetaLine = metaPatterns.some((p) => p.test(line));
+    if (isMetaLine) {
+      metaLineCount++;
+      continue;
+    }
+    cleanedLines.push(line);
+  }
+
+  if (metaLineCount > 0) {
+    console.warn(
+      `[sanitize] Removed ${metaLineCount} meta instruction lines from article content`
+    );
+  }
+
+  return cleanedLines.join("\n").trim();
+}
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -75,10 +125,13 @@ export async function POST(request: NextRequest) {
       throw new Error("記事の生成に失敗しました");
     }
 
+    // サニタイズ: 英語メタ指示を除去
+    const sanitized = sanitizeArticleContent(rawResponse);
+
     // タイトルと本文を分離（最初の行をタイトルとして扱う）
-    const lines = rawResponse.trim().split("\n");
+    const lines = sanitized.trim().split("\n");
     let title = themeTitle;
-    let content = rawResponse;
+    let content = sanitized;
 
     // 最初の行が # で始まる場合はタイトルとして使う
     if (lines[0].startsWith("# ")) {

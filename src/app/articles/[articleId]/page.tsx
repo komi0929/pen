@@ -5,6 +5,7 @@ import { trackClientEvent } from "@/lib/analytics-client";
 import { AuthGuard } from "@/components/AuthGuard";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
+import { NoteMarkdown } from "@/components/NoteMarkdown";
 import {
   addArticleRef,
   getThemesForArticleRef,
@@ -391,14 +392,7 @@ function ArticleDetailContent() {
           {/* 記事本文 */}
           <article className="pen-card">
             <div className="prose prose-sm max-w-none">
-              {article.content.split("\n").map((paragraph, i) => (
-                <p
-                  key={i}
-                  className={`leading-relaxed ${!paragraph.trim() ? "h-4" : ""}`}
-                >
-                  {paragraph}
-                </p>
-              ))}
+              <NoteMarkdown content={article.content} />
             </div>
           </article>
 
