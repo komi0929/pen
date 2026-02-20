@@ -1,7 +1,7 @@
 "use client";
 
 import { useAuth } from "@/contexts/AuthContext";
-import { FileText, Lightbulb, LogOut, PenLine } from "lucide-react";
+import { FileText, Lightbulb, LogOut, PenLine, Settings } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -49,6 +49,17 @@ export function Header() {
               >
                 <FileText className="h-4 w-4" />
                 <span className="hidden sm:inline">記事</span>
+              </Link>
+              <Link
+                href="/settings/styles"
+                className={navLink(
+                  "/settings",
+                  pathname.startsWith("/settings")
+                )}
+                aria-label="設定"
+              >
+                <Settings className="h-4 w-4" />
+                <span className="hidden sm:inline">設定</span>
               </Link>
               <button
                 onClick={signOut}

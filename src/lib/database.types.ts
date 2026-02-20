@@ -214,6 +214,32 @@ export interface Database {
           date?: string;
         };
       };
+      style_references: {
+        Row: {
+          id: string;
+          user_id: string;
+          label: string;
+          source_text: string;
+          is_default: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          label: string;
+          source_text: string;
+          is_default?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          label?: string;
+          source_text?: string;
+          is_default?: boolean;
+          updated_at?: string;
+        };
+      };
     };
     Views: {
       [key: string]: {

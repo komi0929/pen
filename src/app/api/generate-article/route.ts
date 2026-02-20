@@ -1,4 +1,5 @@
 import { buildWritingPrompt } from "@/lib/prompts/registry";
+import { createClient } from "@/lib/supabase/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -63,6 +64,7 @@ export async function POST(request: NextRequest) {
       targetLength,
       pronoun,
       writingStyle,
+      styleReferenceId,
     } = body;
 
     const apiKey = process.env.GEMINI_API_KEY;
@@ -78,6 +80,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ title, content });
     }
 
+    // 文体参考テキストを取得
+    let styleReferenceText: string | null = null;
+    if (styleReferenceId) {
+      const supabase = await createClient();
+      if (supabase) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: styleRef } = await (
+          supabase.from("style_references") as any
+        )
+          .select("source_text")
+          .eq("id", styleReferenceId)
+          .single();
+        if (styleRef) {
+          styleReferenceText = styleRef.source_text;
+        }
+      }
+    }
+
     const genAI = new GoogleGenerativeAI(apiKey);
     const systemPrompt = buildWritingPrompt(
       themeTitle,
@@ -86,7 +106,8 @@ export async function POST(request: NextRequest) {
       targetLength ?? 2000,
       undefined,
       pronoun,
-      writingStyle
+      writingStyle,
+      styleReferenceText
     );
     const model = genAI.getGenerativeModel({
       model: "gemini-3-flash-preview",

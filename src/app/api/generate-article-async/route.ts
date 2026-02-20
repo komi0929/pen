@@ -74,6 +74,7 @@ export async function POST(request: NextRequest) {
     referenceArticles,
     pronoun,
     writingStyle,
+    styleReferenceId,
   } = body;
   let articleId = existingArticleId as string | undefined;
 
@@ -106,6 +107,21 @@ export async function POST(request: NextRequest) {
       title = themeTitle || "無題の記事";
       content = generateMockArticle(themeTitle, messages);
     } else {
+      // 文体参考テキストを取得
+      let styleReferenceText: string | null = null;
+      if (styleReferenceId && supabase) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: styleRef } = await (
+          supabase.from("style_references") as any
+        )
+          .select("source_text")
+          .eq("id", styleReferenceId)
+          .single();
+        if (styleRef) {
+          styleReferenceText = styleRef.source_text;
+        }
+      }
+
       const genAI = new GoogleGenerativeAI(apiKey);
       const systemPrompt = buildWritingPrompt(
         themeTitle,
@@ -114,7 +130,8 @@ export async function POST(request: NextRequest) {
         targetLength ?? 2000,
         referenceArticles,
         pronoun,
-        writingStyle
+        writingStyle,
+        styleReferenceText
       );
       const model = genAI.getGenerativeModel({
         model: "gemini-3-flash-preview",

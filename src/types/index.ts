@@ -69,3 +69,13 @@ export interface ThemeArticleRef {
   article_content?: string;
   source_theme_title?: string;
 }
+
+export interface StyleReference {
+  id: string;
+  user_id: string;
+  label: string;
+  source_text: string;
+  is_default: boolean;
+  created_at: string;
+  updated_at: string;
+}

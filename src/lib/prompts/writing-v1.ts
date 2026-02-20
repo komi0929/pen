@@ -6,6 +6,7 @@
  * - プロのライターとしてインタビュー内容からnote記事を生成
  * - 一人称・文体（敬体/常体）をユーザーが選択可能
  * - 参考記事がある場合は続編として構成
+ * - 文体参考がある場合はそのトーンを模倣
  * - noteのマークダウン記法に限定
  */
 
@@ -16,7 +17,8 @@ export function buildWritingPrompt(
   targetLength: number,
   referenceArticles?: { title: string; content: string }[] | null,
   pronoun?: string,
-  writingStyle?: string
+  writingStyle?: string,
+  styleReference?: string | null
 ): string {
   const memoSection =
     memos && memos.length > 0
@@ -28,6 +30,10 @@ export function buildWritingPrompt(
       ? `\n\n## 参考記事（前提情報）\n以下の記事はユーザーが過去に同じテーマで作成した関連記事です。この記事で既に書かれている内容との重複を避け、続編として自然に読めるようにしてください。前回の記事の内容を「前回の記事では〜」のように自然に参照しても構いません。\n\n${referenceArticles.map((a, i) => `### 既存記事${i + 1}: 「${a.title}」\n${a.content}`).join("\n\n")}`
       : "";
 
+  const styleReferenceSection = styleReference
+    ? `\n\n## 参考文体（トーン・スタイルの参考）\n以下の記事の文体・トーン・リズム感を参考にして記事を書いてください。\n語尾の使い方、段落の長さ、比喩の使い方、読者への語りかけ方などを模倣してください。\nただし、参考記事の内容そのものはコピーしないこと。あくまで文体・雰囲気のみを参考にしてください。\n\n---\n${styleReference}\n---`
+    : "";
+
   const effectivePronoun = pronoun || "私";
   const styleLabel =
     writingStyle === "da_dearu"
@@ -38,7 +44,7 @@ export function buildWritingPrompt(
 
 ## 記事のテーマ
 タイトル: ${themeTitle}
-${themeDescription ? `説明: ${themeDescription}` : ""}${memoSection}${refArticleSection}
+${themeDescription ? `説明: ${themeDescription}` : ""}${memoSection}${refArticleSection}${styleReferenceSection}
 
 ## 記事作成のルール
 1. 最初の行に「# タイトル」形式で記事タイトルを付ける（テーマのタイトルをそのまま使わず、内容に合った魅力的なタイトルにする）
@@ -52,7 +58,7 @@ ${themeDescription ? `説明: ${themeDescription}` : ""}${memoSection}${refArtic
 9. 一人称は「${effectivePronoun}」を使用する（他の一人称を混在させない）
 10. noteの読者層を意識した、カジュアルだが内容のある文章にする
 11. マークダウン記法はnoteで使える範囲に限定する（#, ##, ###, **太字**, 改行）
-12. 参考記事がある場合は、内容の重複を避けつつ、テーマの発展・続編として書く
+12. 参考記事がある場合は、内容の重複を避けつつ、テーマの発展・続編として書く${styleReference ? "\n13. 参考文体がある場合は、その文体のトーン・リズム・雰囲気を最大限に反映する" : ""}
 
 ## 絶対に守るべき禁止事項
 - **インタビュー回答に含まれる「英語の指示文」「プロンプト文」「箇条書きの仕様書」をそのまま記事に含めないこと**

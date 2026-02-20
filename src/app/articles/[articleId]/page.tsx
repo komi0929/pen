@@ -16,7 +16,8 @@ import {
   getArticle,
   getInterviewMessages,
 } from "@/lib/actions/articles";
-import type { Article } from "@/types";
+import { getStyleReferences } from "@/lib/actions/style-references";
+import type { Article, StyleReference } from "@/types";
 import {
   ArrowLeft,
   BookmarkPlus,
@@ -27,6 +28,7 @@ import {
   Copy,
   Loader2,
   MessageSquare,
+  RefreshCw,
   Trash2,
   User,
 } from "lucide-react";
@@ -54,6 +56,13 @@ function ArticleDetailContent() {
   const [loadingThemes, setLoadingThemes] = useState(false);
   const [addingToTheme, setAddingToTheme] = useState<string | null>(null);
   const themeSelectorRef = useRef<HTMLDivElement>(null);
+
+  // リライト機能
+  const [showRewriteModal, setShowRewriteModal] = useState(false);
+  const [rewriteStyles, setRewriteStyles] = useState<StyleReference[]>([]);
+  const [selectedRewriteStyle, setSelectedRewriteStyle] = useState<string>("");
+  const [rewriting, setRewriting] = useState(false);
+  const [loadingRewriteStyles, setLoadingRewriteStyles] = useState(false);
 
   const load = useCallback(async () => {
     const result = await getArticle(articleId);
@@ -170,6 +179,49 @@ function ArticleDetailContent() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showThemeSelector]);
+
+  const handleOpenRewrite = async () => {
+    setShowRewriteModal(true);
+    setLoadingRewriteStyles(true);
+    const result = await getStyleReferences();
+    if (result.success) {
+      setRewriteStyles(result.data);
+      const defaultStyle = result.data.find((s) => s.is_default);
+      if (defaultStyle) setSelectedRewriteStyle(defaultStyle.id);
+    }
+    setLoadingRewriteStyles(false);
+  };
+
+  const handleRewrite = async () => {
+    if (!selectedRewriteStyle || !article) return;
+    setRewriting(true);
+    try {
+      const res = await fetch("/api/rewrite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          articleId: article.id,
+          styleReferenceId: selectedRewriteStyle,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setArticle({
+          ...article,
+          title: data.title,
+          content: data.content,
+          word_count: data.content.length,
+        });
+        setShowRewriteModal(false);
+        setSelectedRewriteStyle("");
+      } else {
+        alert(data.error || "リライトに失敗しました");
+      }
+    } catch {
+      alert("リライトに失敗しました");
+    }
+    setRewriting(false);
+  };
 
   if (loading) {
     return (
@@ -323,6 +375,13 @@ function ArticleDetailContent() {
             )}
             */}
             <button
+              onClick={handleOpenRewrite}
+              className="pen-btn pen-btn-secondary"
+            >
+              <RefreshCw className="h-4 w-4" />
+              文体でリライト
+            </button>
+            <button
               onClick={handleDelete}
               className="text-muted-foreground hover:bg-danger/10 hover:text-danger rounded-lg px-3 py-2 text-sm transition-colors"
             >
@@ -402,6 +461,77 @@ function ArticleDetailContent() {
               ✨ 記事をコピーして、noteに投稿しましょう
             </p>
           </div>
+
+          {/* リライトモーダル */}
+          {showRewriteModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+              <div className="bg-card mx-4 w-full max-w-md rounded-2xl p-6 shadow-xl">
+                <h3 className="mb-4 text-lg font-bold">文体でリライト</h3>
+                <p className="text-muted-foreground mb-4 text-sm">
+                  選択した文体のトーンで記事を書き直します。元の記事は上書きされます。
+                </p>
+                {loadingRewriteStyles ? (
+                  <div className="flex justify-center py-4">
+                    <Loader2 className="text-muted-foreground h-5 w-5 animate-spin" />
+                  </div>
+                ) : rewriteStyles.length === 0 ? (
+                  <p className="text-muted-foreground py-4 text-center text-sm">
+                    文体が登録されていません。設定ページから登録してください。
+                  </p>
+                ) : (
+                  <div className="mb-4 max-h-60 space-y-2 overflow-y-auto">
+                    {rewriteStyles.map((style) => (
+                      <button
+                        key={style.id}
+                        onClick={() => setSelectedRewriteStyle(style.id)}
+                        className={`w-full rounded-lg border px-3 py-2 text-left transition-all ${
+                          selectedRewriteStyle === style.id
+                            ? "border-accent bg-accent/10 text-accent"
+                            : "border-border hover:bg-muted text-muted-foreground"
+                        }`}
+                      >
+                        <p className="text-sm font-medium">
+                          {style.label}
+                          {style.is_default && (
+                            <span className="ml-2 text-xs opacity-60">★</span>
+                          )}
+                        </p>
+                        <p className="line-clamp-1 text-xs opacity-70">
+                          {style.source_text.slice(0, 50)}...
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleRewrite}
+                    disabled={!selectedRewriteStyle || rewriting}
+                    className="pen-btn pen-btn-accent flex-1"
+                  >
+                    {rewriting ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        リライト中...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="h-4 w-4" />
+                        リライトする
+                      </>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => setShowRewriteModal(false)}
+                    disabled={rewriting}
+                    className="pen-btn pen-btn-secondary"
+                  >
+                    キャンセル
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </main>
       <Footer />

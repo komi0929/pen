@@ -12,11 +12,13 @@ import {
   getInterview,
 } from "@/lib/actions/interviews";
 import { getMemos } from "@/lib/actions/memos";
+import { getStyleReferences } from "@/lib/actions/style-references";
 import { getTheme } from "@/lib/actions/themes";
 import type {
   Interview,
   InterviewMessage,
   Memo,
+  StyleReference,
   Theme,
   ThemeArticleRef,
 } from "@/types";
@@ -106,6 +108,10 @@ function InterviewContent() {
   const [writingStyle, setWritingStyle] = useState<"desu_masu" | "da_dearu">(
     "desu_masu"
   );
+
+  // 文体リファレンス
+  const [styleReferences, setStyleReferences] = useState<StyleReference[]>([]);
+  const [selectedStyleId, setSelectedStyleId] = useState<string>("");
 
   const [completing, setCompleting] = useState(false);
   const [generatedArticleId, setGeneratedArticleId] = useState<string | null>(
@@ -238,21 +244,35 @@ function InterviewContent() {
     isLoadingRef.current = true;
 
     try {
-      const [themeResult, memosResult, interviewResult, refsResult] =
-        await Promise.all([
-          getTheme(themeId),
-          getMemos(themeId),
-          getActiveInterview(themeId),
-          getArticleRefs(themeId),
-        ]);
+      const [
+        themeResult,
+        memosResult,
+        interviewResult,
+        refsResult,
+        stylesResult,
+      ] = await Promise.all([
+        getTheme(themeId),
+        getMemos(themeId),
+        getActiveInterview(themeId),
+        getArticleRefs(themeId),
+        getStyleReferences(),
+      ]);
 
       const loadedTheme = themeResult.success ? themeResult.data : null;
       const loadedMemos = memosResult.success ? memosResult.data : [];
       const loadedRefs = refsResult.success ? refsResult.data : [];
+      const loadedStyles = stylesResult.success ? stylesResult.data : [];
 
       if (loadedTheme) setTheme(loadedTheme);
       if (memosResult.success) setMemos(loadedMemos);
       setArticleRefs(loadedRefs);
+      setStyleReferences(loadedStyles);
+
+      // デフォルト文体を自動選択
+      const defaultStyle = loadedStyles.find((s) => s.is_default);
+      if (defaultStyle) {
+        setSelectedStyleId(defaultStyle.id);
+      }
 
       if (interviewResult.success && interviewResult.data) {
         setInterview(interviewResult.data);
@@ -368,6 +388,7 @@ function InterviewContent() {
             })),
           pronoun: effectivePronoun,
           writingStyle,
+          styleReferenceId: selectedStyleId || undefined,
         }),
       });
 
@@ -559,6 +580,56 @@ function InterviewContent() {
                   </div>
                 </div>
               </div>
+
+              {/* 文体リファレンス選択 */}
+              {styleReferences.length > 0 && (
+                <div className="mx-auto mb-8 max-w-sm">
+                  <label className="text-muted-foreground mb-2 block text-sm">
+                    参考文体
+                  </label>
+                  <div className="space-y-2">
+                    <button
+                      onClick={() => setSelectedStyleId("")}
+                      className={`w-full rounded-lg border px-3 py-2 text-left transition-all ${
+                        selectedStyleId === ""
+                          ? "border-accent bg-accent/10 text-accent"
+                          : "border-border hover:bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      <p className="text-sm font-medium">指定なし</p>
+                      <p className="text-xs opacity-70">
+                        デフォルトの文体で生成
+                      </p>
+                    </button>
+                    {styleReferences.map((style) => (
+                      <button
+                        key={style.id}
+                        onClick={() => setSelectedStyleId(style.id)}
+                        className={`w-full rounded-lg border px-3 py-2 text-left transition-all ${
+                          selectedStyleId === style.id
+                            ? "border-accent bg-accent/10 text-accent"
+                            : "border-border hover:bg-muted text-muted-foreground"
+                        }`}
+                      >
+                        <p className="text-sm font-medium">
+                          {style.label}
+                          {style.is_default && (
+                            <span className="ml-2 text-xs opacity-60">
+                              ★ デフォルト
+                            </span>
+                          )}
+                        </p>
+                        <p className="line-clamp-1 text-xs opacity-70">
+                          {style.source_text.slice(0, 50)}...
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-muted-foreground mt-2 text-xs">
+                    選択した文体のトーンで記事が生成されます
+                  </p>
+                </div>
+              )}
 
               {error && <p className="text-danger mb-4 text-sm">{error}</p>}
               <button
