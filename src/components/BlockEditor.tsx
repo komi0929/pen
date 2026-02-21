@@ -1,16 +1,13 @@
 "use client";
 
 import { saveArticleWithHistory } from "@/lib/actions/article-editor";
-import {
-  blocksToContent,
-  contentToBlocks,
-  getBlockTypeLabel,
-} from "@/lib/block-utils";
+import { blocksToContent, contentToBlocks } from "@/lib/block-utils";
 import type { Article, ArticleBlock, BlockType } from "@/types";
 import {
   ArrowDown,
   ArrowUp,
   Check,
+  ChevronDown,
   GripVertical,
   Heading1,
   Heading2,
@@ -19,7 +16,6 @@ import {
   ListOrdered,
   Loader2,
   Minus,
-  Pilcrow,
   Plus,
   Trash2,
   Type,
@@ -49,7 +45,7 @@ const BLOCK_TYPE_OPTIONS: {
     label: "小見出し",
     icon: <Heading3 className="h-4 w-4" />,
   },
-  { type: "paragraph", label: "段落", icon: <Pilcrow className="h-4 w-4" /> },
+  { type: "paragraph", label: "段落", icon: <Type className="h-4 w-4" /> },
   { type: "list", label: "箇条書き", icon: <List className="h-4 w-4" /> },
   {
     type: "ordered-list",
@@ -158,10 +154,6 @@ function EditorBlock({
     autoResize();
   }, [block.content, autoResize]);
 
-  const blockTypeInfo = useMemo(() => {
-    return BLOCK_TYPE_OPTIONS.find((o) => o.type === block.type);
-  }, [block.type]);
-
   if (block.type === "divider") {
     return (
       <div
@@ -243,8 +235,10 @@ function EditorBlock({
         <div
           className="block-editor-grip"
           onTouchStart={(e) => onTouchStart(e, block.id)}
+          onClick={() => setShowTypeSelector(!showTypeSelector)}
         >
           <GripVertical className="h-4 w-4" />
+          <ChevronDown className="h-2.5 w-2.5 opacity-40" />
         </div>
         <div className="block-editor-arrows">
           <button
@@ -268,24 +262,6 @@ function EditorBlock({
 
       {/* コンテンツエリア */}
       <div className="min-w-0 flex-1">
-        {/* ブロックタイプラベル */}
-        <div className="relative mb-1">
-          <button
-            onClick={() => setShowTypeSelector(!showTypeSelector)}
-            className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-xs transition-colors"
-          >
-            {blockTypeInfo?.icon}
-            <span>{getBlockTypeLabel(block.type)}</span>
-          </button>
-          {showTypeSelector && (
-            <BlockTypeSelector
-              currentType={block.type}
-              onChange={(type) => onTypeChange(block.id, type)}
-              onClose={() => setShowTypeSelector(false)}
-            />
-          )}
-        </div>
-
         {/* テキスト入力 */}
         <textarea
           ref={textareaRef}
@@ -298,6 +274,17 @@ function EditorBlock({
           className={`block-editor-textarea ${textareaClasses[block.type] || ""}`}
           rows={1}
         />
+
+        {/* ブロックタイプ変更（非表示、ハンドルタップで開く） */}
+        {showTypeSelector && (
+          <div className="relative">
+            <BlockTypeSelector
+              currentType={block.type}
+              onChange={(type) => onTypeChange(block.id, type)}
+              onClose={() => setShowTypeSelector(false)}
+            />
+          </div>
+        )}
       </div>
 
       {/* 削除ボタン */}
