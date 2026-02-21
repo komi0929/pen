@@ -303,10 +303,31 @@ h4 {
   cursor: grabbing;
 }
 
+/* Dragging state for the source block */
+.block-editor-dragging {
+  opacity: 0.3 !important;
+  border-color: var(--accent) !important;
+  border-style: dashed !important;
+  transform: scale(0.97);
+}
+
+/* Drop target (kept for compatibility) */
 .block-editor-drop-target {
   border-color: var(--accent) !important;
   background: rgba(26, 26, 26, 0.04) !important;
   box-shadow: 0 0 0 2px rgba(26, 26, 26, 0.1);
+}
+
+/* Drop line indicator between blocks */
+.block-editor-drop-line {
+  height: 3px;
+  margin: 0 0.75rem;
+  border-radius: 2px;
+  background: var(--accent);
+  opacity: 0;
+  transition: opacity 0.12s ease;
+  pointer-events: none;
+  box-shadow: 0 0 8px rgba(26, 26, 26, 0.2);
 }
 
 /* Handle area */

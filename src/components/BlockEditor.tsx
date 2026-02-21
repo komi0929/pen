@@ -119,6 +119,7 @@ function EditorBlock({
   onMoveDown,
   onTypeChange,
   isDragTarget,
+  isDragging,
   onDragStart,
   onDragEnd,
   onDragOver,
@@ -133,9 +134,10 @@ function EditorBlock({
   onMoveDown: (id: string) => void;
   onTypeChange: (id: string, type: BlockType) => void;
   isDragTarget: boolean;
+  isDragging: boolean;
   onDragStart: (e: React.DragEvent, id: string) => void;
   onDragEnd: () => void;
-  onDragOver: (e: React.DragEvent, id: string) => void;
+  onDragOver: (e: React.DragEvent) => void;
   onTouchStart: (e: React.TouchEvent, id: string) => void;
 }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -157,11 +159,11 @@ function EditorBlock({
   if (block.type === "divider") {
     return (
       <div
-        className={`block-editor-block ${isDragTarget ? "block-editor-drop-target" : ""}`}
+        className={`block-editor-block ${isDragTarget ? "block-editor-drop-target" : ""} ${isDragging ? "block-editor-dragging" : ""}`}
         draggable
         onDragStart={(e) => onDragStart(e, block.id)}
         onDragEnd={onDragEnd}
-        onDragOver={(e) => onDragOver(e, block.id)}
+        onDragOver={onDragOver}
       >
         <div className="block-editor-handle">
           <div
@@ -224,11 +226,11 @@ function EditorBlock({
 
   return (
     <div
-      className={`block-editor-block ${isDragTarget ? "block-editor-drop-target" : ""}`}
+      className={`block-editor-block ${isDragTarget ? "block-editor-drop-target" : ""} ${isDragging ? "block-editor-dragging" : ""}`}
       draggable
       onDragStart={(e) => onDragStart(e, block.id)}
       onDragEnd={onDragEnd}
-      onDragOver={(e) => onDragOver(e, block.id)}
+      onDragOver={onDragOver}
     >
       {/* グリップ＆上下ボタン */}
       <div className="block-editor-handle">
@@ -379,7 +381,7 @@ export function BlockEditor({
 
   // ドラッグ＆ドロップ
   const [dragId, setDragId] = useState<string | null>(null);
-  const [dropTargetId, setDropTargetId] = useState<string | null>(null);
+  const [dropIndex, setDropIndex] = useState<number | null>(null);
 
   // タッチ ドラッグ
   const touchState = useRef<{
@@ -552,12 +554,11 @@ export function BlockEditor({
   }, []);
 
   // ============================================================
-  // HTML Drag & Drop
+  // HTML Drag & Drop (insertion-based)
   // ============================================================
   const handleDragStart = useCallback((e: React.DragEvent, id: string) => {
     setDragId(id);
     e.dataTransfer.effectAllowed = "move";
-    // ゴースト設定
     const target = e.currentTarget as HTMLElement;
     if (target) {
       e.dataTransfer.setDragImage(target, 20, 20);
@@ -565,34 +566,43 @@ export function BlockEditor({
   }, []);
 
   const handleDragEnd = useCallback(() => {
-    if (dragId && dropTargetId && dragId !== dropTargetId) {
+    if (dragId && dropIndex !== null) {
       setBlocks((prev) => {
         const dragIdx = prev.findIndex((b) => b.id === dragId);
-        const dropIdx = prev.findIndex((b) => b.id === dropTargetId);
-        if (dragIdx < 0 || dropIdx < 0) return prev;
+        if (dragIdx < 0) return prev;
         const next = [...prev];
         const [moved] = next.splice(dragIdx, 1);
-        next.splice(dropIdx, 0, moved);
+        // Adjust insertion index after removal
+        const insertAt = dropIndex > dragIdx ? dropIndex - 1 : dropIndex;
+        next.splice(insertAt, 0, moved);
         return next;
       });
     }
     setDragId(null);
-    setDropTargetId(null);
-  }, [dragId, dropTargetId]);
+    setDropIndex(null);
+  }, [dragId, dropIndex]);
 
   const handleDragOver = useCallback(
-    (e: React.DragEvent, id: string) => {
+    (e: React.DragEvent, index: number) => {
       e.preventDefault();
       e.dataTransfer.dropEffect = "move";
-      if (id !== dragId) {
-        setDropTargetId(id);
+      const dragIdx = blocks.findIndex((b) => b.id === dragId);
+      // Determine if drop should be before or after this block
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      const midY = rect.top + rect.height / 2;
+      const insertIdx = e.clientY < midY ? index : index + 1;
+      // Don't show indicator at the block's own position
+      if (insertIdx !== dragIdx && insertIdx !== dragIdx + 1) {
+        setDropIndex(insertIdx);
+      } else {
+        setDropIndex(null);
       }
     },
-    [dragId]
+    [dragId, blocks]
   );
 
   // ============================================================
-  // Touch Drag & Drop (モバイル)
+  // Touch Drag & Drop (モバイル・挙入方式)
   // ============================================================
   const handleTouchStart = useCallback((e: React.TouchEvent, id: string) => {
     const touch = e.touches[0];
@@ -609,8 +619,9 @@ export function BlockEditor({
       moved: false,
     };
 
-    // 長押しの代わりにすぐ開始（gripハンドルからのみ発火するため）
-    target.style.opacity = "0.5";
+    // ドラッグ中のブロックを薄く
+    target.style.opacity = "0.3";
+    target.style.transform = "scale(0.97)";
 
     const clone = target.cloneNode(true) as HTMLElement;
     clone.style.position = "fixed";
@@ -618,11 +629,14 @@ export function BlockEditor({
     clone.style.left = `${target.getBoundingClientRect().left}px`;
     clone.style.width = `${target.offsetWidth}px`;
     clone.style.zIndex = "9999";
-    clone.style.opacity = "0.85";
+    clone.style.opacity = "1";
     clone.style.pointerEvents = "none";
     clone.style.transition = "none";
-    clone.style.boxShadow = "0 8px 32px rgba(0,0,0,0.15)";
+    clone.style.boxShadow = "0 8px 32px rgba(0,0,0,0.18)";
     clone.style.borderRadius = "12px";
+    clone.style.border = "2px solid var(--accent)";
+    clone.style.background = "var(--background)";
+    clone.style.transform = "scale(1.03)";
     document.body.appendChild(clone);
     touchState.current.clone = clone;
   }, []);
@@ -641,20 +655,56 @@ export function BlockEditor({
         state.clone.style.top = `${originalTop + deltaY}px`;
       }
 
-      // ドロップ先を特定
-      const elements = document.elementsFromPoint(touch.clientX, touch.clientY);
-      const blockEl = elements.find((el) =>
-        el.classList.contains("block-editor-block")
-      ) as HTMLElement | undefined;
+      // ドロップ先を特定（ブロック間の挙入位置）
+      const blockEls = Array.from(
+        document.querySelectorAll(".block-editor-block")
+      ) as HTMLElement[];
 
-      // 全ブロックのハイライトをリセット
-      document.querySelectorAll(".block-editor-block").forEach((el) => {
-        el.classList.remove("block-editor-drop-target");
+      // 既存のドロップインジケータをクリア
+      document.querySelectorAll(".block-editor-drop-line").forEach((el) => {
+        (el as HTMLElement).style.opacity = "0";
       });
 
-      if (blockEl && blockEl !== state.element) {
-        blockEl.classList.add("block-editor-drop-target");
-        setDropTargetId(blockEl.dataset.blockId || null);
+      let bestInsertIdx: number | null = null;
+      let bestDist = Infinity;
+
+      const dragIdx = blockEls.findIndex(
+        (el) =>
+          el.closest("[data-block-id]")?.getAttribute("data-block-id") ===
+          state.id
+      );
+
+      blockEls.forEach((el, i) => {
+        const rect = el.getBoundingClientRect();
+        // ブロックの上端との距離
+        const topDist = Math.abs(touch.clientY - rect.top);
+        if (topDist < bestDist && i !== dragIdx && i !== dragIdx + 1) {
+          bestDist = topDist;
+          bestInsertIdx = i;
+        }
+        // 最後のブロックの下端
+        if (i === blockEls.length - 1) {
+          const botDist = Math.abs(touch.clientY - rect.bottom);
+          if (
+            botDist < bestDist &&
+            i + 1 !== dragIdx &&
+            i + 1 !== dragIdx + 1
+          ) {
+            bestDist = botDist;
+            bestInsertIdx = i + 1;
+          }
+        }
+      });
+
+      if (bestInsertIdx !== null) {
+        setDropIndex(bestInsertIdx);
+        // 対応するドロップラインを表示
+        const dropLine = document.querySelector(
+          `[data-drop-index="${bestInsertIdx}"]`
+        ) as HTMLElement;
+        if (dropLine) {
+          dropLine.style.opacity = "1";
+        }
       }
     };
 
@@ -664,30 +714,31 @@ export function BlockEditor({
 
       if (state.element) {
         state.element.style.opacity = "1";
+        state.element.style.transform = "";
       }
       if (state.clone) {
         document.body.removeChild(state.clone);
       }
 
-      // ドロップ先にid があれば入れ替え
-      document.querySelectorAll(".block-editor-block").forEach((el) => {
-        el.classList.remove("block-editor-drop-target");
+      // ドロップラインをクリア
+      document.querySelectorAll(".block-editor-drop-line").forEach((el) => {
+        (el as HTMLElement).style.opacity = "0";
       });
 
-      if (state.moved && dropTargetId && state.id !== dropTargetId) {
+      if (state.moved && dropIndex !== null) {
         setBlocks((prev) => {
           const dragIdx = prev.findIndex((b) => b.id === state.id);
-          const dropIdx = prev.findIndex((b) => b.id === dropTargetId);
-          if (dragIdx < 0 || dropIdx < 0) return prev;
+          if (dragIdx < 0) return prev;
           const next = [...prev];
           const [moved] = next.splice(dragIdx, 1);
-          next.splice(dropIdx, 0, moved);
+          const insertAt = dropIndex > dragIdx ? dropIndex - 1 : dropIndex;
+          next.splice(insertAt, 0, moved);
           return next;
         });
       }
 
       touchState.current = null;
-      setDropTargetId(null);
+      setDropIndex(null);
     };
 
     document.addEventListener("touchmove", handleTouchMove, { passive: false });
@@ -697,7 +748,7 @@ export function BlockEditor({
       document.removeEventListener("touchmove", handleTouchMove);
       document.removeEventListener("touchend", handleTouchEnd);
     };
-  }, [dropTargetId]);
+  }, [dropIndex]);
 
   // ============================================================
   // 保存ステータス表示
@@ -788,7 +839,12 @@ export function BlockEditor({
 
       {/* ブロック一覧 */}
       <div className="block-editor-blocks">
-        {/* 先頭への追加ボタン */}
+        {/* 先頭へのドロップライン + 追加ボタン */}
+        <div
+          className="block-editor-drop-line"
+          data-drop-index={0}
+          style={{ opacity: dropIndex === 0 ? 1 : 0 }}
+        />
         <AddBlockButton onAdd={(type) => handleAddBlock(-1, type)} />
 
         {blocks.map((block, index) => (
@@ -803,13 +859,20 @@ export function BlockEditor({
                 onMoveUp={handleMoveUp}
                 onMoveDown={handleMoveDown}
                 onTypeChange={handleTypeChange}
-                isDragTarget={dropTargetId === block.id}
+                isDragTarget={false}
+                isDragging={dragId === block.id}
                 onDragStart={handleDragStart}
                 onDragEnd={handleDragEnd}
-                onDragOver={handleDragOver}
+                onDragOver={(e: React.DragEvent) => handleDragOver(e, index)}
                 onTouchStart={handleTouchStart}
               />
             </div>
+            {/* ドロップライン（ブロックの下） */}
+            <div
+              className="block-editor-drop-line"
+              data-drop-index={index + 1}
+              style={{ opacity: dropIndex === index + 1 ? 1 : 0 }}
+            />
             <AddBlockButton onAdd={(type) => handleAddBlock(index, type)} />
           </div>
         ))}
