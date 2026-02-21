@@ -79,3 +79,33 @@ export interface StyleReference {
   created_at: string;
   updated_at: string;
 }
+
+// ============================================================
+// Block Editor Types
+// ============================================================
+
+export type BlockType =
+  | "heading1"
+  | "heading2"
+  | "heading3"
+  | "paragraph"
+  | "list"
+  | "ordered-list"
+  | "divider";
+
+export interface ArticleBlock {
+  id: string;
+  type: BlockType;
+  content: string; // マークダウンテキスト（divider の場合は空文字列）
+}
+
+export interface ArticleEditHistory {
+  id: string;
+  article_id: string;
+  user_id: string;
+  title: string;
+  content: string;
+  word_count: number;
+  edit_label: string;
+  created_at: string;
+}
