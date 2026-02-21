@@ -392,11 +392,20 @@ export function BlockEditor({
 
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isMounted = useRef(true);
+  const titleRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     return () => {
       isMounted.current = false;
     };
+  }, []);
+
+  // タイトルの初期高さ調整
+  useEffect(() => {
+    if (titleRef.current) {
+      titleRef.current.style.height = "auto";
+      titleRef.current.style.height = titleRef.current.scrollHeight + "px";
+    }
   }, []);
 
   // ============================================================
@@ -759,12 +768,21 @@ export function BlockEditor({
 
       {/* タイトル入力 */}
       <div className="mb-4">
-        <input
-          type="text"
+        <textarea
+          ref={titleRef}
           value={title}
-          onChange={(e) => setTitle(e.target.value)}
+          onChange={(e) => {
+            setTitle(e.target.value);
+            // 自動リサイズ
+            if (titleRef.current) {
+              titleRef.current.style.height = "auto";
+              titleRef.current.style.height =
+                titleRef.current.scrollHeight + "px";
+            }
+          }}
           placeholder="タイトルを入力..."
-          className="pen-input text-lg font-bold"
+          className="pen-input w-full resize-none overflow-hidden text-lg font-bold"
+          rows={1}
         />
       </div>
 
