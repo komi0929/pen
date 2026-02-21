@@ -395,6 +395,7 @@ export function BlockEditor({
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isMounted = useRef(true);
   const titleRef = useRef<HTMLTextAreaElement>(null);
+  const autoScrollRef = useRef<number | null>(null);
 
   useEffect(() => {
     return () => {
@@ -655,6 +656,36 @@ export function BlockEditor({
         state.clone.style.top = `${originalTop + deltaY}px`;
       }
 
+      // 画面端に近づいたら自動スクロール
+      const EDGE_ZONE = 80; // 端からのピクセル数
+      const MAX_SPEED = 12; // 最大スクロール速度
+      const viewportH = window.innerHeight;
+      const touchY = touch.clientY;
+
+      // 既存のスクロールrafをキャンセル
+      if (autoScrollRef.current) {
+        cancelAnimationFrame(autoScrollRef.current);
+        autoScrollRef.current = null;
+      }
+
+      if (touchY < EDGE_ZONE || touchY > viewportH - EDGE_ZONE) {
+        const doAutoScroll = () => {
+          let speed = 0;
+          if (touchY < EDGE_ZONE) {
+            // 上端→上にスクロール
+            speed = -MAX_SPEED * (1 - touchY / EDGE_ZONE);
+          } else if (touchY > viewportH - EDGE_ZONE) {
+            // 下端→下にスクロール
+            speed = MAX_SPEED * (1 - (viewportH - touchY) / EDGE_ZONE);
+          }
+          if (Math.abs(speed) > 0.5) {
+            window.scrollBy(0, speed);
+            autoScrollRef.current = requestAnimationFrame(doAutoScroll);
+          }
+        };
+        autoScrollRef.current = requestAnimationFrame(doAutoScroll);
+      }
+
       // ドロップ先を特定（ブロック間の挙入位置）
       const blockEls = Array.from(
         document.querySelectorAll(".block-editor-block")
@@ -711,6 +742,12 @@ export function BlockEditor({
     const handleTouchEnd = () => {
       if (!touchState.current) return;
       const state = touchState.current;
+
+      // 自動スクロール停止
+      if (autoScrollRef.current) {
+        cancelAnimationFrame(autoScrollRef.current);
+        autoScrollRef.current = null;
+      }
 
       if (state.element) {
         state.element.style.opacity = "1";
