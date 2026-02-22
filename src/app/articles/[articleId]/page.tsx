@@ -41,84 +41,6 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-/* ── 段落レベルの差分比較コンポーネント ── */
-function RewriteDiff({
-  beforeContent,
-  afterContent,
-  mode,
-}: {
-  beforeContent: string;
-  afterContent: string;
-  mode: "before" | "after";
-}) {
-  // 段落分割（空行で区切る）
-  const beforeParagraphs = beforeContent.split(/\n\n+/).filter((p) => p.trim());
-  const afterParagraphs = afterContent.split(/\n\n+/).filter((p) => p.trim());
-
-  // LCSで段落のマッチングを行い、変更された段落を特定
-  const matchSet = new Set<string>();
-  const shorter =
-    beforeParagraphs.length <= afterParagraphs.length
-      ? beforeParagraphs
-      : afterParagraphs;
-  const longer =
-    beforeParagraphs.length <= afterParagraphs.length
-      ? afterParagraphs
-      : beforeParagraphs;
-
-  // 正規化: 空白を除去して比較
-  const normalize = (s: string) => s.replace(/\s+/g, "");
-
-  shorter.forEach((p) => {
-    const norm = normalize(p);
-    if (longer.some((lp) => normalize(lp) === norm)) {
-      matchSet.add(norm);
-    }
-  });
-
-  const paragraphs = mode === "after" ? afterParagraphs : beforeParagraphs;
-
-  return (
-    <div>
-      {paragraphs.map((para, i) => {
-        const isChanged = !matchSet.has(normalize(para));
-        const bgClass = isChanged
-          ? mode === "after"
-            ? "bg-green-50 border-l-4 border-green-300 pl-3 py-1 my-2 rounded-r"
-            : "bg-red-50 border-l-4 border-red-300 pl-3 py-1 my-2 rounded-r line-through opacity-70"
-          : "";
-        const lines = para.split("\n");
-        return (
-          <div key={i} className={bgClass}>
-            {lines.map((line, j) => {
-              // マークダウンの見出しを処理
-              if (line.startsWith("### "))
-                return <h3 key={j}>{line.replace(/^###\s*/, "")}</h3>;
-              if (line.startsWith("## "))
-                return <h2 key={j}>{line.replace(/^##\s*/, "")}</h2>;
-              if (line.startsWith("# "))
-                return <h1 key={j}>{line.replace(/^#\s*/, "")}</h1>;
-              // 太字を処理
-              const parts = line.split(/(\*\*[^*]+\*\*)/);
-              return (
-                <p key={j} className="my-1 text-sm leading-relaxed">
-                  {parts.map((part, k) =>
-                    part.startsWith("**") && part.endsWith("**") ? (
-                      <strong key={k}>{part.slice(2, -2)}</strong>
-                    ) : (
-                      <span key={k}>{part}</span>
-                    )
-                  )}
-                </p>
-              );
-            })}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
 function ArticleDetailContent() {
   const params = useParams();
   const router = useRouter();
@@ -676,19 +598,13 @@ function ArticleDetailContent() {
                   {/* 本文比較 */}
                   <article className="pen-card">
                     <div className="prose prose-sm max-w-none">
-                      {comparisonTab === "after" ? (
-                        <RewriteDiff
-                          beforeContent={rewriteComparison.beforeContent}
-                          afterContent={rewriteComparison.afterContent}
-                          mode="after"
-                        />
-                      ) : (
-                        <RewriteDiff
-                          beforeContent={rewriteComparison.beforeContent}
-                          afterContent={rewriteComparison.afterContent}
-                          mode="before"
-                        />
-                      )}
+                      <NoteMarkdown
+                        content={
+                          comparisonTab === "after"
+                            ? rewriteComparison.afterContent
+                            : rewriteComparison.beforeContent
+                        }
+                      />
                     </div>
                   </article>
                 </div>
