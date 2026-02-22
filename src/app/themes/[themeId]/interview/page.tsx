@@ -582,54 +582,70 @@ function InterviewContent() {
               </div>
 
               {/* 文体リファレンス選択 */}
-              {styleReferences.length > 0 && (
-                <div className="mx-auto mb-8 max-w-sm">
-                  <label className="text-muted-foreground mb-2 block text-sm">
-                    参考文体
-                  </label>
-                  <div className="space-y-2">
-                    <button
-                      onClick={() => setSelectedStyleId("")}
-                      className={`w-full rounded-lg border px-3 py-2 text-left transition-all ${
-                        selectedStyleId === ""
-                          ? "border-accent bg-accent/10 text-accent"
-                          : "border-border hover:bg-muted text-muted-foreground"
-                      }`}
-                    >
-                      <p className="text-sm font-medium">指定なし</p>
-                      <p className="text-xs opacity-70">
-                        デフォルトの文体で生成
-                      </p>
-                    </button>
-                    {styleReferences.map((style) => (
+              <div className="mx-auto mb-8 max-w-sm">
+                <label className="text-muted-foreground mb-2 block text-sm">
+                  参考文体
+                </label>
+                {styleReferences.length > 0 ? (
+                  <>
+                    <div className="space-y-2">
                       <button
-                        key={style.id}
-                        onClick={() => setSelectedStyleId(style.id)}
+                        onClick={() => setSelectedStyleId("")}
                         className={`w-full rounded-lg border px-3 py-2 text-left transition-all ${
-                          selectedStyleId === style.id
+                          selectedStyleId === ""
                             ? "border-accent bg-accent/10 text-accent"
                             : "border-border hover:bg-muted text-muted-foreground"
                         }`}
                       >
-                        <p className="text-sm font-medium">
-                          {style.label}
-                          {style.is_default && (
-                            <span className="ml-2 text-xs opacity-60">
-                              ★ デフォルト
-                            </span>
-                          )}
-                        </p>
-                        <p className="line-clamp-1 text-xs opacity-70">
-                          {style.source_text.slice(0, 50)}...
+                        <p className="text-sm font-medium">指定なし</p>
+                        <p className="text-xs opacity-70">
+                          デフォルトの文体で生成
                         </p>
                       </button>
-                    ))}
+                      {styleReferences.map((style) => (
+                        <button
+                          key={style.id}
+                          onClick={() => setSelectedStyleId(style.id)}
+                          className={`w-full rounded-lg border px-3 py-2 text-left transition-all ${
+                            selectedStyleId === style.id
+                              ? "border-accent bg-accent/10 text-accent"
+                              : "border-border hover:bg-muted text-muted-foreground"
+                          }`}
+                        >
+                          <p className="text-sm font-medium">
+                            {style.label}
+                            {style.is_default && (
+                              <span className="ml-2 text-xs opacity-60">
+                                ★ デフォルト
+                              </span>
+                            )}
+                          </p>
+                          <p className="line-clamp-1 text-xs opacity-70">
+                            {style.source_text.slice(0, 50)}...
+                          </p>
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-muted-foreground mt-2 text-xs">
+                      選択した文体のトーンで記事が生成されます
+                    </p>
+                  </>
+                ) : (
+                  <div className="border-border rounded-xl border border-dashed p-4 text-center">
+                    <p className="text-muted-foreground mb-2 text-sm">
+                      💡
+                      あらかじめ文体を登録しておくと、一発でご希望のトーンで記事が生成されます
+                    </p>
+                    <Link
+                      href="/settings/styles"
+                      className="pen-btn pen-btn-secondary inline-flex text-sm"
+                    >
+                      <PenLine className="h-4 w-4" />
+                      文体を登録する
+                    </Link>
                   </div>
-                  <p className="text-muted-foreground mt-2 text-xs">
-                    選択した文体のトーンで記事が生成されます
-                  </p>
-                </div>
-              )}
+                )}
+              </div>
 
               {error && <p className="text-danger mb-4 text-sm">{error}</p>}
               <button

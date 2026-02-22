@@ -34,11 +34,90 @@ import {
   Pencil,
   RefreshCw,
   Trash2,
+  Undo2,
   User,
 } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+
+/* ── 段落レベルの差分比較コンポーネント ── */
+function RewriteDiff({
+  beforeContent,
+  afterContent,
+  mode,
+}: {
+  beforeContent: string;
+  afterContent: string;
+  mode: "before" | "after";
+}) {
+  // 段落分割（空行で区切る）
+  const beforeParagraphs = beforeContent.split(/\n\n+/).filter((p) => p.trim());
+  const afterParagraphs = afterContent.split(/\n\n+/).filter((p) => p.trim());
+
+  // LCSで段落のマッチングを行い、変更された段落を特定
+  const matchSet = new Set<string>();
+  const shorter =
+    beforeParagraphs.length <= afterParagraphs.length
+      ? beforeParagraphs
+      : afterParagraphs;
+  const longer =
+    beforeParagraphs.length <= afterParagraphs.length
+      ? afterParagraphs
+      : beforeParagraphs;
+
+  // 正規化: 空白を除去して比較
+  const normalize = (s: string) => s.replace(/\s+/g, "");
+
+  shorter.forEach((p) => {
+    const norm = normalize(p);
+    if (longer.some((lp) => normalize(lp) === norm)) {
+      matchSet.add(norm);
+    }
+  });
+
+  const paragraphs = mode === "after" ? afterParagraphs : beforeParagraphs;
+
+  return (
+    <div>
+      {paragraphs.map((para, i) => {
+        const isChanged = !matchSet.has(normalize(para));
+        const bgClass = isChanged
+          ? mode === "after"
+            ? "bg-green-50 border-l-4 border-green-300 pl-3 py-1 my-2 rounded-r"
+            : "bg-red-50 border-l-4 border-red-300 pl-3 py-1 my-2 rounded-r line-through opacity-70"
+          : "";
+        const lines = para.split("\n");
+        return (
+          <div key={i} className={bgClass}>
+            {lines.map((line, j) => {
+              // マークダウンの見出しを処理
+              if (line.startsWith("### "))
+                return <h3 key={j}>{line.replace(/^###\s*/, "")}</h3>;
+              if (line.startsWith("## "))
+                return <h2 key={j}>{line.replace(/^##\s*/, "")}</h2>;
+              if (line.startsWith("# "))
+                return <h1 key={j}>{line.replace(/^#\s*/, "")}</h1>;
+              // 太字を処理
+              const parts = line.split(/(\*\*[^*]+\*\*)/);
+              return (
+                <p key={j} className="my-1 text-sm leading-relaxed">
+                  {parts.map((part, k) =>
+                    part.startsWith("**") && part.endsWith("**") ? (
+                      <strong key={k}>{part.slice(2, -2)}</strong>
+                    ) : (
+                      <span key={k}>{part}</span>
+                    )
+                  )}
+                </p>
+              );
+            })}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 function ArticleDetailContent() {
   const params = useParams();
@@ -71,6 +150,17 @@ function ArticleDetailContent() {
   const [selectedRewriteStyle, setSelectedRewriteStyle] = useState<string>("");
   const [rewriting, setRewriting] = useState(false);
   const [loadingRewriteStyles, setLoadingRewriteStyles] = useState(false);
+
+  // リライト比較機能
+  const [rewriteComparison, setRewriteComparison] = useState<{
+    beforeTitle: string;
+    beforeContent: string;
+    afterTitle: string;
+    afterContent: string;
+  } | null>(null);
+  const [comparisonTab, setComparisonTab] = useState<"after" | "before">(
+    "after"
+  );
 
   const load = useCallback(async () => {
     const result = await getArticle(articleId);
@@ -209,12 +299,14 @@ function ArticleDetailContent() {
       });
       const data = await res.json();
       if (res.ok && data.success) {
-        setArticle({
-          ...article,
-          title: data.title,
-          content: data.content,
-          word_count: data.content.length,
+        // 比較モードに遷移（まだ記事は上書きしない）
+        setRewriteComparison({
+          beforeTitle: article.title,
+          beforeContent: article.content,
+          afterTitle: data.title,
+          afterContent: data.content,
         });
+        setComparisonTab("after");
         setShowRewriteModal(false);
         setSelectedRewriteStyle("");
       } else {
@@ -224,6 +316,23 @@ function ArticleDetailContent() {
       alert("リライトに失敗しました");
     }
     setRewriting(false);
+  };
+
+  // リライト結果を確定
+  const handleConfirmRewrite = () => {
+    if (!rewriteComparison || !article) return;
+    setArticle({
+      ...article,
+      title: rewriteComparison.afterTitle,
+      content: rewriteComparison.afterContent,
+      word_count: rewriteComparison.afterContent.length,
+    });
+    setRewriteComparison(null);
+  };
+
+  // リライト結果を破棄
+  const handleDiscardRewrite = () => {
+    setRewriteComparison(null);
   };
 
   // 編集保存後のコールバック
@@ -487,19 +596,118 @@ function ArticleDetailContent() {
                 </div>
               )}
 
-              {/* 記事本文 */}
-              <article className="pen-card">
-                <div className="prose prose-sm max-w-none">
-                  <NoteMarkdown content={article.content} />
-                </div>
-              </article>
+              {/* 記事本文 or リライト比較 */}
+              {rewriteComparison ? (
+                <div className="pen-fade-in">
+                  {/* 比較ヘッダー */}
+                  <div className="border-accent bg-accent/5 mb-4 rounded-xl border p-4">
+                    <div className="mb-3 flex items-center justify-between">
+                      <h3 className="flex items-center gap-2 text-sm font-bold">
+                        <RefreshCw className="h-4 w-4" />
+                        リライト結果の確認
+                      </h3>
+                    </div>
+                    <p className="text-muted-foreground mb-4 text-xs">
+                      変更箇所を確認して、この内容で確定するか選んでください
+                    </p>
 
-              {/* フッターアクション */}
-              <div className="mt-8 flex justify-center">
-                <p className="text-muted-foreground text-sm">
-                  ✨ 記事をコピーして、noteに投稿しましょう
-                </p>
-              </div>
+                    {/* タブ切替 */}
+                    <div className="mb-4 flex gap-1 rounded-lg bg-gray-100 p-1">
+                      <button
+                        onClick={() => setComparisonTab("after")}
+                        className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-all ${
+                          comparisonTab === "after"
+                            ? "bg-accent text-white shadow-sm"
+                            : "text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        リライト後
+                      </button>
+                      <button
+                        onClick={() => setComparisonTab("before")}
+                        className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-all ${
+                          comparisonTab === "before"
+                            ? "bg-white shadow-sm"
+                            : "text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        リライト前
+                      </button>
+                    </div>
+
+                    {/* タイトル比較 */}
+                    {rewriteComparison.beforeTitle !==
+                      rewriteComparison.afterTitle && (
+                      <div className="border-border mb-3 rounded-lg border p-3">
+                        <p className="text-muted-foreground mb-1 text-xs font-medium">
+                          タイトル
+                        </p>
+                        {comparisonTab === "after" ? (
+                          <p className="rounded bg-green-50 px-2 py-1 text-sm font-bold text-green-800">
+                            {rewriteComparison.afterTitle}
+                          </p>
+                        ) : (
+                          <p className="rounded bg-red-50 px-2 py-1 text-sm font-bold text-red-800 line-through">
+                            {rewriteComparison.beforeTitle}
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    {/* アクションボタン */}
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleConfirmRewrite}
+                        className="pen-btn pen-btn-accent flex-1"
+                      >
+                        <Check className="h-4 w-4" />
+                        この内容で確定
+                      </button>
+                      <button
+                        onClick={handleDiscardRewrite}
+                        className="pen-btn pen-btn-secondary"
+                      >
+                        <Undo2 className="h-4 w-4" />
+                        元に戻す
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 本文比較 */}
+                  <article className="pen-card">
+                    <div className="prose prose-sm max-w-none">
+                      {comparisonTab === "after" ? (
+                        <RewriteDiff
+                          beforeContent={rewriteComparison.beforeContent}
+                          afterContent={rewriteComparison.afterContent}
+                          mode="after"
+                        />
+                      ) : (
+                        <RewriteDiff
+                          beforeContent={rewriteComparison.beforeContent}
+                          afterContent={rewriteComparison.afterContent}
+                          mode="before"
+                        />
+                      )}
+                    </div>
+                  </article>
+                </div>
+              ) : (
+                <>
+                  <article className="pen-card">
+                    <div className="prose prose-sm max-w-none">
+                      <NoteMarkdown content={article.content} />
+                    </div>
+                  </article>
+
+                  {/* フッターアクション */}
+                  <div className="mt-8 flex justify-center">
+                    <p className="text-muted-foreground text-sm">
+                      ✨ 記事をコピーして、noteに投稿しましょう
+                    </p>
+                  </div>
+                </>
+              )}
             </>
           )}
 
