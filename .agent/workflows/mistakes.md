@@ -69,7 +69,7 @@ description: 繰り返しミスの再発防止チェックリスト（コマン�
 
 - [ ] `git add` と `git commit` と `git push` は **個別のコマンドか `;` で連結**（`&&` 禁止）
 - [ ] コミットメッセージは `feat:` / `fix:` / `style:` / `refactor:` のプレフィックス付き
-- [ ] 大規模変更時は改善履歴 API を叩いてからコミット
+- [ ] **⚠️ 大規模変更時は改善履歴 API を叩いてからコミット（厳命）** → 複数ファイルにまたがる機能追加・UX改善・バグ修正は必ず `POST /api/admin/improvement-history` を実行。**git push の直前に「改善履歴は必要か？」を自問すること。**
 
 ## 6. Next.js / React
 
@@ -110,3 +110,4 @@ description: 繰り返しミスの再発防止チェックリスト（コマン�
 | 2026-02-20 | `Settings` import が保存されずビルド失敗      | import漏れ       | import 変更後の確認を省略          |
 | 2026-02-20 | `multi_replace_file_content` chunk 5 適用失敗 | ターゲット不一致 | TargetContent が実ファイルと不一致 |
 | 2026-02-20 | Supabase CLI 未リンクでマイグレーション失敗   | Supabase         | 環境状態の事前確認なし             |
+| 2026-02-22 | エディタUI大幅改善で改善履歴を記録し忘れ      | 改善履歴         | push直前の自問チェックを怠った     |
