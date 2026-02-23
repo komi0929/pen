@@ -4,10 +4,10 @@ import {
   getCurrentVersion,
   getVersions,
   type PromptCategory,
-  type PromptVersion,
 } from "@/lib/prompts/registry";
-import { History, MessageSquare, PenLine, Settings } from "lucide-react";
+import { Settings } from "lucide-react";
 import type { Metadata } from "next";
+import { VersionCard } from "./VersionCard";
 
 export const metadata: Metadata = {
   title: "penの仕組み | pen",
@@ -15,91 +15,17 @@ export const metadata: Metadata = {
     "penのインタビュー・ライティングの仕組みとバージョン情報を公開しています。",
 };
 
-function VersionCard({
-  category,
-  label,
-  icon: Icon,
-}: {
-  category: PromptCategory;
-  label: string;
-  icon: React.ComponentType<{ className?: string }>;
-}) {
-  const current = getCurrentVersion(category);
-  const versions = getVersions(category);
-
-  return (
-    <section className="mb-10">
-      <div className="mb-4 flex items-center gap-3">
-        <div className="bg-muted flex h-10 w-10 items-center justify-center rounded-xl">
-          <Icon className="text-accent h-5 w-5" />
-        </div>
-        <div>
-          <h2 className="text-lg font-bold">{label}</h2>
-          <p className="text-muted-foreground text-sm">
-            現在のバージョン:{" "}
-            <span className="text-accent font-bold">{current.id}</span>
-            <span className="ml-2">（{current.date} リリース）</span>
-          </p>
-        </div>
-      </div>
-
-      {/* 現在のバージョンの概要 */}
-      <div className="border-accent/20 bg-accent/5 mb-6 rounded-xl border p-5">
-        <p className="mb-3 font-bold">{current.summary}</p>
-        <div className="text-muted-foreground text-sm leading-relaxed whitespace-pre-line">
-          {current.description}
-        </div>
-        <div className="mt-3 flex items-center gap-2">
-          <span className="border-border bg-muted rounded-lg border px-2.5 py-1 text-xs font-medium">
-            使用モデル: {current.model}
-          </span>
-        </div>
-      </div>
-
-      {/* バージョン履歴タイムライン */}
-      {versions.length > 1 && (
-        <div>
-          <h3 className="text-muted-foreground mb-3 flex items-center gap-2 text-sm font-bold">
-            <History className="h-4 w-4" />
-            バージョン履歴
-          </h3>
-          <div className="space-y-3">
-            {versions.map((v: PromptVersion) => (
-              <div
-                key={v.id}
-                className={`border-border rounded-lg border p-4 ${
-                  v.id === current.id
-                    ? "border-accent/30 bg-accent/5"
-                    : "bg-card"
-                }`}
-              >
-                <div className="mb-1 flex items-center gap-2">
-                  <span className="font-bold">{v.id}</span>
-                  <span className="text-muted-foreground text-xs">
-                    {v.date}
-                  </span>
-                  {v.id === current.id && (
-                    <span className="bg-accent/20 text-accent rounded-full px-2 py-0.5 text-xs font-bold">
-                      使用中
-                    </span>
-                  )}
-                </div>
-                <p className="text-sm">{v.summary}</p>
-                {v.changelog && (
-                  <p className="text-muted-foreground mt-1 text-xs">
-                    変更: {v.changelog}
-                  </p>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </section>
-  );
+function getVersionData(category: PromptCategory) {
+  return {
+    current: getCurrentVersion(category),
+    versions: getVersions(category),
+  };
 }
 
 export default function AiSystemPage() {
+  const interviewData = getVersionData("interview");
+  const writingData = getVersionData("writing");
+
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
@@ -147,16 +73,18 @@ export default function AiSystemPage() {
 
           {/* インタビューAI */}
           <VersionCard
-            category="interview"
             label="インタビューAI"
-            icon={MessageSquare}
+            iconName="MessageSquare"
+            current={interviewData.current}
+            versions={interviewData.versions}
           />
 
           {/* ライティングAI */}
           <VersionCard
-            category="writing"
             label="ライティングAI"
-            icon={PenLine}
+            iconName="PenLine"
+            current={writingData.current}
+            versions={writingData.versions}
           />
         </div>
       </main>

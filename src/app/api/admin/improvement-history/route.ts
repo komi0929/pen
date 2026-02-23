@@ -51,3 +51,58 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+/**
+ * 文字化けエントリを削除するAPIエンドポイント
+ * DELETE /api/admin/improvement-history
+ * Body: { code: string, id?: string }
+ * idが指定されればそのIDのエントリを削除、なければtitleに?が含まれるエントリを全削除
+ */
+export async function DELETE(request: NextRequest) {
+  try {
+    const { code, id } = await request.json();
+
+    if (code !== "0929") {
+      return NextResponse.json(
+        { success: false, error: "認証エラー" },
+        { status: 401 }
+      );
+    }
+
+    const supabase = createAdminClient();
+
+    if (id) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabase as any)
+        .from("improvement_history")
+        .delete()
+        .eq("id", id);
+      if (error) {
+        return NextResponse.json(
+          { success: false, error: error.message },
+          { status: 500 }
+        );
+      }
+    } else {
+      // titleに?が含まれる文字化けエントリを削除
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabase as any)
+        .from("improvement_history")
+        .delete()
+        .like("title", "%?%");
+      if (error) {
+        return NextResponse.json(
+          { success: false, error: error.message },
+          { status: 500 }
+        );
+      }
+    }
+
+    return NextResponse.json({ success: true });
+  } catch {
+    return NextResponse.json(
+      { success: false, error: "エラーが発生しました" },
+      { status: 500 }
+    );
+  }
+}
