@@ -44,8 +44,29 @@ export type PromptRegistry = {
 
 export const promptRegistry: PromptRegistry = {
   interview: {
-    current: "v1",
+    current: "v2",
     versions: [
+      {
+        id: "v2",
+        date: "2026-02-23",
+        model: "Gemini 3 Flash",
+        summary:
+          "note深津基準準拠: 一次情報・生の体験・失敗談を重点的に引き出す",
+        description: `noteのCXO深津氏が提唱する「読まれるコンテンツ基準」に準拠したインタビュープロンプト。
+
+**特徴:**
+- 一次情報・生の体験・私の気づきを最優先で引き出す
+- 具体的エピソード、失敗談、学びを深掘り
+- 感情の動き、時系列の変化を意識的に引き出す
+- 抽象的な回答には追加質問で解像度を上げる
+- 煎り構文や一般論の再生産を避ける方向で質問設計
+- 準備度の加点基準を素材の質（一次性・具体性）で評価`,
+        changelog: `v1からの変更点:
+- note深津CXOのコンテンツ基準をプロンプトに統合
+- 「引き出すべき素材」「避けるべき方向性」を明確化
+- 質問の流れの指針を追加
+- 準備度の加点基準を素材の質で評価するように変更`,
+      },
       {
         id: "v1",
         date: "2026-02-19",
@@ -65,8 +86,28 @@ export const promptRegistry: PromptRegistry = {
     ],
   },
   writing: {
-    current: "v1",
+    current: "v2",
     versions: [
+      {
+        id: "v2",
+        date: "2026-02-23",
+        model: "Gemini 3 Flash",
+        summary: "note深津基準準拠: 一次情報ベースの構造化された記事を生成",
+        description: `noteのCXO深津氏の「読まれるコンテンツ基準」に準拠した記事生成プロンプト。
+
+**特徴:**
+- 一次情報・生の体験を記事の柱にする構成
+- 意見と事実の明確な区別
+- イシューが明確で自己完結したテキスト
+- 失敗談・試行錯誤も率直に書く
+- 煎り構文・断定表現・一般論の再生産を回避
+- 品質チェックリストで基準適合を確認`,
+        changelog: `v1からの変更点:
+- note深津CXOのコンテンツ基準をプロンプトに統合
+- 「重視すべき要素」「避けるべきパターン」を明確化
+- 記事の構成ガイドを追加
+- 品質チェックリストを追加`,
+      },
       {
         id: "v1",
         date: "2026-02-19",
@@ -115,5 +156,5 @@ export function getVersion(
 // 現在のバージョンのプロンプト関数をそのまま公開する。
 // バージョン切替時はここのimportを更新するだけ。
 
-export { buildInterviewPrompt } from "./interview-v1";
-export { buildWritingPrompt } from "./writing-v1";
+export { buildInterviewPrompt } from "./interview-v2";
+export { buildWritingPrompt } from "./writing-v2";
