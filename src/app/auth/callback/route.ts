@@ -1,3 +1,4 @@
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
@@ -20,8 +21,10 @@ export async function GET(request: Request) {
             data: { user },
           } = await supabase.auth.getUser();
           if (user) {
+            // SERVICE_ROLE でINSERT（RLSバイパス）
+            const admin = createAdminClient();
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            await (supabase.from("analytics_events") as any).insert({
+            await (admin.from("analytics_events") as any).insert({
               user_id: user.id,
               event_name: "login_completed",
               event_data: { method: "magic_link" },

@@ -167,7 +167,7 @@ export async function createTheme(
       .single();
 
     if (error) throw error;
-    trackEvent("theme_created", { theme_id: data.id });
+    await trackEvent("theme_created", { theme_id: data.id });
     return { success: true, data: data as unknown as Theme };
   } catch (err) {
     return {

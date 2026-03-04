@@ -364,12 +364,12 @@ function AdminDashboardContent({ adminCode }: { adminCode: string }) {
             <h2 className="mb-4 flex items-center gap-2 text-lg font-bold">
               📊 アプリ内KPI
               <span className="text-muted-foreground text-sm font-normal">
-                （今日 vs 昨日）
+                （累計 / 昨日）
               </span>
             </h2>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
               {summaryCards.map((card) => {
-                const todayVal = kpi?.today[card.key]?.users ?? 0;
+                const totalVal = kpi?.total[card.key]?.users ?? 0;
                 const yesterdayVal = kpi?.yesterday[card.key]?.users ?? 0;
                 return (
                   <div
@@ -380,8 +380,7 @@ function AdminDashboardContent({ adminCode }: { adminCode: string }) {
                       {card.label}
                     </p>
                     <div className="flex items-end gap-2">
-                      <span className="text-2xl font-bold">{todayVal}</span>
-                      {renderDelta(todayVal, yesterdayVal)}
+                      <span className="text-2xl font-bold">{totalVal}</span>
                     </div>
                     <p className="text-muted-foreground mt-1 text-xs">
                       昨日: {yesterdayVal}
@@ -397,7 +396,7 @@ function AdminDashboardContent({ adminCode }: { adminCode: string }) {
             <h2 className="mb-4 flex items-center gap-2 text-lg font-bold">
               🔽 ファネル
               <span className="text-muted-foreground text-sm font-normal">
-                （今日のステップ通過率）
+                （累計ステップ通過率）
               </span>
             </h2>
             <div className="border-border bg-card overflow-hidden rounded-xl border">

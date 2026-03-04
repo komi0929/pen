@@ -1,17 +1,10 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import type { ActionResult } from "@/types";
 
-export interface DailyKPI {
-  day: string;
-  event_name: string;
-  event_count: number;
-  unique_users: number;
-}
-
 export interface KPISummary {
-  today: Record<string, { count: number; users: number }>;
+  total: Record<string, { count: number; users: number }>;
   yesterday: Record<string, { count: number; users: number }>;
   funnel: {
     step: string;
@@ -23,47 +16,56 @@ export interface KPISummary {
 
 /**
  * ダッシュボード用のKPIサマリーを取得
- * 昨日 vs 一昨日 の比較データを返す
+ * 累計 + 昨日 の比較データを返す
+ * SERVICE_ROLE_KEY で RLS をバイパスして全データを取得
  */
 export async function getKPISummary(): Promise<ActionResult<KPISummary>> {
   try {
-    const supabase = await createClient();
-    if (!supabase) return { success: false, error: "DB接続エラー" };
+    const admin = createAdminClient();
 
-    // 日本時間での「今日」「昨日」「一昨日」を計算
+    // 日本時間での「昨日」を計算
     const now = new Date();
     const jst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
-    const todayStr = jst.toISOString().split("T")[0];
     const yesterday = new Date(jst.getTime() - 86400000);
     const yesterdayStr = yesterday.toISOString().split("T")[0];
 
-    // 2日分のデータを取得
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data, error } = await (supabase.from("analytics_events") as any)
-      .select("event_name, user_id, created_at")
-      .gte("created_at", yesterdayStr + "T00:00:00+09:00")
-      .lte("created_at", todayStr + "T23:59:59+09:00");
+    // 全データを取得（累計用）
+    const { data: allData, error: allError } =
+      await // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (admin.from("analytics_events") as any).select(
+        "event_name, user_id, created_at"
+      );
 
-    if (error) throw error;
+    if (allError) throw allError;
 
-    const events = (data ?? []) as {
+    // 昨日のデータのみ取得
+    const { data: yesterdayData, error: ydError } =
+      await // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (admin.from("analytics_events") as any)
+        .select("event_name, user_id, created_at")
+        .gte("created_at", yesterdayStr + "T00:00:00+09:00")
+        .lt("created_at", yesterdayStr + "T23:59:59+09:00");
+
+    if (ydError) throw ydError;
+
+    const events = (allData ?? []) as {
       event_name: string;
       user_id: string | null;
       created_at: string;
     }[];
 
-    // 日付ごと・イベントごとに集計
-    const aggregate = (dayStr: string) => {
-      const dayEvents = events.filter((e) => {
-        const d = new Date(e.created_at);
-        const dJst = new Date(d.getTime() + 9 * 60 * 60 * 1000);
-        return dJst.toISOString().split("T")[0] === dayStr;
-      });
+    const yesterdayEvents = (yesterdayData ?? []) as {
+      event_name: string;
+      user_id: string | null;
+      created_at: string;
+    }[];
 
+    // 集計関数
+    const aggregate = (targetEvents: typeof events) => {
       const result: Record<string, { count: number; users: number }> = {};
       const byEvent: Record<string, Set<string>> = {};
 
-      for (const e of dayEvents) {
+      for (const e of targetEvents) {
         if (!result[e.event_name]) {
           result[e.event_name] = { count: 0, users: 0 };
           byEvent[e.event_name] = new Set();
@@ -79,10 +81,10 @@ export async function getKPISummary(): Promise<ActionResult<KPISummary>> {
       return result;
     };
 
-    const todayData = aggregate(todayStr);
-    const yesterdayData = aggregate(yesterdayStr);
+    const totalData = aggregate(events);
+    const ydAggregated = aggregate(yesterdayEvents);
 
-    // ファネル（昨日のデータ）
+    // ファネル（累計データ）
     const funnelSteps = [
       { step: "login_completed", label: "ログイン" },
       { step: "theme_created", label: "テーマ作成" },
@@ -93,9 +95,9 @@ export async function getKPISummary(): Promise<ActionResult<KPISummary>> {
     ];
 
     const funnel = funnelSteps.map((s, i) => {
-      const count = todayData[s.step]?.users ?? 0;
+      const count = totalData[s.step]?.users ?? 0;
       const prev =
-        i > 0 ? (todayData[funnelSteps[i - 1].step]?.users ?? 0) : null;
+        i > 0 ? (totalData[funnelSteps[i - 1].step]?.users ?? 0) : null;
       return {
         step: s.step,
         label: s.label,
@@ -107,8 +109,8 @@ export async function getKPISummary(): Promise<ActionResult<KPISummary>> {
     return {
       success: true,
       data: {
-        today: todayData,
-        yesterday: yesterdayData,
+        total: totalData,
+        yesterday: ydAggregated,
         funnel,
       },
     };

@@ -49,7 +49,7 @@ export async function createMemo(
       .single();
 
     if (error) throw error;
-    trackEvent("memo_created", { theme_id: themeId, memo_id: data.id });
+    await trackEvent("memo_created", { theme_id: themeId, memo_id: data.id });
     return { success: true, data: data as unknown as Memo };
   } catch (err) {
     return {

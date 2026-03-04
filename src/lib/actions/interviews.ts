@@ -32,7 +32,7 @@ export async function createInterview(
       .single();
 
     if (error) throw error;
-    trackEvent("interview_started", {
+    await trackEvent("interview_started", {
       theme_id: themeId,
       interview_id: data.id,
     });
@@ -141,7 +141,7 @@ export async function addMessage(
 
     if (error) throw error;
     if (role === "user") {
-      trackEvent("interview_message_sent", { interview_id: interviewId });
+      await trackEvent("interview_message_sent", { interview_id: interviewId });
     }
     return { success: true, data: data as unknown as InterviewMessage };
   } catch (err) {

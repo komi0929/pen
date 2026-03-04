@@ -110,7 +110,6 @@ export async function POST(request: NextRequest) {
       // 文体参考テキストを取得
       let styleReferenceText: string | null = null;
       if (styleReferenceId && supabase) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const { data: styleRef } = await (
           supabase.from("style_references") as any
         )
@@ -219,8 +218,10 @@ export async function POST(request: NextRequest) {
     }
     // 4. Analyticsイベント記録（失敗しても記事生成は成功させる）
     try {
+      const { createAdminClient } = await import("@/lib/supabase/admin");
+      const admin = createAdminClient();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (supabase.from("analytics_events") as any).insert({
+      await (admin.from("analytics_events") as any).insert({
         user_id: user.id,
         event_name: "interview_completed",
         event_data: {
