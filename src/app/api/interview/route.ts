@@ -1,4 +1,5 @@
-import { buildInterviewPrompt } from "@/lib/prompts/registry";
+import type { InterviewMode } from "@/lib/prompts/registry";
+import { buildInterviewPromptWithMode } from "@/lib/prompts/registry";
 import { createClient } from "@/lib/supabase/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextRequest, NextResponse } from "next/server";
@@ -24,7 +25,9 @@ export async function POST(request: NextRequest) {
       messages,
       isSkip,
       referenceArticles,
+      interviewMode,
     } = body;
+    const mode: InterviewMode = interviewMode === "hard" ? "hard" : "normal";
 
     const messageCount = messages?.length ?? 0;
 
@@ -45,7 +48,8 @@ export async function POST(request: NextRequest) {
 
     // Gemini AI を使用したインタビュー
     const genAI = new GoogleGenerativeAI(apiKey);
-    const systemPrompt = buildInterviewPrompt(
+    const systemPrompt = buildInterviewPromptWithMode(
+      mode,
       themeTitle,
       themeDescription,
       memos,

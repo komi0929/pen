@@ -26,16 +26,20 @@ import {
   ArrowLeft,
   Check,
   FileText,
+  Flame,
   Loader2,
   MessageSquare,
   PenLine,
   Send,
   SkipForward,
   Sparkles,
+  Zap,
 } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+
+type InterviewMode = "normal" | "hard";
 
 /* ── 準備度の表示スケール ── */
 // AI側: max 80 → 表示: 100%（つまり AI の 80 = ユーザー表示の 100%）
@@ -100,6 +104,8 @@ function InterviewContent() {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [aiReadiness, setAiReadiness] = useState(-1);
+  const [interviewMode, setInterviewMode] = useState<InterviewMode>("normal");
+  const [showMotivation, setShowMotivation] = useState(false);
   const [targetLength, setTargetLength] = useState(1000);
 
   // 文体設定
@@ -160,7 +166,8 @@ function InterviewContent() {
       themeData: Theme | null,
       memosData: Memo[],
       isSkip = false,
-      articleRefsData?: ThemeArticleRef[]
+      articleRefsData?: ThemeArticleRef[],
+      mode?: InterviewMode
     ) => {
       if (isFetchingRef.current) return;
       isFetchingRef.current = true;
@@ -186,6 +193,7 @@ function InterviewContent() {
             })),
             isSkip,
             referenceArticles: refsForApi.length > 0 ? refsForApi : undefined,
+            interviewMode: mode ?? interviewMode,
           }),
         });
 
@@ -309,12 +317,27 @@ function InterviewContent() {
   // インタビュー開始
   const handleStart = async () => {
     if (sending) return;
+
+    // ハードモードの場合、激励メッセージを表示
+    if (interviewMode === "hard" && !showMotivation) {
+      setShowMotivation(true);
+      return;
+    }
+
     setSending(true);
     setError(null);
     const result = await createInterview(themeId, targetLength);
     if (result.success) {
       setInterview(result.data);
-      await fetchAI(result.data.id, [], theme, memos);
+      await fetchAI(
+        result.data.id,
+        [],
+        theme,
+        memos,
+        false,
+        undefined,
+        interviewMode
+      );
     } else {
       setError(result.error);
     }
@@ -338,7 +361,15 @@ function InterviewContent() {
       if (inputRef.current) {
         inputRef.current.style.height = "auto";
       }
-      await fetchAI(interview.id, updatedMessages, theme, memos);
+      await fetchAI(
+        interview.id,
+        updatedMessages,
+        theme,
+        memos,
+        false,
+        undefined,
+        interviewMode
+      );
     } else {
       setError(userResult.error);
     }
@@ -352,7 +383,15 @@ function InterviewContent() {
     if (!interview || sending) return;
     setSending(true);
     setError(null);
-    await fetchAI(interview.id, messages, theme, memos, true);
+    await fetchAI(
+      interview.id,
+      messages,
+      theme,
+      memos,
+      true,
+      undefined,
+      interviewMode
+    );
     setSending(false);
   };
 
@@ -442,6 +481,69 @@ function InterviewContent() {
     );
   }
 
+  // 激励メッセージ画面（ハードモード選択時）
+  if (showMotivation && !interview) {
+    return (
+      <div className="flex min-h-screen flex-col">
+        <Header />
+        <main className="flex flex-1 items-center justify-center">
+          <div className="pen-fade-in w-full max-w-md px-4 text-center">
+            <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-orange-100">
+              <Flame className="h-10 w-10 animate-pulse text-orange-500" />
+            </div>
+            <h2 className="mb-3 text-2xl font-bold">ハード深堀モード</h2>
+            <div className="bg-muted mb-6 rounded-xl p-5 text-left">
+              <p className="mb-3 text-sm leading-relaxed">
+                このモードでは、AIが<strong>かなり踏み込んだ質問</strong>
+                をします。
+              </p>
+              <ul className="text-muted-foreground space-y-2 text-sm">
+                <li className="flex items-start gap-2">
+                  <Zap className="mt-0.5 h-4 w-4 shrink-0 text-orange-500" />
+                  曖昧な回答には「もっと具体的に」と切り返します
+                </li>
+                <li className="flex items-start gap-2">
+                  <Zap className="mt-0.5 h-4 w-4 shrink-0 text-orange-500" />
+                  数字・日時・場所など、裏付けを求めます
+                </li>
+                <li className="flex items-start gap-2">
+                  <Zap className="mt-0.5 h-4 w-4 shrink-0 text-orange-500" />
+                  「あなたにしか書けないこと」を徹底的に引き出します
+                </li>
+              </ul>
+            </div>
+            <p className="text-muted-foreground mb-6 text-sm">
+              大変ですが、その分<strong>圧倒的に質の高い記事</strong>
+              の素材が集まります。
+              <br />
+              覚悟はいいですか？
+            </p>
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={handleStart}
+                disabled={sending}
+                className="pen-btn rounded-xl bg-orange-500 px-8 py-3 text-base font-bold text-white shadow-lg transition-all hover:bg-orange-600"
+              >
+                {sending ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <Flame className="h-5 w-5" />
+                )}
+                覚悟はできた、始めよう
+              </button>
+              <button
+                onClick={() => setShowMotivation(false)}
+                className="text-muted-foreground hover:text-foreground text-sm transition-colors"
+              >
+                戻る
+              </button>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   // インタビュー未開始
   if (!interview) {
     return (
@@ -477,6 +579,63 @@ function InterviewContent() {
                   件の参考記事がインタビュー時に参照されます
                 </p>
               )}
+
+              {/* モード選択 */}
+              <div className="mx-auto mb-8 max-w-sm">
+                <label className="text-muted-foreground mb-3 block text-sm">
+                  インタビューモード
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    onClick={() => setInterviewMode("normal")}
+                    className={`rounded-xl border-2 p-4 text-left transition-all ${
+                      interviewMode === "normal"
+                        ? "border-accent bg-accent/5 shadow-sm"
+                        : "border-border hover:bg-muted"
+                    }`}
+                  >
+                    <div className="mb-2 flex items-center gap-2">
+                      <MessageSquare
+                        className={`h-5 w-5 ${
+                          interviewMode === "normal"
+                            ? "text-accent"
+                            : "text-muted-foreground"
+                        }`}
+                      />
+                      <span className="text-sm font-bold">通常モード</span>
+                    </div>
+                    <p className="text-muted-foreground text-xs leading-relaxed">
+                      リラックスした対話で
+                      <br />
+                      自然に素材を引き出します
+                    </p>
+                  </button>
+                  <button
+                    onClick={() => setInterviewMode("hard")}
+                    className={`rounded-xl border-2 p-4 text-left transition-all ${
+                      interviewMode === "hard"
+                        ? "border-orange-400 bg-orange-50 shadow-sm dark:bg-orange-950/20"
+                        : "border-border hover:bg-muted"
+                    }`}
+                  >
+                    <div className="mb-2 flex items-center gap-2">
+                      <Flame
+                        className={`h-5 w-5 ${
+                          interviewMode === "hard"
+                            ? "text-orange-500"
+                            : "text-muted-foreground"
+                        }`}
+                      />
+                      <span className="text-sm font-bold">ハード深堀</span>
+                    </div>
+                    <p className="text-muted-foreground text-xs leading-relaxed">
+                      一次性・独自性・検証可能性
+                      <br />
+                      を妥協なく追求します
+                    </p>
+                  </button>
+                </div>
+              </div>
 
               {/* 文字数設定 */}
               <div className="mx-auto mb-8 max-w-xs">
@@ -651,14 +810,22 @@ function InterviewContent() {
               <button
                 onClick={handleStart}
                 disabled={sending}
-                className="pen-btn pen-btn-accent px-8 py-3 text-base"
+                className={`pen-btn px-8 py-3 text-base ${
+                  interviewMode === "hard"
+                    ? "rounded-xl bg-orange-500 font-bold text-white shadow-lg hover:bg-orange-600"
+                    : "pen-btn-accent"
+                }`}
               >
                 {sending ? (
                   <Loader2 className="h-5 w-5 animate-spin" />
+                ) : interviewMode === "hard" ? (
+                  <Flame className="h-5 w-5" />
                 ) : (
                   <MessageSquare className="h-5 w-5" />
                 )}
-                インタビューを始める
+                {interviewMode === "hard"
+                  ? "ハード深堀を始める"
+                  : "インタビューを始める"}
               </button>
             </div>
           </div>
@@ -735,11 +902,20 @@ function InterviewContent() {
 
       {/* 固定プログレスバー */}
       {displayReadiness >= 0 && (
-        <div className="border-border bg-card/95 sticky top-14 z-40 border-b px-4 py-2 backdrop-blur-sm">
+        <div
+          className={`border-border sticky top-14 z-40 border-b px-4 py-2 backdrop-blur-sm ${
+            interviewMode === "hard"
+              ? "bg-orange-50/95 dark:bg-orange-950/30"
+              : "bg-card/95"
+          }`}
+        >
           <div className="pen-container">
             <div className="mb-1 flex items-center justify-between">
-              <span className="text-muted-foreground text-xs font-medium">
-                記事素材の準備度
+              <span className="text-muted-foreground flex items-center gap-1 text-xs font-medium">
+                {interviewMode === "hard" && (
+                  <Flame className="h-3 w-3 text-orange-500" />
+                )}
+                記事素材の準備度{interviewMode === "hard" ? "（ハード）" : ""}
               </span>
               <span className="text-xs font-bold">
                 {Math.min(displayReadiness, 100)}%
@@ -751,10 +927,14 @@ function InterviewContent() {
               </span>
             </div>
             <div
-              className={`h-1.5 w-full overflow-hidden rounded-full ${info.bgColor}`}
+              className={`h-1.5 w-full overflow-hidden rounded-full ${
+                interviewMode === "hard" ? "bg-orange-100" : info.bgColor
+              }`}
             >
               <div
-                className={`h-full rounded-full transition-all duration-700 ease-out ${info.color}`}
+                className={`h-full rounded-full transition-all duration-700 ease-out ${
+                  interviewMode === "hard" ? "bg-orange-500" : info.color
+                }`}
                 style={{ width: `${Math.min(displayReadiness, 100)}%` }}
               />
             </div>

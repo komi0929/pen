@@ -13,6 +13,8 @@
 
 export type PromptCategory = "interview" | "writing";
 
+export type InterviewMode = "normal" | "hard";
+
 export type PromptVersion = {
   /** バージョンID（例: "v1"） */
   id: string;
@@ -46,6 +48,25 @@ export const promptRegistry: PromptRegistry = {
   interview: {
     current: "v2",
     versions: [
+      {
+        id: "v2-hard",
+        date: "2026-03-05",
+        model: "Gemini 3 Flash",
+        summary: "ハード深堀: 一次性・独自性・検証可能性を妥協なく追求",
+        description: `深津基準をベースに「一次性・独自性・検証可能性」の3基準を徹底追求するハードモード。
+
+**特徴:**
+- 抽象的・一般論的な回答を許さず、必ず具体化を要求
+- 「あなたにしか語れないこと」を引き出すことに特化
+- 5W1H・数字・固有名詞を徹底的に引き出す
+- 準備度の評価基準を厳格化（質の低い回答では加点しない）
+- 妥協しない深掘り姿勢で質の高い一次情報を収集`,
+        changelog: `v2からの変更点:
+- 一次性・独自性・検証可能性の3基準を明文化
+- 抽象的回答への自動深掘りルールを追加
+- 準備度の加点基準を厳格化
+- 5W1H・対比・数字引き出しテクニックを追加`,
+      },
       {
         id: "v2",
         date: "2026-02-23",
@@ -157,4 +178,24 @@ export function getVersion(
 // バージョン切替時はここのimportを更新するだけ。
 
 export { buildInterviewPrompt } from "./interview-v2";
+export { buildInterviewPromptHard } from "./interview-v2-hard";
 export { buildWritingPrompt } from "./writing-v2";
+
+/**
+ * モード対応ラッパー: interview_mode に応じて適切なプロンプトを返す
+ */
+import { buildInterviewPrompt as _buildNormal } from "./interview-v2";
+import { buildInterviewPromptHard as _buildHard } from "./interview-v2-hard";
+
+export function buildInterviewPromptWithMode(
+  mode: InterviewMode,
+  themeTitle: string,
+  themeDescription: string,
+  memos: { content: string }[] | null,
+  referenceArticles?: { title: string; content: string }[] | null
+): string {
+  if (mode === "hard") {
+    return _buildHard(themeTitle, themeDescription, memos, referenceArticles);
+  }
+  return _buildNormal(themeTitle, themeDescription, memos, referenceArticles);
+}
