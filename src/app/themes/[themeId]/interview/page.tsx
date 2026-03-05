@@ -106,6 +106,7 @@ function InterviewContent() {
   const [aiReadiness, setAiReadiness] = useState(-1);
   const [interviewMode, setInterviewMode] = useState<InterviewMode>("normal");
   const [showMotivation, setShowMotivation] = useState(false);
+  const [showPreGeneration, setShowPreGeneration] = useState(false);
   const [targetLength, setTargetLength] = useState(1000);
 
   // 文体設定
@@ -398,6 +399,13 @@ function InterviewContent() {
   // 記事を生成して完了（待機画面を表示）
   const handleGenerateAndComplete = async () => {
     if (!interview || completing) return;
+
+    // 初回クリック時は文体設定ステップを表示
+    if (!showPreGeneration) {
+      setShowPreGeneration(true);
+      return;
+    }
+
     setCompleting(true);
     setError(null);
 
@@ -659,150 +667,6 @@ function InterviewContent() {
                 </p>
               </div>
 
-              {/* 文体設定 */}
-              <div className="mx-auto mb-8 max-w-sm">
-                <div className="grid grid-cols-2 gap-6">
-                  {/* 一人称 */}
-                  <div>
-                    <label className="text-muted-foreground mb-2 block text-sm">
-                      一人称
-                    </label>
-                    <div className="space-y-2">
-                      {["私", "僕", "俺", "自分", "筆者"].map((p) => (
-                        <button
-                          key={p}
-                          onClick={() => setPronoun(p)}
-                          className={`w-full rounded-lg border px-3 py-2 text-sm font-medium transition-all ${
-                            pronoun === p
-                              ? "border-accent bg-accent/10 text-accent"
-                              : "border-border hover:bg-muted text-muted-foreground"
-                          }`}
-                        >
-                          {p}
-                        </button>
-                      ))}
-                      <button
-                        onClick={() => setPronoun("_custom")}
-                        className={`w-full rounded-lg border px-3 py-2 text-sm font-medium transition-all ${
-                          pronoun === "_custom"
-                            ? "border-accent bg-accent/10 text-accent"
-                            : "border-border hover:bg-muted text-muted-foreground"
-                        }`}
-                      >
-                        その他
-                      </button>
-                      {pronoun === "_custom" && (
-                        <input
-                          type="text"
-                          value={customPronoun}
-                          onChange={(e) => setCustomPronoun(e.target.value)}
-                          placeholder="例: わたし、ウチ..."
-                          className="border-border bg-card focus:border-accent w-full rounded-lg border px-3 py-2 text-sm outline-none"
-                          autoFocus
-                        />
-                      )}
-                    </div>
-                  </div>
-
-                  {/* 文体 */}
-                  <div>
-                    <label className="text-muted-foreground mb-2 block text-sm">
-                      文体
-                    </label>
-                    <div className="space-y-2">
-                      <button
-                        onClick={() => setWritingStyle("desu_masu")}
-                        className={`w-full rounded-lg border px-3 py-2 text-left transition-all ${
-                          writingStyle === "desu_masu"
-                            ? "border-accent bg-accent/10 text-accent"
-                            : "border-border hover:bg-muted text-muted-foreground"
-                        }`}
-                      >
-                        <p className="text-sm font-medium">です・ます調</p>
-                        <p className="text-xs opacity-70">敬体・丁寧な印象</p>
-                      </button>
-                      <button
-                        onClick={() => setWritingStyle("da_dearu")}
-                        className={`w-full rounded-lg border px-3 py-2 text-left transition-all ${
-                          writingStyle === "da_dearu"
-                            ? "border-accent bg-accent/10 text-accent"
-                            : "border-border hover:bg-muted text-muted-foreground"
-                        }`}
-                      >
-                        <p className="text-sm font-medium">だ・である調</p>
-                        <p className="text-xs opacity-70">常体・力強い印象</p>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* 文体リファレンス選択 */}
-              <div className="mx-auto mb-8 max-w-sm">
-                <label className="text-muted-foreground mb-2 block text-sm">
-                  参考文体
-                </label>
-                {styleReferences.length > 0 ? (
-                  <>
-                    <div className="space-y-2">
-                      <button
-                        onClick={() => setSelectedStyleId("")}
-                        className={`w-full rounded-lg border px-3 py-2 text-left transition-all ${
-                          selectedStyleId === ""
-                            ? "border-accent bg-accent/10 text-accent"
-                            : "border-border hover:bg-muted text-muted-foreground"
-                        }`}
-                      >
-                        <p className="text-sm font-medium">指定なし</p>
-                        <p className="text-xs opacity-70">
-                          デフォルトの文体で生成
-                        </p>
-                      </button>
-                      {styleReferences.map((style) => (
-                        <button
-                          key={style.id}
-                          onClick={() => setSelectedStyleId(style.id)}
-                          className={`w-full rounded-lg border px-3 py-2 text-left transition-all ${
-                            selectedStyleId === style.id
-                              ? "border-accent bg-accent/10 text-accent"
-                              : "border-border hover:bg-muted text-muted-foreground"
-                          }`}
-                        >
-                          <p className="text-sm font-medium">
-                            {style.label}
-                            {style.is_default && (
-                              <span className="ml-2 text-xs opacity-60">
-                                ★ デフォルト
-                              </span>
-                            )}
-                          </p>
-                          <p className="line-clamp-1 text-xs opacity-70">
-                            {style.source_text.slice(0, 50)}...
-                          </p>
-                        </button>
-                      ))}
-                    </div>
-                    <p className="text-muted-foreground mt-2 text-xs">
-                      選択した文体のトーンで記事が生成されます
-                    </p>
-                  </>
-                ) : (
-                  <div className="border-border rounded-xl border border-dashed p-4 text-center">
-                    <p className="text-muted-foreground mb-2 text-sm">
-                      💡
-                      あらかじめ文体を登録しておくと、一発でご希望のトーンで記事が生成されます
-                    </p>
-                    <Link
-                      href="/settings/styles"
-                      className="pen-btn pen-btn-secondary inline-flex text-sm"
-                    >
-                      <PenLine className="h-4 w-4" />
-                      文体を登録する
-                    </Link>
-                  </div>
-                )}
-              </div>
-
               {error && <p className="text-danger mb-4 text-sm">{error}</p>}
               <button
                 onClick={handleStart}
@@ -828,6 +692,192 @@ function InterviewContent() {
           </div>
         </main>
         <Footer />
+      </div>
+    );
+  }
+  // 記事生成前の文体設定ステップ
+  if (showPreGeneration && !completing) {
+    return (
+      <div className="flex min-h-screen flex-col">
+        <Header />
+        <main className="flex-1">
+          <div className="pen-container pen-fade-in mx-auto max-w-lg pt-10 pb-8">
+            <h2 className="mb-1 text-center text-xl font-bold">
+              記事の文体を設定
+            </h2>
+            <p className="text-muted-foreground mb-6 text-center text-sm">
+              生成する記事のトーンを決めてから執筆を開始します
+            </p>
+
+            {/* 一人称 & 文体 */}
+            <div className="mb-6 grid grid-cols-2 gap-6">
+              {/* 一人称 */}
+              <div>
+                <label className="text-muted-foreground mb-2 block text-sm">
+                  一人称
+                </label>
+                <div className="space-y-2">
+                  {["私", "僕", "俺", "自分", "筆者"].map((p) => (
+                    <button
+                      key={p}
+                      onClick={() => setPronoun(p)}
+                      className={`w-full rounded-lg border px-3 py-2 text-sm font-medium transition-all ${
+                        pronoun === p
+                          ? "border-accent bg-accent/10 text-accent"
+                          : "border-border hover:bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      {p}
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => setPronoun("_custom")}
+                    className={`w-full rounded-lg border px-3 py-2 text-sm font-medium transition-all ${
+                      pronoun === "_custom"
+                        ? "border-accent bg-accent/10 text-accent"
+                        : "border-border hover:bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    その他
+                  </button>
+                  {pronoun === "_custom" && (
+                    <input
+                      type="text"
+                      value={customPronoun}
+                      onChange={(e) => setCustomPronoun(e.target.value)}
+                      placeholder="例: わたし、ウチ..."
+                      className="border-border bg-card focus:border-accent w-full rounded-lg border px-3 py-2 text-sm outline-none"
+                      autoFocus
+                    />
+                  )}
+                </div>
+              </div>
+
+              {/* 文体 */}
+              <div>
+                <label className="text-muted-foreground mb-2 block text-sm">
+                  文体
+                </label>
+                <div className="space-y-2">
+                  <button
+                    onClick={() => setWritingStyle("desu_masu")}
+                    className={`w-full rounded-lg border px-3 py-2 text-left transition-all ${
+                      writingStyle === "desu_masu"
+                        ? "border-accent bg-accent/10 text-accent"
+                        : "border-border hover:bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    <p className="text-sm font-medium">です・ます調</p>
+                    <p className="text-xs opacity-70">敬体・丁寧な印象</p>
+                  </button>
+                  <button
+                    onClick={() => setWritingStyle("da_dearu")}
+                    className={`w-full rounded-lg border px-3 py-2 text-left transition-all ${
+                      writingStyle === "da_dearu"
+                        ? "border-accent bg-accent/10 text-accent"
+                        : "border-border hover:bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    <p className="text-sm font-medium">だ・である調</p>
+                    <p className="text-xs opacity-70">常体・力強い印象</p>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* 参考文体 */}
+            <div className="mb-6">
+              <label className="text-muted-foreground mb-2 block text-sm">
+                参考文体
+              </label>
+              {styleReferences.length > 0 ? (
+                <>
+                  <div className="space-y-2">
+                    <button
+                      onClick={() => setSelectedStyleId("")}
+                      className={`w-full rounded-lg border px-3 py-2 text-left transition-all ${
+                        selectedStyleId === ""
+                          ? "border-accent bg-accent/10 text-accent"
+                          : "border-border hover:bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      <p className="text-sm font-medium">指定なし</p>
+                      <p className="text-xs opacity-70">
+                        デフォルトの文体で生成
+                      </p>
+                    </button>
+                    {styleReferences.map((style) => (
+                      <button
+                        key={style.id}
+                        onClick={() => setSelectedStyleId(style.id)}
+                        className={`w-full rounded-lg border px-3 py-2 text-left transition-all ${
+                          selectedStyleId === style.id
+                            ? "border-accent bg-accent/10 text-accent"
+                            : "border-border hover:bg-muted text-muted-foreground"
+                        }`}
+                      >
+                        <p className="text-sm font-medium">
+                          {style.label}
+                          {style.is_default && (
+                            <span className="ml-2 text-xs opacity-60">
+                              ★ デフォルト
+                            </span>
+                          )}
+                        </p>
+                        <p className="line-clamp-1 text-xs opacity-70">
+                          {style.source_text.slice(0, 50)}...
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <div className="border-border bg-muted/50 rounded-xl border p-4">
+                  <p className="mb-2 text-sm">
+                    💡 <strong>参考文体</strong>
+                    を登録すると、好みのトーン・文体で記事を生成できます
+                  </p>
+                  <p className="text-muted-foreground mb-3 text-xs">
+                    例: けんすうさん風、ビジネス論文風、カジュアルブログ風 など
+                  </p>
+                  <Link
+                    href="/settings/styles"
+                    className="pen-btn pen-btn-secondary inline-flex text-sm"
+                  >
+                    <PenLine className="h-4 w-4" />
+                    文体を登録する
+                  </Link>
+                </div>
+              )}
+            </div>
+
+            {error && (
+              <p className="text-danger mb-4 text-center text-sm">{error}</p>
+            )}
+
+            {/* アクションボタン */}
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={handleGenerateAndComplete}
+                disabled={completing}
+                className="pen-btn pen-btn-accent w-full px-8 py-3 text-base"
+              >
+                {completing ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <Sparkles className="h-5 w-5" />
+                )}
+                この設定で記事を生成する
+              </button>
+              <button
+                onClick={() => setShowPreGeneration(false)}
+                className="text-muted-foreground hover:text-foreground text-sm transition-colors"
+              >
+                インタビューに戻る
+              </button>
+            </div>
+          </div>
+        </main>
       </div>
     );
   }
