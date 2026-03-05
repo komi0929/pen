@@ -63,7 +63,6 @@ export async function POST(request: NextRequest) {
     // トーンプリセット選択時はインタビュー内容を取得（ディープリライト）
     let interviewText = "";
     if (articleTone && article.interview_id) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data: messages } = await (
         supabase.from("interview_messages") as any
       )
@@ -159,6 +158,25 @@ export async function POST(request: NextRequest) {
       newTitle = lines[0].replace(/^#\s*/, "").trim();
       newContent = lines.slice(1).join("\n").trim();
     }
+
+    // リライト理由ラベルを構築
+    const editLabel = buildEditLabel({
+      articleTone,
+      styleRef,
+      customInstruction,
+      toneNote,
+    });
+
+    // リライト前のスナップショットを履歴に保存
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase.from("article_edit_history") as any).insert({
+      article_id: articleId,
+      user_id: user.id,
+      title: article.title,
+      content: article.content,
+      word_count: article.content?.length || 0,
+      edit_label: editLabel,
+    });
 
     // 記事を更新
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -421,4 +439,42 @@ function getToneInstruction(tone: string): string {
     default:
       return "";
   }
+}
+
+/**
+ * リライトの変更内容を一目でわかるラベルに変換
+ */
+function buildEditLabel(opts: {
+  articleTone?: string;
+  styleRef?: { label: string } | null;
+  customInstruction?: string;
+  toneNote?: string;
+}): string {
+  const parts: string[] = ["リライト"];
+
+  const toneLabels: Record<string, string> = {
+    record: "📝 淡々と記録",
+    think: "💭 考えを整理",
+    casual: "🗣️ 気軽に話す",
+    teach: "🎯 学びを伝える",
+    story: "📖 ストーリー",
+  };
+
+  if (opts.articleTone && toneLabels[opts.articleTone]) {
+    parts.push(toneLabels[opts.articleTone]);
+  }
+
+  if (opts.styleRef) {
+    parts.push(`文体: ${opts.styleRef.label}`);
+  }
+
+  if (opts.toneNote) {
+    parts.push(`補足: ${opts.toneNote.slice(0, 20)}`);
+  }
+
+  if (opts.customInstruction && !opts.articleTone) {
+    parts.push(opts.customInstruction.slice(0, 30));
+  }
+
+  return parts.join(" / ");
 }
