@@ -73,6 +73,8 @@ function ArticleDetailContent() {
   const [rewriting, setRewriting] = useState(false);
   const [loadingRewriteStyles, setLoadingRewriteStyles] = useState(false);
   const [customRewriteInstruction, setCustomRewriteInstruction] = useState("");
+  const [rewriteTone, setRewriteTone] = useState("");
+  const [rewriteToneNote, setRewriteToneNote] = useState("");
 
   // リライト比較機能
   const [rewriteComparison, setRewriteComparison] = useState<{
@@ -209,7 +211,12 @@ function ArticleDetailContent() {
   };
 
   const handleRewrite = async () => {
-    if (!selectedRewriteStyle && !customRewriteInstruction.trim()) return;
+    if (
+      !selectedRewriteStyle &&
+      !customRewriteInstruction.trim() &&
+      !rewriteTone
+    )
+      return;
     if (!article) return;
     setRewriting(true);
     try {
@@ -220,6 +227,8 @@ function ArticleDetailContent() {
           articleId: article.id,
           styleReferenceId: selectedRewriteStyle || undefined,
           customInstruction: customRewriteInstruction.trim() || undefined,
+          articleTone: rewriteTone || undefined,
+          toneNote: rewriteToneNote.trim() || undefined,
         }),
       });
       const data = await res.json();
@@ -235,6 +244,8 @@ function ArticleDetailContent() {
         setShowRewriteModal(false);
         setSelectedRewriteStyle("");
         setCustomRewriteInstruction("");
+        setRewriteTone("");
+        setRewriteToneNote("");
       } else {
         alert(data.error || "リライトに失敗しました");
       }
@@ -635,105 +646,186 @@ function ArticleDetailContent() {
           {showRewriteModal && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
               <div className="bg-card mx-4 w-full max-w-md rounded-2xl p-6 shadow-xl">
-                <h3 className="mb-4 text-lg font-bold">AIリライト</h3>
+                <h3 className="mb-2 text-lg font-bold">AIリライト</h3>
                 <p className="text-muted-foreground mb-4 text-sm">
-                  文体を選んだり、自由に指示を書いて記事をリライトできます。エピソードの追加や文章量の調整なども可能です。
+                  トーンを変えてインタビュー素材から記事を再構成したり、文体変更・自由指示でリライトできます。
                 </p>
-                {loadingRewriteStyles ? (
-                  <div className="flex justify-center py-4">
-                    <Loader2 className="text-muted-foreground h-5 w-5 animate-spin" />
-                  </div>
-                ) : (
-                  <>
-                    {/* 文体選択 */}
-                    {rewriteStyles.length > 0 ? (
+                <div className="max-h-[70vh] overflow-y-auto pr-1">
+                  {loadingRewriteStyles ? (
+                    <div className="flex justify-center py-4">
+                      <Loader2 className="text-muted-foreground h-5 w-5 animate-spin" />
+                    </div>
+                  ) : (
+                    <>
+                      {/* 文体選択 */}
+                      {rewriteStyles.length > 0 ? (
+                        <div className="mb-4">
+                          <label className="text-muted-foreground mb-2 block text-sm">
+                            参考文体（任意）
+                          </label>
+                          <div className="max-h-40 space-y-2 overflow-y-auto">
+                            <button
+                              onClick={() => setSelectedRewriteStyle("")}
+                              className={`w-full rounded-lg border px-3 py-2 text-left transition-all ${
+                                selectedRewriteStyle === ""
+                                  ? "border-border bg-muted/50"
+                                  : "border-border hover:bg-muted text-muted-foreground"
+                              }`}
+                            >
+                              <p className="text-sm font-medium">指定なし</p>
+                            </button>
+                            {rewriteStyles.map((style) => (
+                              <button
+                                key={style.id}
+                                onClick={() =>
+                                  setSelectedRewriteStyle(style.id)
+                                }
+                                className={`w-full rounded-lg border px-3 py-2 text-left transition-all ${
+                                  selectedRewriteStyle === style.id
+                                    ? "border-accent bg-accent/10 text-accent"
+                                    : "border-border hover:bg-muted text-muted-foreground"
+                                }`}
+                              >
+                                <p className="text-sm font-medium">
+                                  {style.label}
+                                  {style.is_default && (
+                                    <span className="ml-2 text-xs opacity-60">
+                                      ★
+                                    </span>
+                                  )}
+                                </p>
+                                <p className="line-clamp-1 text-xs opacity-70">
+                                  {style.source_text.slice(0, 50)}...
+                                </p>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="border-border bg-muted/50 mb-4 rounded-xl border p-4">
+                          <p className="mb-2 text-sm">
+                            💡 <strong>参考文体</strong>
+                            を登録すると、好みのトーンでリライトできます
+                          </p>
+                          <p className="text-muted-foreground mb-3 text-xs">
+                            例:
+                            けんすうさん風、ビジネス論文風、カジュアルブログ風
+                            など
+                          </p>
+                          <Link
+                            href="/settings/styles"
+                            className="pen-btn pen-btn-secondary inline-flex text-sm"
+                          >
+                            文体を登録する
+                          </Link>
+                        </div>
+                      )}
+
+                      {/* トーンプリセット */}
                       <div className="mb-4">
                         <label className="text-muted-foreground mb-2 block text-sm">
-                          参考文体（任意）
+                          記事のトーン（任意）
                         </label>
-                        <div className="max-h-40 space-y-2 overflow-y-auto">
+                        <div className="grid grid-cols-1 gap-1.5">
                           <button
-                            onClick={() => setSelectedRewriteStyle("")}
-                            className={`w-full rounded-lg border px-3 py-2 text-left transition-all ${
-                              selectedRewriteStyle === ""
+                            onClick={() => setRewriteTone("")}
+                            className={`rounded-lg border px-3 py-2 text-left text-sm transition-all ${
+                              rewriteTone === ""
                                 ? "border-border bg-muted/50"
                                 : "border-border hover:bg-muted text-muted-foreground"
                             }`}
                           >
-                            <p className="text-sm font-medium">指定なし</p>
+                            指定なし（文体変更のみ）
                           </button>
-                          {rewriteStyles.map((style) => (
+                          {[
+                            {
+                              key: "record",
+                              emoji: "📝",
+                              label: "淡々と記録する",
+                            },
+                            {
+                              key: "think",
+                              emoji: "💭",
+                              label: "考えを整理する",
+                            },
+                            { key: "casual", emoji: "🗣️", label: "気軽に話す" },
+                            {
+                              key: "teach",
+                              emoji: "🎯",
+                              label: "学びを伝える",
+                            },
+                            {
+                              key: "story",
+                              emoji: "📖",
+                              label: "ストーリーで描く",
+                            },
+                          ].map((t) => (
                             <button
-                              key={style.id}
-                              onClick={() => setSelectedRewriteStyle(style.id)}
-                              className={`w-full rounded-lg border px-3 py-2 text-left transition-all ${
-                                selectedRewriteStyle === style.id
+                              key={t.key}
+                              onClick={() => setRewriteTone(t.key)}
+                              className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm transition-all ${
+                                rewriteTone === t.key
                                   ? "border-accent bg-accent/10 text-accent"
                                   : "border-border hover:bg-muted text-muted-foreground"
                               }`}
                             >
-                              <p className="text-sm font-medium">
-                                {style.label}
-                                {style.is_default && (
-                                  <span className="ml-2 text-xs opacity-60">
-                                    ★
-                                  </span>
-                                )}
-                              </p>
-                              <p className="line-clamp-1 text-xs opacity-70">
-                                {style.source_text.slice(0, 50)}...
-                              </p>
+                              <span>{t.emoji}</span>
+                              <span className="font-medium">{t.label}</span>
                             </button>
                           ))}
                         </div>
+                        {rewriteTone && (
+                          <p className="text-accent mt-2 text-xs">
+                            💡
+                            インタビュー素材から再分析し、このトーンに最適な記事を再構成します
+                          </p>
+                        )}
                       </div>
-                    ) : (
-                      <div className="border-border bg-muted/50 mb-4 rounded-xl border p-4">
-                        <p className="mb-2 text-sm">
-                          💡 <strong>参考文体</strong>
-                          を登録すると、好みのトーンでリライトできます
-                        </p>
-                        <p className="text-muted-foreground mb-3 text-xs">
-                          例: けんすうさん風、ビジネス論文風、カジュアルブログ風
-                          など
-                        </p>
-                        <Link
-                          href="/settings/styles"
-                          className="pen-btn pen-btn-secondary inline-flex text-sm"
-                        >
-                          文体を登録する
-                        </Link>
-                      </div>
-                    )}
 
-                    {/* フリーフォーマット指示 */}
-                    <div className="mb-4">
-                      <label className="text-muted-foreground mb-2 block text-sm">
-                        リライト指示（任意）
-                      </label>
-                      <textarea
-                        value={customRewriteInstruction}
-                        onChange={(e) =>
-                          setCustomRewriteInstruction(e.target.value)
-                        }
-                        placeholder={
-                          "例:\n・もっとカジュアルに話しかけるトーンで\n・具体的なエピソードをもっと入れて\n・全体を1000文字くらいに短くして\n・冒頭にフックを入れてほしい"
-                        }
-                        rows={4}
-                        className="border-border bg-card focus:border-accent w-full resize-none rounded-lg border px-3 py-2 text-sm outline-none"
-                      />
-                      <p className="text-muted-foreground mt-1 text-xs">
-                        文体変更・内容の追加削除・長さ調整など何でもOKです
-                      </p>
-                    </div>
-                  </>
-                )}
+                      {/* ひとこと補足 */}
+                      <div className="mb-4">
+                        <label className="text-muted-foreground mb-2 block text-sm">
+                          補足メモ（任意）
+                        </label>
+                        <input
+                          type="text"
+                          value={rewriteToneNote}
+                          onChange={(e) => setRewriteToneNote(e.target.value)}
+                          placeholder="例: 説教くさくしないで、あっさりめで..."
+                          className="border-border bg-card focus:border-accent w-full rounded-lg border px-3 py-2 text-sm outline-none"
+                        />
+                      </div>
+
+                      {/* フリーフォーマット指示 */}
+                      <div className="mb-4">
+                        <label className="text-muted-foreground mb-2 block text-sm">
+                          リライト指示（任意）
+                        </label>
+                        <textarea
+                          value={customRewriteInstruction}
+                          onChange={(e) =>
+                            setCustomRewriteInstruction(e.target.value)
+                          }
+                          placeholder={
+                            "例:\n・もっとカジュアルに話しかけるトーンで\n・具体的なエピソードをもっと入れて\n・全体を1000文字くらいに短くして\n・冒頭にフックを入れてほしい"
+                          }
+                          rows={4}
+                          className="border-border bg-card focus:border-accent w-full resize-none rounded-lg border px-3 py-2 text-sm outline-none"
+                        />
+                        <p className="text-muted-foreground mt-1 text-xs">
+                          文体変更・内容の追加削除・長さ調整など何でもOKです
+                        </p>
+                      </div>
+                    </>
+                  )}
+                </div>
                 <div className="flex gap-2">
                   <button
                     onClick={handleRewrite}
                     disabled={
                       (!selectedRewriteStyle &&
-                        !customRewriteInstruction.trim()) ||
+                        !customRewriteInstruction.trim() &&
+                        !rewriteTone) ||
                       rewriting
                     }
                     className="pen-btn pen-btn-accent flex-1"
@@ -754,6 +846,8 @@ function ArticleDetailContent() {
                     onClick={() => {
                       setShowRewriteModal(false);
                       setCustomRewriteInstruction("");
+                      setRewriteTone("");
+                      setRewriteToneNote("");
                     }}
                     disabled={rewriting}
                     className="pen-btn pen-btn-secondary"
