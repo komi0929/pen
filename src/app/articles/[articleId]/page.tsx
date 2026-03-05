@@ -376,18 +376,18 @@ function ArticleDetailContent() {
               <div className="mb-6 flex items-center gap-2">
                 {/* プライマリアクション */}
                 <button
-                  onClick={() => setIsEditing(true)}
-                  className="pen-btn pen-btn-accent"
-                >
-                  <Pencil className="h-4 w-4" />
-                  編集する
-                </button>
-                <button
                   onClick={handleOpenRewrite}
-                  className="pen-btn pen-btn-secondary"
+                  className="pen-btn pen-btn-accent"
                 >
                   <RefreshCw className="h-4 w-4" />
                   AIリライト
+                </button>
+                <button
+                  onClick={() => setIsEditing(true)}
+                  className="pen-btn pen-btn-secondary"
+                >
+                  <Pencil className="h-4 w-4" />
+                  編集する
                 </button>
 
                 {/* ユーティリティアイコン */}
