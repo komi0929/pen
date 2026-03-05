@@ -453,7 +453,7 @@ function ArticleDetailContent() {
                   className="pen-btn pen-btn-secondary"
                 >
                   <RefreshCw className="h-4 w-4" />
-                  文体でリライト
+                  AIリライト
                 </button>
                 <button
                   onClick={handleDelete}
@@ -635,9 +635,9 @@ function ArticleDetailContent() {
           {showRewriteModal && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
               <div className="bg-card mx-4 w-full max-w-md rounded-2xl p-6 shadow-xl">
-                <h3 className="mb-4 text-lg font-bold">文体でリライト</h3>
+                <h3 className="mb-4 text-lg font-bold">AIリライト</h3>
                 <p className="text-muted-foreground mb-4 text-sm">
-                  文体を選ぶか、自由に指示を書いて記事をリライトできます。
+                  文体を選んだり、自由に指示を書いて記事をリライトできます。エピソードの追加や文章量の調整なども可能です。
                 </p>
                 {loadingRewriteStyles ? (
                   <div className="flex justify-center py-4">
@@ -716,12 +716,14 @@ function ArticleDetailContent() {
                         onChange={(e) =>
                           setCustomRewriteInstruction(e.target.value)
                         }
-                        placeholder="例: もっとカジュアルに、話しかけるようなトーンで書き直してほしい..."
-                        rows={3}
+                        placeholder={
+                          "例:\n・もっとカジュアルに話しかけるトーンで\n・具体的なエピソードをもっと入れて\n・全体を1000文字くらいに短くして\n・冒頭にフックを入れてほしい"
+                        }
+                        rows={4}
                         className="border-border bg-card focus:border-accent w-full resize-none rounded-lg border px-3 py-2 text-sm outline-none"
                       />
                       <p className="text-muted-foreground mt-1 text-xs">
-                        文体と併用も、ここだけでのリライトも可能です
+                        文体変更・内容の追加削除・長さ調整など何でもOKです
                       </p>
                     </div>
                   </>
