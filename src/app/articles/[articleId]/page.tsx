@@ -25,12 +25,11 @@ import {
   BookmarkPlus,
   Bot,
   Check,
-  ChevronDown,
-  ChevronUp,
   Clock,
   Copy,
   Loader2,
   MessageSquare,
+  MoreHorizontal,
   Pencil,
   RefreshCw,
   Trash2,
@@ -65,6 +64,8 @@ function ArticleDetailContent() {
   const [loadingThemes, setLoadingThemes] = useState(false);
   const [addingToTheme, setAddingToTheme] = useState<string | null>(null);
   const themeSelectorRef = useRef<HTMLDivElement>(null);
+  const [showActionsMenu, setShowActionsMenu] = useState(false);
+  const actionsMenuRef = useRef<HTMLDivElement>(null);
 
   // リライト機能
   const [showRewriteModal, setShowRewriteModal] = useState(false);
@@ -99,6 +100,23 @@ function ArticleDetailContent() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // メニュー外クリックで閉じる
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        actionsMenuRef.current &&
+        !actionsMenuRef.current.contains(e.target as Node)
+      ) {
+        setShowActionsMenu(false);
+      }
+    };
+    if (showActionsMenu) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () =>
+        document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [showActionsMenu]);
 
   const handleCopy = async () => {
     if (!article) return;
@@ -354,8 +372,9 @@ function ArticleDetailContent() {
                 </div>
               </div>
 
-              {/* アクションボタン */}
-              <div className="mb-6 flex flex-wrap gap-2">
+              {/* アクションバー */}
+              <div className="mb-6 flex items-center gap-2">
+                {/* プライマリアクション */}
                 <button
                   onClick={() => setIsEditing(true)}
                   className="pen-btn pen-btn-accent"
@@ -364,116 +383,138 @@ function ArticleDetailContent() {
                   編集する
                 </button>
                 <button
-                  onClick={() => setShowHistory(true)}
-                  className="pen-btn pen-btn-secondary"
-                >
-                  <Clock className="h-4 w-4" />
-                  履歴
-                </button>
-                <button
-                  onClick={handleCopy}
-                  className={`pen-btn ${copied ? "pen-btn-accent" : "pen-btn-secondary"}`}
-                >
-                  {copied ? (
-                    <>
-                      <Check className="h-4 w-4" />
-                      コピーしました！
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="h-4 w-4" />
-                      記事をコピー
-                    </>
-                  )}
-                </button>
-                {article.interview_id && (
-                  <button
-                    onClick={handleToggleInterview}
-                    className="pen-btn pen-btn-secondary"
-                  >
-                    <MessageSquare className="h-4 w-4" />
-                    インタビューを見返す
-                    {showInterview ? (
-                      <ChevronUp className="h-3 w-3" />
-                    ) : (
-                      <ChevronDown className="h-3 w-3" />
-                    )}
-                  </button>
-                )}
-                {/* 他テーマの参考に追加 */}
-                <div className="relative" ref={themeSelectorRef}>
-                  <button
-                    onClick={handleToggleThemeSelector}
-                    className="pen-btn pen-btn-secondary"
-                  >
-                    <BookmarkPlus className="h-4 w-4" />
-                    他テーマの参考に追加
-                    {showThemeSelector ? (
-                      <ChevronUp className="h-3 w-3" />
-                    ) : (
-                      <ChevronDown className="h-3 w-3" />
-                    )}
-                  </button>
-                  {showThemeSelector && (
-                    <div className="border-border bg-card absolute right-0 z-50 mt-2 w-72 rounded-xl border shadow-lg">
-                      <div className="border-border border-b px-4 py-3">
-                        <p className="text-sm font-bold">テーマを選択</p>
-                        <p className="text-muted-foreground text-xs">
-                          この記事をインタビューの参考資料として追加
-                        </p>
-                      </div>
-                      <div className="max-h-64 overflow-y-auto p-2">
-                        {loadingThemes ? (
-                          <div className="flex justify-center py-4">
-                            <Loader2 className="text-muted-foreground h-5 w-5 animate-spin" />
-                          </div>
-                        ) : availableThemes.length === 0 ? (
-                          <p className="text-muted-foreground py-4 text-center text-sm">
-                            追加可能なテーマがありません
-                          </p>
-                        ) : (
-                          availableThemes.map((theme) => (
-                            <button
-                              key={theme.id}
-                              onClick={() =>
-                                handleToggleArticleRef(
-                                  theme.id,
-                                  theme.already_added
-                                )
-                              }
-                              disabled={addingToTheme === theme.id}
-                              className="hover:bg-muted flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition-colors"
-                            >
-                              <span className="min-w-0 flex-1 truncate">
-                                {theme.title}
-                              </span>
-                              {addingToTheme === theme.id ? (
-                                <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
-                              ) : theme.already_added ? (
-                                <Check className="text-accent h-4 w-4 shrink-0" />
-                              ) : null}
-                            </button>
-                          ))
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-                <button
                   onClick={handleOpenRewrite}
                   className="pen-btn pen-btn-secondary"
                 >
                   <RefreshCw className="h-4 w-4" />
                   AIリライト
                 </button>
-                <button
-                  onClick={handleDelete}
-                  className="text-muted-foreground hover:bg-danger/10 hover:text-danger rounded-lg px-3 py-2 text-sm transition-colors"
-                >
-                  <Trash2 className="mr-1 inline h-4 w-4" />
-                  削除
-                </button>
+
+                {/* ユーティリティアイコン */}
+                <div className="border-border ml-1 flex items-center gap-1 border-l pl-2">
+                  <button
+                    onClick={handleCopy}
+                    className={`rounded-lg p-2 transition-colors ${
+                      copied
+                        ? "bg-accent/10 text-accent"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    }`}
+                    title="記事をコピー"
+                  >
+                    {copied ? (
+                      <Check className="h-4 w-4" />
+                    ) : (
+                      <Copy className="h-4 w-4" />
+                    )}
+                  </button>
+                  <button
+                    onClick={() => setShowHistory(true)}
+                    className="text-muted-foreground hover:bg-muted hover:text-foreground rounded-lg p-2 transition-colors"
+                    title="編集履歴"
+                  >
+                    <Clock className="h-4 w-4" />
+                  </button>
+
+                  {/* オーバーフローメニュー */}
+                  <div className="relative" ref={actionsMenuRef}>
+                    <button
+                      onClick={() => setShowActionsMenu(!showActionsMenu)}
+                      className="text-muted-foreground hover:bg-muted hover:text-foreground rounded-lg p-2 transition-colors"
+                      title="その他"
+                    >
+                      <MoreHorizontal className="h-4 w-4" />
+                    </button>
+                    {showActionsMenu && (
+                      <div className="border-border bg-card absolute right-0 z-50 mt-1 w-56 rounded-xl border py-1 shadow-lg">
+                        {article.interview_id && (
+                          <button
+                            onClick={() => {
+                              handleToggleInterview();
+                              setShowActionsMenu(false);
+                            }}
+                            className="hover:bg-muted flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm transition-colors"
+                          >
+                            <MessageSquare className="h-4 w-4" />
+                            {showInterview
+                              ? "インタビューを閉じる"
+                              : "インタビューを見返す"}
+                          </button>
+                        )}
+                        <button
+                          onClick={() => {
+                            handleToggleThemeSelector();
+                            setShowActionsMenu(false);
+                          }}
+                          className="hover:bg-muted flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm transition-colors"
+                        >
+                          <BookmarkPlus className="h-4 w-4" />
+                          他テーマの参考に追加
+                        </button>
+                        <div className="border-border my-1 border-t" />
+                        <button
+                          onClick={() => {
+                            handleDelete();
+                            setShowActionsMenu(false);
+                          }}
+                          className="text-danger hover:bg-danger/10 flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm transition-colors"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          削除
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
+
+              {/* テーマセレクター（他テーマの参考に追加） */}
+              {showThemeSelector && (
+                <div
+                  className="pen-fade-in border-border bg-card mb-4 rounded-xl border shadow-sm"
+                  ref={themeSelectorRef}
+                >
+                  <div className="border-border border-b px-4 py-3">
+                    <p className="text-sm font-bold">テーマを選択</p>
+                    <p className="text-muted-foreground text-xs">
+                      この記事をインタビューの参考資料として追加
+                    </p>
+                  </div>
+                  <div className="max-h-64 overflow-y-auto p-2">
+                    {loadingThemes ? (
+                      <div className="flex justify-center py-4">
+                        <Loader2 className="text-muted-foreground h-5 w-5 animate-spin" />
+                      </div>
+                    ) : availableThemes.length === 0 ? (
+                      <p className="text-muted-foreground py-4 text-center text-sm">
+                        追加可能なテーマがありません
+                      </p>
+                    ) : (
+                      availableThemes.map((theme) => (
+                        <button
+                          key={theme.id}
+                          onClick={() =>
+                            handleToggleArticleRef(
+                              theme.id,
+                              theme.already_added
+                            )
+                          }
+                          disabled={addingToTheme === theme.id}
+                          className="hover:bg-muted flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition-colors"
+                        >
+                          <span className="min-w-0 flex-1 truncate">
+                            {theme.title}
+                          </span>
+                          {addingToTheme === theme.id ? (
+                            <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+                          ) : theme.already_added ? (
+                            <Check className="text-accent h-4 w-4 shrink-0" />
+                          ) : null}
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* インタビュー履歴 */}
               {showInterview && (
