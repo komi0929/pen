@@ -72,6 +72,7 @@ function ArticleDetailContent() {
   const [selectedRewriteStyle, setSelectedRewriteStyle] = useState<string>("");
   const [rewriting, setRewriting] = useState(false);
   const [loadingRewriteStyles, setLoadingRewriteStyles] = useState(false);
+  const [customRewriteInstruction, setCustomRewriteInstruction] = useState("");
 
   // リライト比較機能
   const [rewriteComparison, setRewriteComparison] = useState<{
@@ -208,7 +209,8 @@ function ArticleDetailContent() {
   };
 
   const handleRewrite = async () => {
-    if (!selectedRewriteStyle || !article) return;
+    if (!selectedRewriteStyle && !customRewriteInstruction.trim()) return;
+    if (!article) return;
     setRewriting(true);
     try {
       const res = await fetch("/api/rewrite", {
@@ -216,7 +218,8 @@ function ArticleDetailContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           articleId: article.id,
-          styleReferenceId: selectedRewriteStyle,
+          styleReferenceId: selectedRewriteStyle || undefined,
+          customInstruction: customRewriteInstruction.trim() || undefined,
         }),
       });
       const data = await res.json();
@@ -231,6 +234,7 @@ function ArticleDetailContent() {
         setComparisonTab("after");
         setShowRewriteModal(false);
         setSelectedRewriteStyle("");
+        setCustomRewriteInstruction("");
       } else {
         alert(data.error || "リライトに失敗しました");
       }
@@ -633,45 +637,103 @@ function ArticleDetailContent() {
               <div className="bg-card mx-4 w-full max-w-md rounded-2xl p-6 shadow-xl">
                 <h3 className="mb-4 text-lg font-bold">文体でリライト</h3>
                 <p className="text-muted-foreground mb-4 text-sm">
-                  選択した文体のトーンで記事を書き直します。元の記事は上書きされます。
+                  文体を選ぶか、自由に指示を書いて記事をリライトできます。
                 </p>
                 {loadingRewriteStyles ? (
                   <div className="flex justify-center py-4">
                     <Loader2 className="text-muted-foreground h-5 w-5 animate-spin" />
                   </div>
-                ) : rewriteStyles.length === 0 ? (
-                  <p className="text-muted-foreground py-4 text-center text-sm">
-                    文体が登録されていません。設定ページから登録してください。
-                  </p>
                 ) : (
-                  <div className="mb-4 max-h-60 space-y-2 overflow-y-auto">
-                    {rewriteStyles.map((style) => (
-                      <button
-                        key={style.id}
-                        onClick={() => setSelectedRewriteStyle(style.id)}
-                        className={`w-full rounded-lg border px-3 py-2 text-left transition-all ${
-                          selectedRewriteStyle === style.id
-                            ? "border-accent bg-accent/10 text-accent"
-                            : "border-border hover:bg-muted text-muted-foreground"
-                        }`}
-                      >
-                        <p className="text-sm font-medium">
-                          {style.label}
-                          {style.is_default && (
-                            <span className="ml-2 text-xs opacity-60">★</span>
-                          )}
+                  <>
+                    {/* 文体選択 */}
+                    {rewriteStyles.length > 0 ? (
+                      <div className="mb-4">
+                        <label className="text-muted-foreground mb-2 block text-sm">
+                          参考文体（任意）
+                        </label>
+                        <div className="max-h-40 space-y-2 overflow-y-auto">
+                          <button
+                            onClick={() => setSelectedRewriteStyle("")}
+                            className={`w-full rounded-lg border px-3 py-2 text-left transition-all ${
+                              selectedRewriteStyle === ""
+                                ? "border-border bg-muted/50"
+                                : "border-border hover:bg-muted text-muted-foreground"
+                            }`}
+                          >
+                            <p className="text-sm font-medium">指定なし</p>
+                          </button>
+                          {rewriteStyles.map((style) => (
+                            <button
+                              key={style.id}
+                              onClick={() => setSelectedRewriteStyle(style.id)}
+                              className={`w-full rounded-lg border px-3 py-2 text-left transition-all ${
+                                selectedRewriteStyle === style.id
+                                  ? "border-accent bg-accent/10 text-accent"
+                                  : "border-border hover:bg-muted text-muted-foreground"
+                              }`}
+                            >
+                              <p className="text-sm font-medium">
+                                {style.label}
+                                {style.is_default && (
+                                  <span className="ml-2 text-xs opacity-60">
+                                    ★
+                                  </span>
+                                )}
+                              </p>
+                              <p className="line-clamp-1 text-xs opacity-70">
+                                {style.source_text.slice(0, 50)}...
+                              </p>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="border-border bg-muted/50 mb-4 rounded-xl border p-4">
+                        <p className="mb-2 text-sm">
+                          💡 <strong>参考文体</strong>
+                          を登録すると、好みのトーンでリライトできます
                         </p>
-                        <p className="line-clamp-1 text-xs opacity-70">
-                          {style.source_text.slice(0, 50)}...
+                        <p className="text-muted-foreground mb-3 text-xs">
+                          例: けんすうさん風、ビジネス論文風、カジュアルブログ風
+                          など
                         </p>
-                      </button>
-                    ))}
-                  </div>
+                        <Link
+                          href="/settings/styles"
+                          className="pen-btn pen-btn-secondary inline-flex text-sm"
+                        >
+                          文体を登録する
+                        </Link>
+                      </div>
+                    )}
+
+                    {/* フリーフォーマット指示 */}
+                    <div className="mb-4">
+                      <label className="text-muted-foreground mb-2 block text-sm">
+                        リライト指示（任意）
+                      </label>
+                      <textarea
+                        value={customRewriteInstruction}
+                        onChange={(e) =>
+                          setCustomRewriteInstruction(e.target.value)
+                        }
+                        placeholder="例: もっとカジュアルに、話しかけるようなトーンで書き直してほしい..."
+                        rows={3}
+                        className="border-border bg-card focus:border-accent w-full resize-none rounded-lg border px-3 py-2 text-sm outline-none"
+                      />
+                      <p className="text-muted-foreground mt-1 text-xs">
+                        文体と併用も、ここだけでのリライトも可能です
+                      </p>
+                    </div>
+                  </>
                 )}
                 <div className="flex gap-2">
                   <button
                     onClick={handleRewrite}
-                    disabled={!selectedRewriteStyle || rewriting}
+                    disabled={
+                      (!selectedRewriteStyle &&
+                        !customRewriteInstruction.trim()) ||
+                      rewriting
+                    }
                     className="pen-btn pen-btn-accent flex-1"
                   >
                     {rewriting ? (
@@ -687,7 +749,10 @@ function ArticleDetailContent() {
                     )}
                   </button>
                   <button
-                    onClick={() => setShowRewriteModal(false)}
+                    onClick={() => {
+                      setShowRewriteModal(false);
+                      setCustomRewriteInstruction("");
+                    }}
                     disabled={rewriting}
                     className="pen-btn pen-btn-secondary"
                   >

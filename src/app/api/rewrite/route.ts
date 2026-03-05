@@ -9,11 +9,18 @@ import { NextRequest, NextResponse } from "next/server";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { articleId, styleReferenceId } = body;
+    const { articleId, styleReferenceId, customInstruction } = body;
 
-    if (!articleId || !styleReferenceId) {
+    if (!articleId) {
       return NextResponse.json(
-        { error: "articleId と styleReferenceId が必要です" },
+        { error: "articleId が必要です" },
+        { status: 400 }
+      );
+    }
+
+    if (!styleReferenceId && !customInstruction) {
+      return NextResponse.json(
+        { error: "文体の選択またはリライト指示が必要です" },
         { status: 400 }
       );
     }
@@ -45,19 +52,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 文体リファレンスを取得
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: styleRef } = await (supabase.from("style_references") as any)
-      .select("source_text, label")
-      .eq("id", styleReferenceId)
-      .eq("user_id", user.id)
-      .single();
+    // 文体リファレンスを取得（指定時のみ）
+    let styleRef: { source_text: string; label: string } | null = null;
+    if (styleReferenceId) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data } = await (supabase.from("style_references") as any)
+        .select("source_text, label")
+        .eq("id", styleReferenceId)
+        .eq("user_id", user.id)
+        .single();
 
-    if (!styleRef) {
-      return NextResponse.json(
-        { error: "文体リファレンスが見つかりません" },
-        { status: 404 }
-      );
+      if (!data) {
+        return NextResponse.json(
+          { error: "文体リファレンスが見つかりません" },
+          { status: 404 }
+        );
+      }
+      styleRef = data;
     }
 
     const apiKey = process.env.GEMINI_API_KEY;
@@ -70,19 +81,33 @@ export async function POST(request: NextRequest) {
 
     const genAI = new GoogleGenerativeAI(apiKey);
 
-    const rewritePrompt = `あなたはプロのライターです。以下の既存記事を、参考文体のトーン・リズム・雰囲気にリライトしてください。
-
-## リライトのルール
-1. 記事の内容・情報・構造はできるだけ維持する
-2. 文体・トーン・リズム・語尾の使い方を参考文体に合わせる
-3. 最初の行に「# タイトル」形式でタイトルを付ける（内容に合った魅力的なタイトルに変えてもOK）
-4. マークダウン記法はnoteで使える範囲に限定する（#, ##, ###, **太字**, 改行）
-5. 参考文体の内容そのものはコピーしない。あくまで文体・雰囲気のみを参考にする
-
+    // プロンプト構築
+    let styleSection = "";
+    if (styleRef) {
+      styleSection = `
 ## 参考文体（トーン・スタイルの参考）
 ---
 ${styleRef.source_text}
----
+---`;
+    }
+
+    let customSection = "";
+    if (customInstruction) {
+      customSection = `
+## ユーザーからの追加指示
+${customInstruction}`;
+    }
+
+    const rewritePrompt = `あなたはプロのライターです。以下の既存記事をリライトしてください。
+
+## リライトのルール
+1. 記事の内容・情報・構造はできるだけ維持する
+2. ${styleRef ? "文体・トーン・リズム・語尾の使い方を参考文体に合わせる" : "ユーザーの指示に従って文体・トーンを調整する"}
+3. 最初の行に「# タイトル」形式でタイトルを付ける（内容に合った魅力的なタイトルに変えてもOK）
+4. マークダウン記法はnoteで使える範囲に限定する（#, ##, ###, **太字**, 改行）
+5. ${styleRef ? "参考文体の内容そのものはコピーしない。あくまで文体・雰囲気のみを参考にする" : "内容の正確性は維持しつつ、指示どおりのトーンに変える"}
+${styleSection}
+${customSection}
 
 ## リライト対象の記事
 ---
