@@ -18,7 +18,9 @@ export function buildWritingPrompt(
   referenceArticles?: { title: string; content: string }[] | null,
   pronoun?: string,
   writingStyle?: string,
-  styleReference?: string | null
+  styleReference?: string | null,
+  articleTone?: string | null,
+  toneNote?: string | null
 ): string {
   const memoSection =
     memos && memos.length > 0
@@ -40,12 +42,20 @@ export function buildWritingPrompt(
       ? "「だ・である調（常体）」"
       : "「です・ます調（敬体）」";
 
+  // トーンプリセットの指示を構築
+  const toneInstructions = buildToneInstructions(articleTone);
+
+  // ユーザー補足指示
+  const toneNoteSection = toneNote
+    ? `\n\n## ユーザーからの補足指示（最優先で従うこと）\n${toneNote}`
+    : "";
+
   return `あなたはnoteのプロのライターです。インタビュー内容をもとに、noteで「読まれる・推される」記事を作成してください。
 
 ## 記事のテーマ
 タイトル: ${themeTitle}
 ${themeDescription ? `説明: ${themeDescription}` : ""}${memoSection}${refArticleSection}${styleReferenceSection}
-
+${toneInstructions}
 ## noteで「読まれる記事」の原則（最重要）
 以下のnote公式基準に準拠した記事を書いてください：
 
@@ -104,5 +114,63 @@ ${themeDescription ? `説明: ${themeDescription}` : ""}${memoSection}${refArtic
 - インタビューの質問文をそのまま含めない
 - 回答のコピペではなく、必ず記事として再構成すること
 - 文字数が少ない場合でも、記事の体裁（導入→本文→まとめ）を保つこと
-- 品質チェックリストをそのまま記事に出力しないこと`;
+- 品質チェックリストをそのまま記事に出力しないこと${toneNoteSection}`;
+}
+
+/**
+ * トーンプリセットに応じた指示セクションを生成
+ */
+function buildToneInstructions(tone?: string | null): string {
+  switch (tone) {
+    case "record":
+      return `## 記事のトーン指示：📝 淡々と記録する
+この記事は**日記・備忘録スタイル**で書いてください。
+- 起きたことを時系列で淡々と記録する
+- 教訓や学びを無理に引き出さない。事実の記録が中心
+- 感情表現は控えめに。あっさりした語り口
+- 「こうすべき」「これが大事」のような説教調は禁止
+- まとめ・結論を強調せず、自然に終わる
+- 読者に何かを伝えようとするスタンスではなく、自分用のメモを公開している感覚\n`;
+
+    case "think":
+      return `## 記事のトーン指示：💭 考えを整理する
+この記事は**思考整理・内省スタイル**で書いてください。
+- 頭の中を整理するように、自分に語りかける感覚で書く
+- 考えがまとまりきっていない部分もそのまま残してOK
+- 「〜かもしれない」「〜な気がする」など曖昧さを許容する
+- 教訓を押し付けない。「自分はこう感じた」に留める
+- 結論を急がず、思考のプロセスそのものを記事にする\n`;
+
+    case "casual":
+      return `## 記事のトーン指示：🗣️ 気軽に話す
+この記事は**カジュアルトーク・雑談スタイル**で書いてください。
+- 友達に話しかけるような親しみやすい文体
+- 「〜なんですよね」「〜だったんです」などの口語表現を使う
+- 堅い表現や専門用語は避ける
+- 軽い脱線やツッコミも入れてOK
+- シリアスになりすぎない。軽やかさを最優先
+- 読後感は「あー面白かった」「共感した」程度でOK\n`;
+
+    case "teach":
+      return `## 記事のトーン指示：🎯 学びを伝える
+この記事は**ノウハウ共有・教訓型スタイル**で書いてください。
+- 体験から得た具体的な学びを構造化して伝える
+- 「ステップ1→2→3」のように手順が明確
+- 読者が同じ状況で使える実用的な情報を提供する
+- 抽象論ではなく、具体的なアクションに落とし込む
+- 信頼性のために失敗談やつまずきも正直に書く\n`;
+
+    case "story":
+      return `## 記事のトーン指示：📖 ストーリーで描く
+この記事は**物語・ナラティブスタイル**で書いてください。
+- 冒頭で引き込むシーンから始める
+- 登場人物・場面・会話を具体的に描写する
+- 「起承転結」の流れを意識して構成する
+- 感情の動き、葛藤、転機を丁寧に書く
+- 臨場感のある描写（五感を使った表現）を積極的に使う
+- 教訓は物語の中に自然に溶け込ませる\n`;
+
+    default:
+      return "";
+  }
 }

@@ -107,6 +107,8 @@ function InterviewContent() {
   const [interviewMode, setInterviewMode] = useState<InterviewMode>("normal");
   const [showMotivation, setShowMotivation] = useState(false);
   const [showPreGeneration, setShowPreGeneration] = useState(false);
+  const [articleTone, setArticleTone] = useState("casual");
+  const [toneNote, setToneNote] = useState("");
   const [targetLength, setTargetLength] = useState(1000);
 
   // 文体設定
@@ -436,6 +438,8 @@ function InterviewContent() {
           pronoun: effectivePronoun,
           writingStyle,
           styleReferenceId: selectedStyleId || undefined,
+          articleTone,
+          toneNote: toneNote.trim() || undefined,
         }),
       });
 
@@ -703,11 +707,87 @@ function InterviewContent() {
         <main className="flex-1">
           <div className="pen-container pen-fade-in mx-auto max-w-lg pt-10 pb-8">
             <h2 className="mb-1 text-center text-xl font-bold">
-              記事の文体を設定
+              記事のスタイルを設定
             </h2>
             <p className="text-muted-foreground mb-6 text-center text-sm">
-              生成する記事のトーンを決めてから執筆を開始します
+              インタビューの内容をどんなトーンで記事にするか決めます
             </p>
+
+            {/* トーンプリセット */}
+            <div className="mb-6">
+              <label className="text-muted-foreground mb-3 block text-sm">
+                記事のトーン
+              </label>
+              <div className="grid grid-cols-1 gap-2">
+                {[
+                  {
+                    key: "record",
+                    emoji: "📝",
+                    label: "淡々と記録する",
+                    desc: "日記・備忘録的。教訓や感想は控えめ",
+                  },
+                  {
+                    key: "think",
+                    emoji: "💭",
+                    label: "考えを整理する",
+                    desc: "内省あり、でも押し付けない",
+                  },
+                  {
+                    key: "casual",
+                    emoji: "🗣️",
+                    label: "気軽に話す",
+                    desc: "雑談・ブログっぽく親しみやすく",
+                  },
+                  {
+                    key: "teach",
+                    emoji: "🎯",
+                    label: "学びを伝える",
+                    desc: "ノウハウ共有・教訓型",
+                  },
+                  {
+                    key: "story",
+                    emoji: "📖",
+                    label: "ストーリーで描く",
+                    desc: "物語調・臨場感重視",
+                  },
+                ].map((tone) => (
+                  <button
+                    key={tone.key}
+                    onClick={() => setArticleTone(tone.key)}
+                    className={`flex items-center gap-3 rounded-xl border-2 px-4 py-3 text-left transition-all ${
+                      articleTone === tone.key
+                        ? "border-accent bg-accent/5 shadow-sm"
+                        : "border-border hover:bg-muted"
+                    }`}
+                  >
+                    <span className="text-xl">{tone.emoji}</span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-bold">{tone.label}</p>
+                      <p className="text-muted-foreground text-xs">
+                        {tone.desc}
+                      </p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* ひとこと補足 */}
+            <div className="mb-6">
+              <label className="text-muted-foreground mb-2 block text-sm">
+                補足メモ（任意）
+              </label>
+              <input
+                type="text"
+                value={toneNote}
+                onChange={(e) => setToneNote(e.target.value)}
+                placeholder="例: 説教くさくしないで、あっさりめで、ポエムみたいに..."
+                className="border-border bg-card focus:border-accent w-full rounded-lg border px-3 py-2 text-sm outline-none"
+              />
+              <p className="text-muted-foreground mt-1 text-xs">
+                AIへの一言メモ。トーンの微調整に使えます
+              </p>
+            </div>
 
             {/* 一人称 & 文体 */}
             <div className="mb-6 grid grid-cols-2 gap-6">

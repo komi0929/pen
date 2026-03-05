@@ -75,6 +75,8 @@ export async function POST(request: NextRequest) {
     pronoun,
     writingStyle,
     styleReferenceId,
+    articleTone,
+    toneNote,
   } = body;
   let articleId = existingArticleId as string | undefined;
 
@@ -130,7 +132,9 @@ export async function POST(request: NextRequest) {
         referenceArticles,
         pronoun,
         writingStyle,
-        styleReferenceText
+        styleReferenceText,
+        articleTone,
+        toneNote
       );
       const model = genAI.getGenerativeModel({
         model: "gemini-3-flash-preview",
