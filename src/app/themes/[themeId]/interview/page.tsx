@@ -559,10 +559,7 @@ function InterviewContent() {
               {theme?.title ?? "テーマ"}に戻る
             </Link>
 
-            <div className="py-16 text-center">
-              <div className="bg-muted mx-auto mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl">
-                <MessageSquare className="text-accent h-8 w-8" />
-              </div>
+            <div className="py-8 text-center">
               <h1 className="mb-2 text-2xl font-bold">AIインタビュー</h1>
               <p className="text-muted-foreground mx-auto mb-8 max-w-md">
                 AIがあなたに質問を投げかけます。対話を通じて考えを整理し、
