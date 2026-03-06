@@ -620,21 +620,14 @@ function InterviewContent() {
                     </p>
                   </button>
                   <button
-                    onClick={() => setInterviewMode("hard")}
-                    className={`rounded-xl border-2 p-4 text-left transition-all ${
-                      interviewMode === "hard"
-                        ? "border-orange-400 bg-orange-50 shadow-sm dark:bg-orange-950/20"
-                        : "border-border hover:bg-muted"
-                    }`}
+                    disabled
+                    className="border-border relative cursor-not-allowed rounded-xl border-2 p-4 text-left opacity-50"
                   >
+                    <div className="absolute -top-2 -right-2 rounded-full bg-orange-400 px-2 py-0.5 text-[10px] font-bold text-white shadow-sm">
+                      開発中
+                    </div>
                     <div className="mb-2 flex items-center gap-2">
-                      <Flame
-                        className={`h-5 w-5 ${
-                          interviewMode === "hard"
-                            ? "text-orange-500"
-                            : "text-muted-foreground"
-                        }`}
-                      />
+                      <Flame className="text-muted-foreground h-5 w-5" />
                       <span className="text-sm font-bold">ハード深堀</span>
                     </div>
                     <p className="text-muted-foreground text-xs leading-relaxed">
