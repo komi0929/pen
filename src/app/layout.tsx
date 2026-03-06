@@ -32,20 +32,11 @@ export const metadata: Metadata = {
     url: "https://pen.hitokoto.tech",
     siteName: "pen",
     locale: "ja_JP",
-    images: [
-      {
-        url: "/og-image.png",
-        width: 1200,
-        height: 630,
-        alt: "pen — AIインタビュー＆記事制作",
-      },
-    ],
   },
   twitter: {
     card: "summary_large_image",
     title: "pen — AIインタビュー＆記事制作",
     description: "AIインタビューで記事を生成",
-    images: ["/og-image.png"],
   },
 };
 
