@@ -1,5 +1,6 @@
 "use server";
 
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 export type ImprovementRequest = {
@@ -170,8 +171,8 @@ export async function addImprovementHistory(
   date?: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const supabase = await createClient();
-    if (!supabase) return { success: false, error: "接続エラー" };
+    // 管理者操作: RLSをバイパスするためService Roleキーを使用
+    const supabase = createAdminClient();
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { error } = await (supabase as any)
