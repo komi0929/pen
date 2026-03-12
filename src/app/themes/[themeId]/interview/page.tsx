@@ -1120,22 +1120,45 @@ function InterviewContent() {
 
           {/* チャットメッセージ */}
           <div className="mb-6 space-y-4">
-            {messages.map((msg) => (
-              <div
-                key={msg.id}
-                className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
-              >
-                <div
-                  className={
-                    msg.role === "user" ? "pen-bubble-user" : "pen-bubble-ai"
-                  }
-                >
-                  <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                    {msg.content}
-                  </p>
+            {messages.map((msg, idx) => {
+              const isLastAssistant =
+                msg.role === "assistant" &&
+                idx === messages.length - 1;
+              return (
+                <div key={msg.id}>
+                  <div
+                    className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+                  >
+                    <div
+                      className={
+                        msg.role === "user" ? "pen-bubble-user" : "pen-bubble-ai"
+                      }
+                    >
+                      <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                        {msg.content}
+                      </p>
+                    </div>
+                  </div>
+                  {/* スキップボタン（最後のAIメッセージの吹き出し直下に配置） */}
+                  {isLastAssistant && !sending && (
+                    <div className="mt-1.5 flex justify-start">
+                      <button
+                        onClick={() => {
+                          if (window.confirm("この質問をスキップしますか？")) {
+                            handleSkip();
+                          }
+                        }}
+                        disabled={sending}
+                        className="text-muted-foreground hover:text-foreground hover:bg-muted inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs transition-colors"
+                      >
+                        <SkipForward className="h-3.5 w-3.5" />
+                        この質問をスキップする
+                      </button>
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
             {sending && (
               <div className="flex justify-start">
                 <div className="pen-bubble-ai flex items-center gap-2">
@@ -1162,25 +1185,8 @@ function InterviewContent() {
                 </div>
               )}
 
-            {/* スキップボタン（チャット領域内、AIメッセージの直下に配置） */}
-            {messages.length > 0 &&
-              messages[messages.length - 1].role === "assistant" &&
-              !sending && (
-                <div className="flex justify-start">
-                  <button
-                    onClick={() => {
-                      if (window.confirm("この質問をスキップしますか？")) {
-                        handleSkip();
-                      }
-                    }}
-                    disabled={sending}
-                    className="text-muted-foreground hover:text-foreground hover:bg-muted inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs transition-colors"
-                  >
-                    <SkipForward className="h-3.5 w-3.5" />
-                    この質問をスキップする
-                  </button>
-                </div>
-              )}
+            {/* 入力フォームとの間に余白を確保（誤タップ防止） */}
+            <div className="h-16" />
 
             <div ref={chatEndRef} />
           </div>
