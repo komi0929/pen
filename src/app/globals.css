@@ -507,3 +507,194 @@ h4 {
     padding-top: 48px;
   }
 }
+
+/* ============================================================
+   Theme Discovery Chat
+   ============================================================ */
+
+.discover-chat-container {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  background: var(--background);
+}
+
+.discover-chat-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.625rem 1rem;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--background) 94%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  flex-shrink: 0;
+  gap: 1rem;
+}
+
+/* Progress bar */
+.discover-progress-wrapper {
+  flex: 1;
+  max-width: 140px;
+}
+
+.discover-progress-track {
+  height: 4px;
+  background: var(--muted);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.discover-progress-fill {
+  height: 100%;
+  border-radius: var(--radius-full);
+  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Chat messages area */
+.discover-chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  -webkit-overflow-scrolling: touch;
+}
+
+.discover-msg-wrapper {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.discover-msg-user {
+  justify-content: flex-end;
+}
+
+.discover-msg-ai {
+  justify-content: flex-start;
+}
+
+.discover-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--foreground);
+}
+
+/* Theme suggestion cards */
+.discover-themes-area {
+  padding: 1rem 0;
+  animation: fadeIn 0.5s ease-out;
+}
+
+.discover-theme-card {
+  width: 100%;
+  text-align: left;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+  cursor: pointer;
+  transition:
+    box-shadow 0.2s ease,
+    transform 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.discover-theme-card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  transform: translateY(-1px);
+  border-color: var(--accent);
+}
+
+.discover-theme-card:active {
+  transform: scale(0.98);
+}
+
+/* Input area */
+.discover-input-area {
+  flex-shrink: 0;
+  border-top: 1px solid var(--border);
+  padding: 0.75rem 1rem;
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+  background: var(--card);
+}
+
+.discover-input-form {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.5rem;
+  max-width: 48rem;
+  margin: 0 auto;
+}
+
+.discover-input-textarea {
+  flex: 1;
+  padding: 0.625rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 1.25rem;
+  font-size: 0.9375rem;
+  background: var(--background);
+  color: var(--foreground);
+  resize: none;
+  min-height: 2.5rem;
+  max-height: 120px;
+  font-family: inherit;
+  line-height: 1.5;
+  outline: none;
+  transition: border-color 0.15s ease;
+  overflow-y: auto;
+}
+
+.discover-input-textarea:focus {
+  border-color: var(--accent);
+}
+
+.discover-input-textarea::placeholder {
+  color: var(--muted-fg);
+}
+
+.discover-send-btn {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.discover-send-btn:hover:not(:disabled) {
+  opacity: 0.85;
+  transform: scale(0.95);
+}
+
+.discover-send-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+  .discover-chat-messages {
+    padding: 0.75rem;
+    gap: 0.625rem;
+  }
+
+  .pen-bubble-user,
+  .pen-bubble-ai {
+    max-width: 85%;
+  }
+}

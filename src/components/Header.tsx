@@ -1,7 +1,7 @@
 "use client";
 
 import { useAuth } from "@/contexts/AuthContext";
-import { FileText, Lightbulb, LogOut, PenLine, Settings } from "lucide-react";
+import { FileText, Lightbulb, LogOut, PenLine, Search, Settings } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -29,11 +29,25 @@ export function Header() {
         </Link>
 
         <nav className="flex items-center gap-0.5 sm:gap-1">
+          {/* テーマ探索 — 全ユーザーに表示 */}
+          {!loading && (
+            <Link
+              href="/themes/discover"
+              className={navLink(
+                "/themes/discover",
+                pathname === "/themes/discover"
+              )}
+              aria-label="テーマを探す"
+            >
+              <Search className="h-4 w-4" />
+              <span className="hidden sm:inline">テーマを探す</span>
+            </Link>
+          )}
           {!loading && user ? (
             <>
               <Link
                 href="/themes"
-                className={navLink("/themes", pathname.startsWith("/themes"))}
+                className={navLink("/themes", pathname.startsWith("/themes") && pathname !== "/themes/discover")}
                 aria-label="テーマ"
               >
                 <Lightbulb className="h-4 w-4" />
@@ -80,3 +94,4 @@ export function Header() {
     </header>
   );
 }
+

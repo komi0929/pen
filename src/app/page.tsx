@@ -1,7 +1,8 @@
 import { CtaSection } from "@/components/CtaSection";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
-import { Lightbulb, MessageSquare, PenLine, StickyNote } from "lucide-react";
+import { Lightbulb, MessageSquare, PenLine, Search, StickyNote } from "lucide-react";
+import Link from "next/link";
 
 export default function HomePage() {
   return (
@@ -20,6 +21,44 @@ export default function HomePage() {
               noteに投稿できる記事に変えるツールです。
             </p>
           </div>
+
+          {/* テーマ探索CTA — 目玉機能 */}
+          <section className="mb-12">
+            <div className="border-accent/20 bg-card relative overflow-hidden rounded-2xl border p-6 sm:p-8">
+              <div className="relative z-10">
+                <div className="mb-4 flex items-center gap-3">
+                  <div className="bg-muted flex h-12 w-12 items-center justify-center rounded-xl">
+                    <Search className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <span className="bg-accent/10 text-accent mb-1 inline-block rounded-full px-2.5 py-0.5 text-[11px] font-bold">
+                      NEW
+                    </span>
+                    <h2 className="text-xl font-bold">何を書けばいいかわからない？</h2>
+                  </div>
+                </div>
+                <p className="text-muted-foreground mb-4 max-w-lg text-sm leading-relaxed">
+                  AI編集者があなたの経験を引き出し、noteで長く読まれるテーマを一緒に見つけます。
+                  ログイン不要で今すぐ始められます。
+                </p>
+                <div className="bg-muted mb-5 rounded-xl p-4">
+                  <p className="mb-2 text-xs font-bold">noteの調査でわかった「長く読まれる記事」の条件</p>
+                  <ul className="text-muted-foreground space-y-1 text-xs">
+                    <li>✓ 書き手自身の経験に根ざした一次情報</li>
+                    <li>✓ 繰り返し検索される普遍的な問いへの回答</li>
+                    <li>✓ ひとつのテーマを徹底的に深掘り</li>
+                  </ul>
+                </div>
+                <Link
+                  href="/themes/discover"
+                  className="pen-btn pen-btn-accent px-6 py-3 text-base"
+                >
+                  <Search className="h-5 w-5" />
+                  テーマ探索を始める
+                </Link>
+              </div>
+            </div>
+          </section>
 
           {/* コンセプト */}
           <section className="mb-12">
