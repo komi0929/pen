@@ -1162,24 +1162,28 @@ function InterviewContent() {
                 </div>
               )}
 
+            {/* スキップボタン（チャット領域内、AIメッセージの直下に配置） */}
+            {messages.length > 0 &&
+              messages[messages.length - 1].role === "assistant" &&
+              !sending && (
+                <div className="flex justify-start">
+                  <button
+                    onClick={() => {
+                      if (window.confirm("この質問をスキップしますか？")) {
+                        handleSkip();
+                      }
+                    }}
+                    disabled={sending}
+                    className="text-muted-foreground hover:text-foreground hover:bg-muted inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs transition-colors"
+                  >
+                    <SkipForward className="h-3.5 w-3.5" />
+                    この質問をスキップする
+                  </button>
+                </div>
+              )}
+
             <div ref={chatEndRef} />
           </div>
-
-          {/* スキップボタン（最後のメッセージがAIの場合に表示） */}
-          {messages.length > 0 &&
-            messages[messages.length - 1].role === "assistant" &&
-            !sending && (
-              <div className="mb-4 flex justify-start">
-                <button
-                  onClick={handleSkip}
-                  disabled={sending}
-                  className="text-muted-foreground hover:text-foreground hover:bg-muted inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs transition-colors"
-                >
-                  <SkipForward className="h-3.5 w-3.5" />
-                  この質問をスキップする
-                </button>
-              </div>
-            )}
 
           {/* 入力フォーム */}
           <form
