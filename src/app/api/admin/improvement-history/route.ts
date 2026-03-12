@@ -55,12 +55,13 @@ export async function POST(request: NextRequest) {
 /**
  * 文字化けエントリを削除するAPIエンドポイント
  * DELETE /api/admin/improvement-history
- * Body: { code: string, id?: string }
+ * Body: { code: string, id?: string, table?: "history" | "requests" }
  * idが指定されればそのIDのエントリを削除、なければtitleに?が含まれるエントリを全削除
+ * table: "requests" を指定すると improvement_requests テーブルから削除
  */
 export async function DELETE(request: NextRequest) {
   try {
-    const { code, id } = await request.json();
+    const { code, id, table } = await request.json();
 
     if (code !== "0929") {
       return NextResponse.json(
@@ -70,11 +71,12 @@ export async function DELETE(request: NextRequest) {
     }
 
     const supabase = createAdminClient();
+    const tableName = table === "requests" ? "improvement_requests" : "improvement_history";
 
     if (id) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { error } = await (supabase as any)
-        .from("improvement_history")
+        .from(tableName)
         .delete()
         .eq("id", id);
       if (error) {
@@ -87,7 +89,7 @@ export async function DELETE(request: NextRequest) {
       // titleに?が含まれる文字化けエントリを削除
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { error } = await (supabase as any)
-        .from("improvement_history")
+        .from(tableName)
         .delete()
         .like("title", "%?%");
       if (error) {
@@ -106,3 +108,4 @@ export async function DELETE(request: NextRequest) {
     );
   }
 }
+
