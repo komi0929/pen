@@ -143,6 +143,10 @@ function mergeProfiles(
   if (incoming.sessionCount != null) {
     merged.sessionCount = Math.max(existing.sessionCount ?? 0, incoming.sessionCount);
   }
+  // v5フィールド: パーソナル編集者
+  merged.editorNotes = mergeArray(existing.editorNotes, incoming.editorNotes);
+  merged.topicAreas = mergeArray(existing.topicAreas, incoming.topicAreas);
+  if (incoming.writerStrengths) merged.writerStrengths = incoming.writerStrengths;
   return merged;
 }
 
@@ -352,6 +356,33 @@ export default function ThemeDiscoverPage() {
           newProfile = mergeProfiles(profile, data.userProfile);
           setSessionProfile(newProfile);
         }
+
+        // 編集者メモをグローバルプロファイルに蓄積
+        if (data.editorNotes) {
+          const gp = loadGlobalProfile() ?? {};
+          const notes = gp.editorNotes ?? [];
+          if (data.editorNotes.strengths) {
+            notes.push(`強み: ${data.editorNotes.strengths}`);
+            gp.writerStrengths = data.editorNotes.strengths;
+          }
+          if (data.editorNotes.pattern) {
+            notes.push(`観察: ${data.editorNotes.pattern}`);
+          }
+          if (data.editorNotes.nextSuggestion) {
+            notes.push(`次回の提案: ${data.editorNotes.nextSuggestion}`);
+          }
+          // 最新の6件のみ保持
+          gp.editorNotes = notes.slice(-6);
+          if (data.editorNotes.topicArea) {
+            const areas = gp.topicAreas ?? [];
+            if (!areas.includes(data.editorNotes.topicArea)) {
+              areas.push(data.editorNotes.topicArea);
+            }
+            gp.topicAreas = areas;
+          }
+          saveGlobalProfile(gp as UserProfile);
+        }
+
         const aiMsg: ChatMessage = {
           id: `ai-${Date.now()}`,
           role: "assistant",
@@ -875,6 +906,42 @@ export default function ThemeDiscoverPage() {
                     </ul>
                   )}
                 </div>
+
+                {/* 編集者のインサイト */}
+                {sessionProfile?.writerStrengths && (
+                  <div className="bg-card border-border mb-4 rounded-xl border p-4 text-left">
+                    <p className="mb-2 flex items-center gap-2 text-xs font-bold">
+                      <Sparkles className="h-3.5 w-3.5" />
+                      編集者があなたに気づいたこと
+                    </p>
+                    <p className="text-muted-foreground text-xs leading-relaxed">
+                      {sessionProfile.writerStrengths}
+                    </p>
+                  </div>
+                )}
+
+                {/* 探索マップ */}
+                {sessionProfile?.topicAreas && sessionProfile.topicAreas.length > 0 && (
+                  <div className="bg-card border-border mb-5 rounded-xl border p-4 text-left">
+                    <p className="mb-2 flex items-center gap-2 text-xs font-bold">
+                      <Search className="h-3.5 w-3.5" />
+                      探索マップ
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {sessionProfile.topicAreas.map((area) => (
+                        <span
+                          key={area}
+                          className="bg-muted rounded-full px-2.5 py-1 text-[11px] font-medium"
+                        >
+                          {area}
+                        </span>
+                      ))}
+                      <span className="text-muted-foreground rounded-full border border-dashed px-2.5 py-1 text-[11px]">
+                        + 未開拓の領域
+                      </span>
+                    </div>
+                  </div>
+                )}
 
                 <button
                   onClick={startNewSession}

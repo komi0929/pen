@@ -160,6 +160,7 @@ ${originalTheme.articleOutline ? `- 構成案: ${JSON.stringify(originalTheme.ar
       discoveryProgress,
       suggestedThemes,
       userProfile,
+      editorNotes,
     } = parseDiscoveryResponse(rawResponse ?? "");
 
     return NextResponse.json({
@@ -167,6 +168,7 @@ ${originalTheme.articleOutline ? `- 構成案: ${JSON.stringify(originalTheme.ar
       discoveryProgress,
       suggestedThemes,
       userProfile,
+      editorNotes,
     });
   } catch (error) {
     console.error("Theme Discovery API error:", error);
@@ -205,6 +207,7 @@ function parseDiscoveryResponse(text: string): {
   discoveryProgress: number;
   suggestedThemes: SuggestedTheme[] | null;
   userProfile: UserProfile | null;
+  editorNotes: { strengths?: string; pattern?: string; nextSuggestion?: string; topicArea?: string } | null;
 } {
   // [[DISCOVERY:XX]] をパース
   const progressMatch = text.match(/\[\[DISCOVERY:(\d{1,3})\]\]/);
@@ -238,13 +241,25 @@ function parseDiscoveryResponse(text: string): {
     }
   }
 
+  // [[EDITOR_NOTES:{...}]] をパース
+  let editorNotes: { strengths?: string; pattern?: string; nextSuggestion?: string; topicArea?: string } | null = null;
+  const editorJson = extractTagContent(text, "EDITOR_NOTES");
+  if (editorJson) {
+    try {
+      editorNotes = JSON.parse(editorJson);
+    } catch {
+      // JSONパース失敗 — 無視
+    }
+  }
+
   // タグを除去
   let cleanText = text;
   cleanText = cleanText.replace(/\s*\[\[DISCOVERY:\d{1,3}\]\]\s*/g, "");
   cleanText = removeTag(cleanText, "THEMES");
   cleanText = removeTag(cleanText, "PROFILE");
+  cleanText = removeTag(cleanText, "EDITOR_NOTES");
 
-  return { text: cleanText.trim(), discoveryProgress, suggestedThemes, userProfile };
+  return { text: cleanText.trim(), discoveryProgress, suggestedThemes, userProfile, editorNotes };
 }
 
 /** [[TAG:{...}]] からJSONコンテンツを抽出。ネストされたブラケットに対応 */
