@@ -7,16 +7,20 @@ import {
   ArrowLeft,
   ArrowRight,
   BookOpen,
-  Check,
+  Briefcase,
   Clock,
+  Lightbulb,
   Loader2,
   Pen,
+  RefreshCw,
   RotateCcw,
   Save,
   Search,
   Send,
   Sparkles,
+  Star,
   Trash2,
+  User,
   UserPlus,
 } from "lucide-react";
 import Link from "next/link";
@@ -83,6 +87,11 @@ function saveGlobalProfile(profile: UserProfile) {
   localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
 }
 
+function clearGlobalProfile() {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(PROFILE_KEY);
+}
+
 function mergeProfiles(
   existing: UserProfile | null,
   incoming: UserProfile | null
@@ -90,26 +99,16 @@ function mergeProfiles(
   if (!incoming) return existing;
   if (!existing) return incoming;
   const merged: UserProfile = { ...existing };
-
   if (incoming.occupation) merged.occupation = incoming.occupation;
-
   const mergeArray = (a?: string[], b?: string[]): string[] | undefined => {
     if (!b || b.length === 0) return a;
     if (!a || a.length === 0) return b;
     return [...new Set([...a, ...b])];
   };
-
   merged.interests = mergeArray(existing.interests, incoming.interests);
   merged.expertise = mergeArray(existing.expertise, incoming.expertise);
-  merged.uniqueExperiences = mergeArray(
-    existing.uniqueExperiences,
-    incoming.uniqueExperiences
-  );
-  merged.consultedTopics = mergeArray(
-    existing.consultedTopics,
-    incoming.consultedTopics
-  );
-
+  merged.uniqueExperiences = mergeArray(existing.uniqueExperiences, incoming.uniqueExperiences);
+  merged.consultedTopics = mergeArray(existing.consultedTopics, incoming.consultedTopics);
   return merged;
 }
 
@@ -117,40 +116,20 @@ function generateSessionId(): string {
   return `ds-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-// --- Progress Info ---
+// --- Helpers ---
 
 function getProgressInfo(progress: number) {
   if (progress < 0)
     return { label: "", color: "bg-gray-300", message: "" };
   if (progress < 20)
-    return {
-      label: "ヒアリング中",
-      color: "bg-gray-400",
-      message: "あなたのことを教えてください",
-    };
+    return { label: "ヒアリング中", color: "bg-gray-400", message: "あなたのことを教えてください" };
   if (progress < 45)
-    return {
-      label: "テーマの種を探索中",
-      color: "bg-gray-500",
-      message: "面白い話題が見つかりそうです",
-    };
+    return { label: "テーマの種を探索中", color: "bg-gray-500", message: "面白い話題が見つかりそうです" };
   if (progress < 65)
-    return {
-      label: "有望なテーマを発見中",
-      color: "bg-gray-600",
-      message: "テーマが絞り込まれてきました",
-    };
+    return { label: "有望なテーマを発見中", color: "bg-gray-600", message: "テーマが絞り込まれてきました" };
   if (progress < 80)
-    return {
-      label: "テーマ提案準備中",
-      color: "bg-gray-700",
-      message: "もう少しで提案できます",
-    };
-  return {
-    label: "テーマ発見！",
-    color: "bg-gray-800",
-    message: "あなたに最適なテーマが見つかりました",
-  };
+    return { label: "テーマ提案準備中", color: "bg-gray-700", message: "もう少しで提案できます" };
+  return { label: "テーマ発見！", color: "bg-gray-800", message: "あなたに最適なテーマが見つかりました" };
 }
 
 function formatRelativeTime(dateStr: string): string {
@@ -165,11 +144,33 @@ function formatRelativeTime(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString("ja-JP");
 }
 
-// --- Score badge color ---
 function scoreBadgeColor(score?: string): string {
   if (score === "◎") return "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400";
   if (score === "○") return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400";
   return "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400";
+}
+
+function hasProfileData(profile: UserProfile | null): boolean {
+  if (!profile) return false;
+  return !!(
+    profile.occupation ||
+    (profile.interests && profile.interests.length > 0) ||
+    (profile.expertise && profile.expertise.length > 0) ||
+    (profile.uniqueExperiences && profile.uniqueExperiences.length > 0)
+  );
+}
+
+// 過去セッションから発見済みテーマを抽出
+function getDiscoveredThemes(sessions: DiscoverySession[]): { theme: SuggestedTheme; date: string }[] {
+  const themes: { theme: SuggestedTheme; date: string }[] = [];
+  for (const s of sessions) {
+    if (s.completed && s.suggestedThemes) {
+      for (const t of s.suggestedThemes) {
+        themes.push({ theme: t, date: s.updatedAt });
+      }
+    }
+  }
+  return themes;
 }
 
 // --- Main Component ---
@@ -183,33 +184,22 @@ export default function ThemeDiscoverPage() {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [discoveryProgress, setDiscoveryProgress] = useState(-1);
-  const [suggestedThemes, setSuggestedThemes] = useState<
-    SuggestedTheme[] | null
-  >(null);
+  const [suggestedThemes, setSuggestedThemes] = useState<SuggestedTheme[] | null>(null);
   const [started, setStarted] = useState(false);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
-  const [sessionProfile, setSessionProfile] = useState<UserProfile | null>(
-    null
-  );
+  const [sessionProfile, setSessionProfile] = useState<UserProfile | null>(null);
   const [pastSessions, setPastSessions] = useState<DiscoverySession[]>([]);
-  const [showSessionHistory, setShowSessionHistory] = useState(false);
-
-  // テーマ詳細ビュー
-  const [selectedTheme, setSelectedTheme] = useState<SuggestedTheme | null>(
-    null
-  );
-  // 会話記録ダイアログ
-  const [showRecordDialog, setShowRecordDialog] = useState(false);
-  const [recordSaved, setRecordSaved] = useState(false);
+  const [selectedTheme, setSelectedTheme] = useState<SuggestedTheme | null>(null);
+  const [showProfileReset, setShowProfileReset] = useState(false);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const isFetchingRef = useRef(false);
 
   const progressInfo = getProgressInfo(discoveryProgress);
-
-  // テーマが提案されたらチャット入力を無効化
   const chatEnded = suggestedThemes !== null && suggestedThemes.length > 0;
+  const isReturning = hasProfileData(sessionProfile);
+  const discoveredThemes = getDiscoveredThemes(pastSessions);
 
   useEffect(() => {
     const sessions = loadSessions();
@@ -231,7 +221,7 @@ export default function ThemeDiscoverPage() {
     el.style.height = Math.min(el.scrollHeight, 120) + "px";
   };
 
-  // セッション保存
+  // セッション自動保存（毎回のAI応答後）
   const saveCurrentSession = useCallback(
     (
       msgs: ChatMessage[],
@@ -254,16 +244,15 @@ export default function ThemeDiscoverPage() {
         updatedAt: now,
         completed,
       };
-
       if (existing >= 0) {
         sessions[existing] = session;
       } else {
         sessions.unshift(session);
       }
-
       saveSessions(sessions);
       setPastSessions(sessions);
 
+      // グローバルプロファイルも常に更新
       if (profile) {
         const globalProfile = loadGlobalProfile();
         const merged = mergeProfiles(globalProfile, profile);
@@ -285,45 +274,34 @@ export default function ThemeDiscoverPage() {
     ) => {
       if (isFetchingRef.current) return;
       isFetchingRef.current = true;
-
       try {
         const res = await fetch("/api/theme-discovery", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            messages: currentMessages.map((m) => ({
-              role: m.role,
-              content: m.content,
-            })),
+            messages: currentMessages.map((m) => ({ role: m.role, content: m.content })),
             userProfile: profile,
           }),
         });
-
         const data = await res.json();
         if (data.error) throw new Error(data.error);
         if (!data.response) throw new Error("AI応答が空です");
 
         let newProgress = discoveryProgress;
-        if (
-          typeof data.discoveryProgress === "number" &&
-          data.discoveryProgress >= 0
-        ) {
+        if (typeof data.discoveryProgress === "number" && data.discoveryProgress >= 0) {
           newProgress = data.discoveryProgress;
           setDiscoveryProgress(newProgress);
         }
-
         let newThemes = suggestedThemes;
         if (data.suggestedThemes) {
           newThemes = data.suggestedThemes;
           setSuggestedThemes(newThemes);
         }
-
         let newProfile = profile;
         if (data.userProfile) {
           newProfile = mergeProfiles(profile, data.userProfile);
           setSessionProfile(newProfile);
         }
-
         const aiMsg: ChatMessage = {
           id: `ai-${Date.now()}`,
           role: "assistant",
@@ -332,19 +310,11 @@ export default function ThemeDiscoverPage() {
         const updatedMsgs = [...currentMessages, aiMsg];
         setMessages(updatedMsgs);
 
-        // テーマ提案が来たら自動セーブ（未完了扱い）
-        saveCurrentSession(
-          updatedMsgs,
-          newProgress,
-          newThemes,
-          newProfile,
-          sessionId,
-          false
-        );
+        // 自動保存（テーマが提案されたら completed フラグも立てる）
+        const isCompleted = !!(newThemes && newThemes.length > 0);
+        saveCurrentSession(updatedMsgs, newProgress, newThemes, newProfile, sessionId, isCompleted);
       } catch (err) {
-        setError(
-          err instanceof Error ? err.message : "AI応答の取得に失敗しました"
-        );
+        setError(err instanceof Error ? err.message : "AI応答の取得に失敗しました");
       } finally {
         isFetchingRef.current = false;
       }
@@ -352,8 +322,9 @@ export default function ThemeDiscoverPage() {
     [discoveryProgress, suggestedThemes, saveCurrentSession]
   );
 
-  // 新規チャット開始
-  const handleStart = async () => {
+  // --- Actions ---
+
+  const startNewSession = async () => {
     const sid = generateSessionId();
     setCurrentSessionId(sid);
     setStarted(true);
@@ -362,8 +333,7 @@ export default function ThemeDiscoverPage() {
     setDiscoveryProgress(-1);
     setSuggestedThemes(null);
     setSelectedTheme(null);
-    setShowRecordDialog(false);
-    setRecordSaved(false);
+    setError(null);
 
     const globalProfile = loadGlobalProfile();
     setSessionProfile(globalProfile);
@@ -373,18 +343,15 @@ export default function ThemeDiscoverPage() {
     inputRef.current?.focus();
   };
 
-  // 過去セッション再開
-  const handleResume = async (session: DiscoverySession) => {
+  const handleResume = (session: DiscoverySession) => {
     setCurrentSessionId(session.sessionId);
     setMessages(session.messages);
     setDiscoveryProgress(session.discoveryProgress);
     setSuggestedThemes(session.suggestedThemes);
     setSessionProfile(session.userProfile);
     setStarted(true);
-    setShowSessionHistory(false);
     setSelectedTheme(null);
-    setShowRecordDialog(false);
-    setRecordSaved(false);
+    setError(null);
     inputRef.current?.focus();
   };
 
@@ -394,14 +361,11 @@ export default function ThemeDiscoverPage() {
     setPastSessions(sessions);
   };
 
-  // メッセージ送信
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || sending || !currentSessionId || chatEnded) return;
-
     setSending(true);
     setError(null);
-
     const userMsg: ChatMessage = {
       id: `user-${Date.now()}`,
       role: "user",
@@ -410,10 +374,7 @@ export default function ThemeDiscoverPage() {
     const updatedMessages = [...messages, userMsg];
     setMessages(updatedMessages);
     setInput("");
-    if (inputRef.current) {
-      inputRef.current.style.height = "auto";
-    }
-
+    if (inputRef.current) inputRef.current.style.height = "auto";
     await fetchAI(updatedMessages, currentSessionId, sessionProfile);
     setSending(false);
     inputRef.current?.focus();
@@ -426,24 +387,11 @@ export default function ThemeDiscoverPage() {
     }
   };
 
-  // テーマカードをタップ → 詳細ビュー表示
   const handleThemeCardClick = (theme: SuggestedTheme) => {
     setSelectedTheme(theme);
   };
 
-  // テーマをそのまま保存（ログイン済み）or ログイン誘導
   const handleSaveTheme = (theme: SuggestedTheme) => {
-    if (currentSessionId) {
-      saveCurrentSession(
-        messages,
-        discoveryProgress,
-        suggestedThemes,
-        sessionProfile,
-        currentSessionId,
-        true
-      );
-    }
-
     if (user) {
       router.push(
         `/themes?newTitle=${encodeURIComponent(theme.title)}&newDesc=${encodeURIComponent(theme.description + "\n\n切り口: " + theme.angle + "\n想定読者: " + theme.readers)}`
@@ -455,45 +403,26 @@ export default function ThemeDiscoverPage() {
     }
   };
 
-  // 「この会話を記録しますか？」→ はい
-  const handleRecordConversation = () => {
-    if (currentSessionId) {
-      saveCurrentSession(
-        messages,
-        discoveryProgress,
-        suggestedThemes,
-        sessionProfile,
-        currentSessionId,
-        true
-      );
-    }
-    setRecordSaved(true);
-    setTimeout(() => {
-      setShowRecordDialog(false);
-    }, 1500);
+  // 別の角度で探索（テーマ結果画面からの再探索）
+  const handleExploreAnother = async () => {
+    setSelectedTheme(null);
+    await startNewSession();
   };
 
-  // 「この会話を記録しますか？」→ いいえ（記録せず閉じる）
-  const handleSkipRecord = () => {
-    if (currentSessionId) {
-      // セッションを削除
-      const sessions = loadSessions().filter(
-        (s) => s.sessionId !== currentSessionId
-      );
-      saveSessions(sessions);
-      setPastSessions(sessions);
-    }
-    setShowRecordDialog(false);
+  const handleResetProfile = () => {
+    clearGlobalProfile();
+    setSessionProfile(null);
+    setShowProfileReset(false);
+    // セッションも全削除
+    saveSessions([]);
+    setPastSessions([]);
   };
 
-  // テーマ詳細画面の「戻る」
   const handleBackFromDetail = () => {
     setSelectedTheme(null);
-    // 会話記録ダイアログを表示
-    setShowRecordDialog(true);
   };
 
-  // --- 未完了／完了セッション ---
+  // --- Derived data ---
   const activeSessions = pastSessions.filter((s) => !s.completed);
   const completedSessions = pastSessions.filter((s) => s.completed);
 
@@ -516,7 +445,6 @@ export default function ThemeDiscoverPage() {
 
         <main className="flex-1 px-4 py-6">
           <div className="mx-auto max-w-lg">
-            {/* テーマタイトル */}
             <div className="mb-6">
               <h2 className="mb-2 text-xl font-bold leading-snug">
                 {selectedTheme.title}
@@ -528,7 +456,6 @@ export default function ThemeDiscoverPage() {
                 <span>切り口: {selectedTheme.angle}</span>
                 <span>想定読者: {selectedTheme.readers}</span>
               </div>
-              {/* スコアバッジ */}
               {selectedTheme.scores && (
                 <div className="mt-3 flex gap-2">
                   <span className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${scoreBadgeColor(selectedTheme.scores.primary)}`}>
@@ -544,58 +471,31 @@ export default function ThemeDiscoverPage() {
               )}
             </div>
 
-            {/* 3条件ごとの執筆アドバイス */}
             {selectedTheme.advice && (
               <div className="mb-6 space-y-4">
                 <h3 className="text-sm font-bold">
                   3つの条件を満たすための執筆アドバイス
                 </h3>
-
-                <div className="border-border rounded-xl border p-4">
-                  <div className="mb-2 flex items-center gap-2">
-                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${scoreBadgeColor(selectedTheme.scores?.primary)}`}>
-                      一次性 {selectedTheme.scores?.primary}
-                    </span>
-                    <span className="text-xs font-medium">
-                      あなたにしか書けない情報
-                    </span>
+                {[
+                  { key: "primary" as const, label: "一次性", sub: "あなたにしか書けない情報" },
+                  { key: "universal" as const, label: "普遍性", sub: "繰り返し検索されるニーズ" },
+                  { key: "depth" as const, label: "深掘り", sub: "ひとつのテーマを徹底的に" },
+                ].map(({ key, label, sub }) => (
+                  <div key={key} className="border-border rounded-xl border p-4">
+                    <div className="mb-2 flex items-center gap-2">
+                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${scoreBadgeColor(selectedTheme.scores?.[key])}`}>
+                        {label} {selectedTheme.scores?.[key]}
+                      </span>
+                      <span className="text-xs font-medium">{sub}</span>
+                    </div>
+                    <p className="text-muted-foreground text-sm leading-relaxed">
+                      {selectedTheme.advice?.[key]}
+                    </p>
                   </div>
-                  <p className="text-muted-foreground text-sm leading-relaxed">
-                    {selectedTheme.advice.primary}
-                  </p>
-                </div>
-
-                <div className="border-border rounded-xl border p-4">
-                  <div className="mb-2 flex items-center gap-2">
-                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${scoreBadgeColor(selectedTheme.scores?.universal)}`}>
-                      普遍性 {selectedTheme.scores?.universal}
-                    </span>
-                    <span className="text-xs font-medium">
-                      繰り返し検索されるニーズ
-                    </span>
-                  </div>
-                  <p className="text-muted-foreground text-sm leading-relaxed">
-                    {selectedTheme.advice.universal}
-                  </p>
-                </div>
-
-                <div className="border-border rounded-xl border p-4">
-                  <div className="mb-2 flex items-center gap-2">
-                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${scoreBadgeColor(selectedTheme.scores?.depth)}`}>
-                      深掘り {selectedTheme.scores?.depth}
-                    </span>
-                    <span className="text-xs font-medium">
-                      ひとつのテーマを徹底的に
-                    </span>
-                  </div>
-                  <p className="text-muted-foreground text-sm leading-relaxed">
-                    {selectedTheme.advice.depth}
-                  </p>
-                </div>
+                ))}
               </div>
             )}
 
-            {/* アクションボタン */}
             <div className="space-y-3">
               {user ? (
                 <button
@@ -620,6 +520,14 @@ export default function ThemeDiscoverPage() {
               >
                 他のテーマ候補に戻る
               </button>
+              <button
+                onClick={handleExploreAnother}
+                disabled={sending}
+                className="pen-btn pen-btn-ghost flex w-full items-center justify-center gap-2 py-3 text-sm"
+              >
+                <RefreshCw className="h-4 w-4" />
+                別の角度でテーマを探索する
+              </button>
             </div>
           </div>
         </main>
@@ -627,174 +535,207 @@ export default function ThemeDiscoverPage() {
     );
   }
 
-  // --- 会話記録ダイアログ ---
-  const recordDialog = showRecordDialog && (
-    <div className="bg-black/50 fixed inset-0 z-[100] flex items-center justify-center p-4">
-      <div className="bg-card border-border w-full max-w-sm rounded-2xl border p-6 shadow-xl">
-        {recordSaved ? (
-          <div className="py-4 text-center">
-            <div className="bg-green-100 dark:bg-green-900/30 mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full">
-              <Check className="h-6 w-6 text-green-600 dark:text-green-400" />
-            </div>
-            <p className="text-sm font-bold">会話を記録しました</p>
-            <p className="text-muted-foreground mt-1 text-xs">
-              次回は記録された情報を元に探索が始まります
-            </p>
-          </div>
-        ) : (
-          <>
-            <h3 className="mb-2 text-center text-sm font-bold">
-              この会話を記録しますか？
-            </h3>
-            <p className="text-muted-foreground mb-5 text-center text-xs leading-relaxed">
-              記録すると、次回のテーマ探索で
-              <br />
-              同じ質問に答える必要がなくなります
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={handleSkipRecord}
-                className="pen-btn pen-btn-ghost flex-1 py-2.5 text-sm"
-              >
-                記録しない
-              </button>
-              <button
-                onClick={handleRecordConversation}
-                className="pen-btn pen-btn-accent flex flex-1 items-center justify-center gap-2 py-2.5 text-sm"
-              >
-                <Save className="h-4 w-4" />
-                記録する
-              </button>
-            </div>
-          </>
-        )}
-      </div>
-    </div>
-  );
-
   // --- ウェルカム画面 ---
   if (!started) {
     return (
       <div className="flex min-h-dvh flex-col">
         <header className="border-border bg-card/80 sticky top-0 z-50 border-b backdrop-blur-md">
           <div className="pen-container flex h-14 items-center justify-between">
-            <Link
-              href="/"
-              className="flex items-center gap-2 text-lg font-bold"
-            >
+            <Link href="/" className="flex items-center gap-2 text-lg font-bold">
               <Pen className="h-5 w-5" />
               <span>pen</span>
             </Link>
             {!authLoading && !user && (
-              <Link href="/login" className="pen-btn pen-btn-primary text-sm">
-                ログイン
-              </Link>
+              <Link href="/login" className="pen-btn pen-btn-primary text-sm">ログイン</Link>
             )}
           </div>
         </header>
 
         <main className="flex flex-1 items-center justify-center px-4">
           <div className="pen-fade-in w-full max-w-md text-center">
-            <div className="bg-muted mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full">
-              <Search className="h-10 w-10" />
-            </div>
-            <h1 className="mb-3 text-2xl font-bold tracking-tight">
-              あなたの「書くべきテーマ」を
-              <br />
-              AI編集者が見つけます
-            </h1>
-            <p className="text-muted-foreground mb-3 text-sm leading-relaxed">
-              noteで長く読まれる記事には共通点があります。
-              <br />
-              AI編集者との短い対話で、あなたの経験の中に
-              <br />
-              眠っている最高のテーマを一緒に発掘しましょう。
-            </p>
-            <div className="bg-muted mb-6 rounded-xl p-4 text-left">
-              <p className="mb-2 text-xs font-bold">
-                長く読まれる記事の3つの条件
-              </p>
-              <ul className="text-muted-foreground space-y-1.5 text-xs">
-                <li className="flex items-start gap-2">
-                  <span className="mt-0.5 block h-1.5 w-1.5 shrink-0 rounded-full bg-gray-400" />
-                  書き手自身の経験に根ざした一次情報
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="mt-0.5 block h-1.5 w-1.5 shrink-0 rounded-full bg-gray-400" />
-                  繰り返し検索される普遍的な問いへの回答
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="mt-0.5 block h-1.5 w-1.5 shrink-0 rounded-full bg-gray-400" />
-                  ひとつのテーマを徹底的に深掘り
-                </li>
-              </ul>
-            </div>
-            <button
-              onClick={handleStart}
-              disabled={sending}
-              className="pen-btn pen-btn-accent w-full py-3.5 text-base"
-            >
-              {sending ? (
-                <Loader2 className="h-5 w-5 animate-spin" />
-              ) : (
-                <Sparkles className="h-5 w-5" />
-              )}
-              テーマ探索を始める
-            </button>
-            <p className="text-muted-foreground mt-3 text-xs">
-              ログイン不要・無料で何度でも使えます
-            </p>
+            {/* --- リピーター向け: プロファイル表示 + 高速スタート --- */}
+            {isReturning ? (
+              <>
+                <div className="bg-muted mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full">
+                  <User className="h-8 w-8" />
+                </div>
+                <h1 className="mb-2 text-xl font-bold tracking-tight">
+                  おかえりなさい！
+                </h1>
+                <p className="text-muted-foreground mb-4 text-sm">
+                  前回の情報を元に、新しいテーマを探索しましょう
+                </p>
 
-            {/* 過去のセッション */}
-            {pastSessions.length > 0 && (
-              <div className="mt-8 text-left">
+                {/* プロファイルサマリー */}
+                <div className="bg-muted mb-5 rounded-xl p-4 text-left">
+                  <div className="mb-2 flex items-center justify-between">
+                    <p className="text-xs font-bold">あなたのプロフィール</p>
+                    <button
+                      onClick={() => setShowProfileReset(!showProfileReset)}
+                      className="text-muted-foreground hover:text-foreground text-[10px] transition-colors"
+                    >
+                      {showProfileReset ? "キャンセル" : "リセット"}
+                    </button>
+                  </div>
+
+                  {showProfileReset ? (
+                    <div className="space-y-2">
+                      <p className="text-muted-foreground text-xs">
+                        プロフィール・探索履歴をすべて削除しますか？
+                      </p>
+                      <button
+                        onClick={handleResetProfile}
+                        className="pen-btn pen-btn-ghost w-full border-red-200 py-2 text-xs text-red-500 dark:border-red-800"
+                      >
+                        <Trash2 className="mr-1 inline h-3 w-3" />
+                        すべてリセット
+                      </button>
+                    </div>
+                  ) : (
+                    <ul className="text-muted-foreground space-y-1 text-xs">
+                      {sessionProfile?.occupation && (
+                        <li className="flex items-start gap-2">
+                          <Briefcase className="mt-0.5 h-3 w-3 shrink-0" />
+                          {sessionProfile.occupation}
+                        </li>
+                      )}
+                      {sessionProfile?.interests && sessionProfile.interests.length > 0 && (
+                        <li className="flex items-start gap-2">
+                          <Star className="mt-0.5 h-3 w-3 shrink-0" />
+                          {sessionProfile.interests.join("、")}
+                        </li>
+                      )}
+                      {sessionProfile?.expertise && sessionProfile.expertise.length > 0 && (
+                        <li className="flex items-start gap-2">
+                          <Lightbulb className="mt-0.5 h-3 w-3 shrink-0" />
+                          {sessionProfile.expertise.join("、")}
+                        </li>
+                      )}
+                      {sessionProfile?.uniqueExperiences && sessionProfile.uniqueExperiences.length > 0 && (
+                        <li className="flex items-start gap-2">
+                          <Sparkles className="mt-0.5 h-3 w-3 shrink-0" />
+                          {sessionProfile.uniqueExperiences.join("、")}
+                        </li>
+                      )}
+                    </ul>
+                  )}
+                </div>
+
                 <button
-                  onClick={() => setShowSessionHistory(!showSessionHistory)}
-                  className="text-muted-foreground hover:text-foreground mb-3 flex w-full items-center gap-2 text-xs font-bold transition-colors"
+                  onClick={startNewSession}
+                  disabled={sending}
+                  className="pen-btn pen-btn-accent w-full py-3.5 text-base"
                 >
-                  <Clock className="h-3.5 w-3.5" />
-                  過去の探索履歴（{pastSessions.length}件）
-                  <span className="ml-auto">
-                    {showSessionHistory ? "▲" : "▼"}
-                  </span>
+                  {sending ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-5 w-5" />
+                  )}
+                  新しいテーマを探索する
                 </button>
 
-                {showSessionHistory && (
-                  <div className="space-y-2">
-                    {activeSessions.length > 0 && (
-                      <>
-                        <p className="text-muted-foreground text-[11px] font-bold">
-                          途中の探索
-                        </p>
-                        {activeSessions.map((s) => (
-                          <SessionCard
-                            key={s.sessionId}
-                            session={s}
-                            onResume={() => handleResume(s)}
-                            onDelete={() => handleDeleteSession(s.sessionId)}
-                          />
-                        ))}
-                      </>
-                    )}
-
-                    {completedSessions.length > 0 && (
-                      <>
-                        <p className="text-muted-foreground mt-3 text-[11px] font-bold">
-                          完了した探索
-                        </p>
-                        {completedSessions.map((s) => (
-                          <SessionCard
-                            key={s.sessionId}
-                            session={s}
-                            onResume={() => handleResume(s)}
-                            onDelete={() => handleDeleteSession(s.sessionId)}
-                          />
-                        ))}
-                      </>
-                    )}
+                {/* 発見済みテーマ一覧 */}
+                {discoveredThemes.length > 0 && (
+                  <div className="mt-6 text-left">
+                    <p className="text-muted-foreground mb-3 flex items-center gap-2 text-xs font-bold">
+                      <BookOpen className="h-3.5 w-3.5" />
+                      過去に発見したテーマ（{discoveredThemes.length}件）
+                    </p>
+                    <div className="space-y-2">
+                      {discoveredThemes.slice(0, 6).map(({ theme, date }, i) => (
+                        <button
+                          key={i}
+                          onClick={() => {
+                            setSelectedTheme(theme);
+                          }}
+                          className="border-border bg-card hover:bg-muted flex w-full items-center gap-3 rounded-lg border p-3 text-left transition-colors"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-medium">{theme.title}</p>
+                            <p className="text-muted-foreground mt-0.5 text-[11px]">
+                              {formatRelativeTime(date)}
+                            </p>
+                          </div>
+                          <ArrowRight className="text-muted-foreground h-4 w-4 shrink-0" />
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 )}
-              </div>
+
+                {/* 途中のセッション */}
+                {activeSessions.length > 0 && (
+                  <div className="mt-6 text-left">
+                    <p className="text-muted-foreground mb-3 flex items-center gap-2 text-xs font-bold">
+                      <Clock className="h-3.5 w-3.5" />
+                      途中の探索（{activeSessions.length}件）
+                    </p>
+                    <div className="space-y-2">
+                      {activeSessions.map((s) => (
+                        <SessionCard
+                          key={s.sessionId}
+                          session={s}
+                          onResume={() => handleResume(s)}
+                          onDelete={() => handleDeleteSession(s.sessionId)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              /* --- 初回ユーザー向け --- */
+              <>
+                <div className="bg-muted mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full">
+                  <Search className="h-10 w-10" />
+                </div>
+                <h1 className="mb-3 text-2xl font-bold tracking-tight">
+                  あなたの「書くべきテーマ」を
+                  <br />
+                  AI編集者が見つけます
+                </h1>
+                <p className="text-muted-foreground mb-3 text-sm leading-relaxed">
+                  noteで長く読まれる記事には共通点があります。
+                  <br />
+                  AI編集者との短い対話で、あなたの経験の中に
+                  <br />
+                  眠っている最高のテーマを一緒に発掘しましょう。
+                </p>
+                <div className="bg-muted mb-6 rounded-xl p-4 text-left">
+                  <p className="mb-2 text-xs font-bold">
+                    長く読まれる記事の3つの条件
+                  </p>
+                  <ul className="text-muted-foreground space-y-1.5 text-xs">
+                    <li className="flex items-start gap-2">
+                      <span className="mt-0.5 block h-1.5 w-1.5 shrink-0 rounded-full bg-gray-400" />
+                      書き手自身の経験に根ざした一次情報
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="mt-0.5 block h-1.5 w-1.5 shrink-0 rounded-full bg-gray-400" />
+                      繰り返し検索される普遍的な問いへの回答
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="mt-0.5 block h-1.5 w-1.5 shrink-0 rounded-full bg-gray-400" />
+                      ひとつのテーマを徹底的に深掘り
+                    </li>
+                  </ul>
+                </div>
+                <button
+                  onClick={startNewSession}
+                  disabled={sending}
+                  className="pen-btn pen-btn-accent w-full py-3.5 text-base"
+                >
+                  {sending ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-5 w-5" />
+                  )}
+                  テーマ探索を始める
+                </button>
+                <p className="text-muted-foreground mt-3 text-xs">
+                  ログイン不要・無料で何度でも使えます
+                </p>
+              </>
             )}
           </div>
         </main>
@@ -805,8 +746,6 @@ export default function ThemeDiscoverPage() {
   // --- チャット画面 ---
   return (
     <div className="discover-chat-container">
-      {recordDialog}
-
       {/* ヘッダー */}
       <header className="discover-chat-header">
         <div className="flex items-center gap-3">
@@ -850,11 +789,7 @@ export default function ThemeDiscoverPage() {
                 <BookOpen className="h-4 w-4" />
               </div>
             )}
-            <div
-              className={
-                msg.role === "user" ? "pen-bubble-user" : "pen-bubble-ai"
-              }
-            >
+            <div className={msg.role === "user" ? "pen-bubble-user" : "pen-bubble-ai"}>
               <p className="text-sm leading-relaxed whitespace-pre-wrap">
                 {msg.content}
               </p>
@@ -862,7 +797,7 @@ export default function ThemeDiscoverPage() {
           </div>
         ))}
 
-        {/* テーマ提案カード（チャット終了後に表示） */}
+        {/* テーマ提案カード */}
         {chatEnded && suggestedThemes && (
           <div className="discover-themes-area">
             <p className="mb-3 text-center text-xs font-bold">
@@ -880,9 +815,7 @@ export default function ThemeDiscoverPage() {
                   className="discover-theme-card"
                 >
                   <div className="mb-2 flex items-start justify-between gap-2">
-                    <h3 className="text-sm font-bold leading-snug">
-                      {theme.title}
-                    </h3>
+                    <h3 className="text-sm font-bold leading-snug">{theme.title}</h3>
                     <ArrowRight className="text-muted-foreground mt-0.5 h-4 w-4 shrink-0" />
                   </div>
                   <p className="text-muted-foreground mb-1.5 text-xs leading-relaxed">
@@ -904,10 +837,21 @@ export default function ThemeDiscoverPage() {
                 </button>
               ))}
             </div>
+
+            {/* 別の角度で探索ボタン */}
+            <div className="mt-5 text-center">
+              <button
+                onClick={handleExploreAnother}
+                disabled={sending}
+                className="pen-btn pen-btn-ghost inline-flex items-center gap-2 text-sm"
+              >
+                <RefreshCw className="h-4 w-4" />
+                別の角度でテーマを探索する
+              </button>
+            </div>
           </div>
         )}
 
-        {/* AI思考中 */}
         {sending && (
           <div className="discover-msg-wrapper discover-msg-ai">
             <div className="discover-avatar">
@@ -916,9 +860,7 @@ export default function ThemeDiscoverPage() {
             <div className="pen-bubble-ai">
               <div className="flex items-center gap-2">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                <span className="text-muted-foreground text-sm">
-                  考えています...
-                </span>
+                <span className="text-muted-foreground text-sm">考えています...</span>
               </div>
             </div>
           </div>
@@ -997,9 +939,7 @@ function SessionCard({
             </>
           )}
           <span>·</span>
-          <span>
-            {session.completed ? "完了" : `${userMsgs.length}回のやりとり`}
-          </span>
+          <span>{session.completed ? "完了" : `${userMsgs.length}回のやりとり`}</span>
         </div>
       </button>
       <div className="flex shrink-0 items-center gap-1">
