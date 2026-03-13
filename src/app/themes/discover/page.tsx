@@ -291,6 +291,32 @@ export default function ThemeDiscoverPage() {
     scrollToBottom();
   }, [messages, sending]);
 
+  // ページタイトル動的更新
+  useEffect(() => {
+    if (!started) {
+      document.title = "テーマ探索 | pen";
+    } else if (chatEnded) {
+      document.title = "テーマ発見！ | pen";
+    } else if (sending) {
+      document.title = "AIが考え中... | pen";
+    } else {
+      document.title = "テーマ探索中... | pen";
+    }
+    return () => { document.title = "pen — AIインタビュー＆記事制作"; };
+  }, [started, chatEnded, sending]);
+
+  // オフライン検知
+  useEffect(() => {
+    const handleOffline = () => setError("インターネット接続が切れました。接続を確認してください。");
+    const handleOnline = () => setError(null);
+    window.addEventListener("offline", handleOffline);
+    window.addEventListener("online", handleOnline);
+    return () => {
+      window.removeEventListener("offline", handleOffline);
+      window.removeEventListener("online", handleOnline);
+    };
+  }, []);
+
   const autoResize = (el: HTMLTextAreaElement) => {
     el.style.height = "auto";
     el.style.height = Math.min(el.scrollHeight, 120) + "px";
@@ -384,7 +410,10 @@ export default function ThemeDiscoverPage() {
           signal: controller.signal,
         });
         if (!res.ok) {
-          throw new Error(`サーバーエラーが発生しました (${res.status})`);
+          if (res.status === 429) {
+            throw new Error("リクエストが集中しています。少し待ってから再度お試しください。");
+          }
+          throw new Error("一時的に応答できません。もう一度お試しください。");
         }
 
         const contentType = res.headers.get("content-type") || "";
@@ -1354,7 +1383,14 @@ export default function ThemeDiscoverPage() {
         </div>
         {discoveryProgress >= 0 && (
           <div className="discover-progress-wrapper">
-            <div className="discover-progress-track">
+            <div
+              className="discover-progress-track"
+              role="progressbar"
+              aria-valuenow={Math.min(discoveryProgress, 100)}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label={`テーマ探索進捗: ${Math.min(discoveryProgress, 100)}%`}
+            >
               <div
                 className={`discover-progress-fill ${progressInfo.color}`}
                 style={{ width: `${Math.min(discoveryProgress, 100)}%` }}
@@ -1394,7 +1430,7 @@ export default function ThemeDiscoverPage() {
             <p className="text-muted-foreground mb-4 text-center text-[11px]">
               タップして執筆アドバイスを確認
             </p>
-            <div className="space-y-3">
+            <div className="space-y-3" role="group" aria-label="提案されたテーマ候補">
               {suggestedThemes.map((theme, i) => (
                 <button
                   key={i}
