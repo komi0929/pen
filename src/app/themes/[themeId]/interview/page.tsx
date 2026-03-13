@@ -476,6 +476,8 @@ function InterviewContent() {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // IME変換確定のEnterを無視（日本語入力対応）
+    if (e.nativeEvent.isComposing) return;
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend(e as unknown as React.FormEvent);
@@ -775,7 +777,7 @@ function InterviewContent() {
                 value={toneNote}
                 onChange={(e) => setToneNote(e.target.value)}
                 placeholder="例: 説教くさくしないで、あっさりめで、ポエムみたいに..."
-                className="border-border bg-card focus:border-accent w-full rounded-lg border px-3 py-2 text-sm outline-none"
+                className="border-border bg-card focus:border-accent w-full rounded-lg border px-3 py-2 text-base outline-none sm:text-sm"
               />
               <p className="text-muted-foreground mt-1 text-xs">
                 AIへの一言メモ。トーンの微調整に使えます
@@ -819,7 +821,7 @@ function InterviewContent() {
                       value={customPronoun}
                       onChange={(e) => setCustomPronoun(e.target.value)}
                       placeholder="例: わたし、ウチ..."
-                      className="border-border bg-card focus:border-accent w-full rounded-lg border px-3 py-2 text-sm outline-none"
+                      className="border-border bg-card focus:border-accent w-full rounded-lg border px-3 py-2 text-base outline-none sm:text-sm"
                       autoFocus
                     />
                   )}
@@ -1149,7 +1151,7 @@ function InterviewContent() {
                           }
                         }}
                         disabled={sending}
-                        className="text-muted-foreground hover:text-foreground hover:bg-muted inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs transition-colors"
+                        className="text-muted-foreground hover:text-foreground hover:bg-muted inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs transition-colors"
                       >
                         <SkipForward className="h-3.5 w-3.5" />
                         この質問をスキップする
@@ -1204,8 +1206,8 @@ function InterviewContent() {
                 autoResize(e.target);
               }}
               onKeyDown={handleKeyDown}
-              placeholder="メッセージを入力... (Enterで送信)"
-              className="max-h-[200px] min-h-[44px] flex-1 resize-none rounded-lg bg-transparent px-3 py-2 text-sm outline-none"
+              placeholder="メッセージを入力..."
+              className="max-h-[200px] min-h-[44px] flex-1 resize-none rounded-lg bg-transparent px-3 py-2 text-base outline-none sm:text-sm"
               rows={1}
               disabled={sending}
             />

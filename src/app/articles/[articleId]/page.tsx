@@ -373,7 +373,7 @@ function ArticleDetailContent() {
               </div>
 
               {/* アクションバー */}
-              <div className="mb-6 flex items-center gap-2">
+              <div className="mb-6 flex flex-wrap items-center gap-2">
                 {/* プライマリアクション */}
                 <button
                   onClick={handleOpenRewrite}
@@ -833,7 +833,7 @@ function ArticleDetailContent() {
                           value={rewriteToneNote}
                           onChange={(e) => setRewriteToneNote(e.target.value)}
                           placeholder="例: 説教くさくしないで、あっさりめで..."
-                          className="border-border bg-card focus:border-accent w-full rounded-lg border px-3 py-2 text-sm outline-none"
+                          className="border-border bg-card focus:border-accent w-full rounded-lg border px-3 py-2 text-base outline-none sm:text-sm"
                         />
                       </div>
 
@@ -851,7 +851,7 @@ function ArticleDetailContent() {
                             "例:\n・もっとカジュアルに話しかけるトーンで\n・具体的なエピソードをもっと入れて\n・全体を1000文字くらいに短くして\n・冒頭にフックを入れてほしい"
                           }
                           rows={4}
-                          className="border-border bg-card focus:border-accent w-full resize-none rounded-lg border px-3 py-2 text-sm outline-none"
+                          className="border-border bg-card focus:border-accent w-full resize-none rounded-lg border px-3 py-2 text-base outline-none sm:text-sm"
                         />
                         <p className="text-muted-foreground mt-1 text-xs">
                           文体変更・内容の追加削除・長さ調整など何でもOKです
