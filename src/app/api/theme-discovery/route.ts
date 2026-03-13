@@ -204,29 +204,16 @@ noteでは、投稿された記事の約40%が1年後も読まれ続けている
     };
   }
 
-  if (userTurnCount <= 1) {
+  if (userTurnCount <= 2) {
     return {
       response:
-        "なるほど、とても興味深いですね！ その中で特に「これは自分にしか語れない」と感じる経験はありますか？ 同じ立場の人が困っていそうなこと、よく相談されることでも構いません。",
-      discoveryProgress: 25,
+        "なるほど、とても興味深いお話ですね！ もしこの経験を1本の記事にまとめるなら、一番伝えたいことは何ですか？",
+      discoveryProgress: 25 + userTurnCount * 20,
       suggestedThemes: null,
       userProfile: {
         occupation: "（モック: ユーザーの職業）",
         interests: ["（モック: ユーザーの興味）"],
-      },
-    };
-  }
-
-  if (userTurnCount <= 3) {
-    return {
-      response:
-        "素晴らしいお話ですね！ もしこの経験を1本の記事にまとめるなら、一番伝えたいことは何ですか？",
-      discoveryProgress: 50 + (userTurnCount - 2) * 15,
-      suggestedThemes: null,
-      userProfile: {
-        occupation: "（モック: ユーザーの職業）",
-        interests: ["（モック: ユーザーの興味）"],
-        expertise: ["（モック: 専門分野）"],
+        expertise: userTurnCount >= 2 ? ["（モック: 専門分野）"] : undefined,
       },
     };
   }

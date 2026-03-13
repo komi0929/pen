@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuth } from "@/contexts/AuthContext";
+import { createTheme } from "@/lib/actions/themes";
 import type { SuggestedTheme } from "@/app/api/theme-discovery/route";
 import type { UserProfile } from "@/lib/prompts/theme-discovery";
 import {
@@ -191,6 +192,7 @@ export default function ThemeDiscoverPage() {
   const [pastSessions, setPastSessions] = useState<DiscoverySession[]>([]);
   const [selectedTheme, setSelectedTheme] = useState<SuggestedTheme | null>(null);
   const [showProfileReset, setShowProfileReset] = useState(false);
+  const [savingTheme, setSavingTheme] = useState(false);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -287,12 +289,12 @@ export default function ThemeDiscoverPage() {
         if (data.error) throw new Error(data.error);
         if (!data.response) throw new Error("AI応答が空です");
 
-        let newProgress = discoveryProgress;
+        let newProgress = -1;
         if (typeof data.discoveryProgress === "number" && data.discoveryProgress >= 0) {
           newProgress = data.discoveryProgress;
           setDiscoveryProgress(newProgress);
         }
-        let newThemes = suggestedThemes;
+        let newThemes: SuggestedTheme[] | null = null;
         if (data.suggestedThemes) {
           newThemes = data.suggestedThemes;
           setSuggestedThemes(newThemes);
@@ -319,7 +321,7 @@ export default function ThemeDiscoverPage() {
         isFetchingRef.current = false;
       }
     },
-    [discoveryProgress, suggestedThemes, saveCurrentSession]
+    [saveCurrentSession]
   );
 
   // --- Actions ---
@@ -391,15 +393,26 @@ export default function ThemeDiscoverPage() {
     setSelectedTheme(theme);
   };
 
-  const handleSaveTheme = (theme: SuggestedTheme) => {
-    if (user) {
-      router.push(
-        `/themes?newTitle=${encodeURIComponent(theme.title)}&newDesc=${encodeURIComponent(theme.description + "\n\n切り口: " + theme.angle + "\n想定読者: " + theme.readers)}`
-      );
-    } else {
+  const handleSaveTheme = async (theme: SuggestedTheme) => {
+    if (!user) {
       router.push(
         `/login?from=discover&theme=${encodeURIComponent(theme.title)}&desc=${encodeURIComponent(theme.description)}`
       );
+      return;
+    }
+    setSavingTheme(true);
+    try {
+      const desc = `${theme.description}\n\n切り口: ${theme.angle}\n想定読者: ${theme.readers}`;
+      const result = await createTheme(theme.title, desc);
+      if (result.success) {
+        router.push(`/themes/${result.data.id}`);
+      } else {
+        setError(result.error);
+      }
+    } catch {
+      setError("テーマの保存に失敗しました");
+    } finally {
+      setSavingTheme(false);
     }
   };
 
@@ -424,7 +437,6 @@ export default function ThemeDiscoverPage() {
 
   // --- Derived data ---
   const activeSessions = pastSessions.filter((s) => !s.completed);
-  const completedSessions = pastSessions.filter((s) => s.completed);
 
   // --- テーマ詳細ビュー ---
   if (selectedTheme) {
@@ -500,10 +512,11 @@ export default function ThemeDiscoverPage() {
               {user ? (
                 <button
                   onClick={() => handleSaveTheme(selectedTheme)}
+                  disabled={savingTheme}
                   className="pen-btn pen-btn-accent flex w-full items-center justify-center gap-2 py-3.5 text-base"
                 >
-                  <Save className="h-5 w-5" />
-                  このテーマで記事を書く
+                  {savingTheme ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />}
+                  {savingTheme ? "保存中..." : "このテーマで記事を書く"}
                 </button>
               ) : (
                 <button
@@ -867,8 +880,15 @@ export default function ThemeDiscoverPage() {
         )}
 
         {error && (
-          <div className="px-4 py-2 text-center">
-            <p className="text-danger text-xs">{error}</p>
+          <div className="px-4 py-3 text-center">
+            <p className="text-danger mb-2 text-xs">{error}</p>
+            <button
+              onClick={() => { setError(null); if (currentSessionId) fetchAI(messages, currentSessionId, sessionProfile); }}
+              className="pen-btn pen-btn-ghost text-xs"
+            >
+              <RotateCcw className="mr-1 inline h-3 w-3" />
+              再試行
+            </button>
           </div>
         )}
 
