@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
     // 認証不要 — ログインなしで利用可能
 
     const body = await request.json();
-    const { messages, userProfile: incomingProfile } = body;
+    const { messages, userProfile: incomingProfile, refineMode, originalTheme } = body;
     const messageCount = messages?.length ?? 0;
 
     // ユーザーのターン数を計算（user roleのメッセージ数）
@@ -59,6 +59,38 @@ export async function POST(request: NextRequest) {
     if (!apiKey) {
       const mock = generateMockResponse(messageCount, userTurnCount);
       return NextResponse.json(mock);
+    }
+
+    // --- 磨き込みモード ---
+    if (refineMode && originalTheme) {
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const refinePrompt = `あなたは記事テーマの編集者です。以下のテーマを、ユーザーの要望に基づいて磨き込んでください。
+
+元のテーマ:
+- タイトル: ${originalTheme.title}
+- 説明: ${originalTheme.description}
+- 切り口: ${originalTheme.angle}
+- 想定読者: ${originalTheme.readers}
+${originalTheme.articleOutline ? `- 構成案: ${JSON.stringify(originalTheme.articleOutline)}` : ""}
+
+ユーザーの要望を反映して、テーマを改善してください。
+**必ず以下のタグを出力してください:**
+[[THEMES:{"themes":[{"title":"改善後のタイトル","description":"改善後の説明","angle":"改善後の切り口","readers":"改善後の想定読者","scores":${JSON.stringify(originalTheme.scores ?? {primary:"○",universal:"○",depth:"○"})},"advice":{"primary":"一次性の具体的アドバイス","universal":"普遍性の具体的アドバイス","depth":"深掘りの具体的アドバイス"},"articleOutline":{"hook":"改善後の導入文","sections":["セクション1","セクション2","セクション3"],"closing":"改善後の締め"}}]}]]
+[[DISCOVERY:90]]`;
+      const model = genAI.getGenerativeModel({
+        model: "gemini-3-flash-preview",
+        systemInstruction: refinePrompt,
+      });
+      const userMsg = messages?.[0]?.content ?? "テーマを改善してください";
+      const result = await model.generateContent(userMsg);
+      const rawText = result.response.text();
+      const parsed = parseDiscoveryResponse(rawText);
+      return NextResponse.json({
+        response: parsed.text,
+        discoveryProgress: parsed.discoveryProgress,
+        suggestedThemes: parsed.suggestedThemes,
+        userProfile: null,
+      });
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);

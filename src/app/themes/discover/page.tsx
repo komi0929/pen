@@ -13,7 +13,9 @@ import {
   Lightbulb,
   ListOrdered,
   Loader2,
+  MessageSquarePlus,
   Pen,
+  Plus,
   RefreshCw,
   RotateCcw,
   Save,
@@ -24,6 +26,8 @@ import {
   Trash2,
   User,
   UserPlus,
+  X,
+  Zap,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -52,6 +56,7 @@ interface DiscoverySession {
 
 const STORAGE_KEY = "pen_discovery_sessions";
 const PROFILE_KEY = "pen_discovery_profile";
+const MEMO_KEY = "pen_theme_memos";
 const MAX_SESSIONS = 10;
 const SESSION_TTL_DAYS = 30;
 
@@ -92,6 +97,28 @@ function saveGlobalProfile(profile: UserProfile) {
 function clearGlobalProfile() {
   if (typeof window === "undefined") return;
   localStorage.removeItem(PROFILE_KEY);
+}
+
+// --- テーマメモ（ネタ帳）---
+interface ThemeMemo {
+  id: string;
+  text: string;
+  createdAt: string;
+}
+
+function loadMemos(): ThemeMemo[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(MEMO_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveMemos(memos: ThemeMemo[]) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(MEMO_KEY, JSON.stringify(memos.slice(0, 20)));
 }
 
 function mergeProfiles(
@@ -199,6 +226,14 @@ export default function ThemeDiscoverPage() {
   const [selectedTheme, setSelectedTheme] = useState<SuggestedTheme | null>(null);
   const [showProfileReset, setShowProfileReset] = useState(false);
   const [savingTheme, setSavingTheme] = useState(false);
+  // テーマメモ
+  const [memos, setMemos] = useState<ThemeMemo[]>([]);
+  const [memoInput, setMemoInput] = useState("");
+  const [showMemoForm, setShowMemoForm] = useState(false);
+  // テーマ磨き込み
+  const [refineInput, setRefineInput] = useState("");
+  const [refining, setRefining] = useState(false);
+  const [showRefine, setShowRefine] = useState(false);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -214,6 +249,7 @@ export default function ThemeDiscoverPage() {
     setPastSessions(sessions);
     const gp = loadGlobalProfile();
     if (gp) setSessionProfile(gp);
+    setMemos(loadMemos());
   }, []);
 
   const scrollToBottom = () => {
@@ -359,7 +395,21 @@ export default function ThemeDiscoverPage() {
     }
     setSessionProfile(profileWithCount);
 
-    await fetchAI([], sid, profileWithCount);
+    // メモがある場合はAIの初回メッセージにメモを注入
+    const currentMemos = loadMemos();
+    if (currentMemos.length > 0) {
+      const memoContext: ChatMessage = {
+        id: `memo-${Date.now()}`,
+        role: "user",
+        content: `【テーマメモ（事前に記録していたアイデア）】\n${currentMemos.map((m) => `・${m.text}`).join("\n")}\n\nこれらのメモを参考にしつつ、テーマ探索を始めてください。`,
+      };
+      await fetchAI([memoContext], sid, profileWithCount);
+      // 使用済みメモをクリア
+      saveMemos([]);
+      setMemos([]);
+    } else {
+      await fetchAI([], sid, profileWithCount);
+    }
     setSending(false);
     inputRef.current?.focus();
   };
@@ -458,10 +508,73 @@ export default function ThemeDiscoverPage() {
 
   const handleBackFromDetail = () => {
     setSelectedTheme(null);
+    setShowRefine(false);
+    setRefineInput("");
+  };
+
+  // テーマメモ追加
+  const handleAddMemo = () => {
+    if (!memoInput.trim()) return;
+    const newMemo: ThemeMemo = {
+      id: `memo-${Date.now()}`,
+      text: memoInput.trim(),
+      createdAt: new Date().toISOString(),
+    };
+    const updated = [newMemo, ...memos];
+    setMemos(updated);
+    saveMemos(updated);
+    setMemoInput("");
+    setShowMemoForm(false);
+  };
+
+  const handleDeleteMemo = (id: string) => {
+    const updated = memos.filter((m) => m.id !== id);
+    setMemos(updated);
+    saveMemos(updated);
+  };
+
+  // テーマ磨き込み
+  const handleRefineTheme = async () => {
+    if (!refineInput.trim() || !selectedTheme) return;
+    setRefining(true);
+    try {
+      const res = await fetch("/api/theme-discovery", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: [
+            { role: "user", content: `テーマ「${selectedTheme.title}」を以下の要望で磨き込んでください: ${refineInput}` },
+          ],
+          userProfile: sessionProfile,
+          refineMode: true,
+          originalTheme: selectedTheme,
+        }),
+      });
+      const data = await res.json();
+      if (data.suggestedThemes && data.suggestedThemes.length > 0) {
+        setSelectedTheme(data.suggestedThemes[0]);
+      }
+      setRefineInput("");
+      setShowRefine(false);
+    } catch {
+      setError("磨き込みに失敗しました");
+    } finally {
+      setRefining(false);
+    }
   };
 
   // --- Derived data ---
   const activeSessions = pastSessions.filter((s) => !s.completed);
+  const profileCompleteness = (() => {
+    if (!sessionProfile) return 0;
+    let score = 0;
+    if (sessionProfile.occupation) score += 25;
+    if (sessionProfile.interests && sessionProfile.interests.length > 0) score += 20;
+    if (sessionProfile.expertise && sessionProfile.expertise.length > 0) score += 20;
+    if (sessionProfile.uniqueExperiences && sessionProfile.uniqueExperiences.length > 0) score += 20;
+    if (sessionProfile.consultedTopics && sessionProfile.consultedTopics.length > 0) score += 15;
+    return score;
+  })();
 
   // --- テーマ詳細ビュー ---
   if (selectedTheme) {
@@ -578,6 +691,42 @@ export default function ThemeDiscoverPage() {
                 </div>
               </div>
             )}
+            {/* テーマ磨き込み */}
+            <div className="mb-6">
+              {!showRefine ? (
+                <button
+                  onClick={() => setShowRefine(true)}
+                  className="pen-btn pen-btn-ghost flex w-full items-center justify-center gap-2 text-sm"
+                >
+                  <MessageSquarePlus className="h-4 w-4" />
+                  テーマを磨き込む
+                </button>
+              ) : (
+                <div className="border-border rounded-xl border p-4">
+                  <p className="text-muted-foreground mb-2 text-xs">
+                    どのように磨き込みたいですか？例: 「初心者向けにしたい」「切り口を変えたい」
+                  </p>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={refineInput}
+                      onChange={(e) => setRefineInput(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) handleRefineTheme(); }}
+                      placeholder="例: もっと実践的な内容にしたい"
+                      className="pen-input flex-1 text-sm"
+                      autoFocus
+                    />
+                    <button
+                      onClick={handleRefineTheme}
+                      disabled={refining || !refineInput.trim()}
+                      className="pen-btn pen-btn-primary shrink-0 px-3"
+                    >
+                      {refining ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
 
             <div className="space-y-3">
               {user ? (
@@ -652,6 +801,26 @@ export default function ThemeDiscoverPage() {
                     : "前回の情報を元に、新しいテーマを探索しましょう"}
                 </p>
 
+                {/* 成長統計バー */}
+                {(discoveredThemes.length > 0 || profileCompleteness > 0) && (
+                  <div className="bg-muted mb-5 flex gap-4 rounded-xl p-3">
+                    <div className="flex-1 text-center">
+                      <p className="text-lg font-bold">{discoveredThemes.length}</p>
+                      <p className="text-muted-foreground text-[10px]">発見テーマ</p>
+                    </div>
+                    <div className="border-border border-l" />
+                    <div className="flex-1 text-center">
+                      <p className="text-lg font-bold">{sessionProfile?.sessionCount ? sessionProfile.sessionCount - 1 : 0}</p>
+                      <p className="text-muted-foreground text-[10px]">探索回数</p>
+                    </div>
+                    <div className="border-border border-l" />
+                    <div className="flex-1 text-center">
+                      <p className="text-lg font-bold">{profileCompleteness}%</p>
+                      <p className="text-muted-foreground text-[10px]">プロフィール</p>
+                    </div>
+                  </div>
+                )}
+
                 {/* プロファイルサマリー */}
                 <div className="bg-muted mb-5 rounded-xl p-4 text-left">
                   <div className="mb-2 flex items-center justify-between">
@@ -717,8 +886,74 @@ export default function ThemeDiscoverPage() {
                   ) : (
                     <Sparkles className="h-5 w-5" />
                   )}
-                  新しいテーマを探索する
+                  {memos.length > 0 ? `メモを元にテーマを探索する` : "新しいテーマを探索する"}
                 </button>
+
+                {/* テーマメモ（ネタ帳） */}
+                <div className="mt-5 text-left">
+                  <div className="mb-2 flex items-center justify-between">
+                    <p className="text-muted-foreground flex items-center gap-2 text-xs font-bold">
+                      <Zap className="h-3.5 w-3.5" />
+                      テーマメモ（ネタ帳）
+                      {memos.length > 0 && (
+                        <span className="text-muted-foreground font-normal">— 次回のAIが参考にします</span>
+                      )}
+                    </p>
+                    <button
+                      onClick={() => setShowMemoForm(!showMemoForm)}
+                      className="text-muted-foreground hover:text-foreground text-[10px] transition-colors"
+                    >
+                      {showMemoForm ? "閉じる" : <><Plus className="mr-0.5 inline h-3 w-3" />追加</>}
+                    </button>
+                  </div>
+                  {showMemoForm && (
+                    <div className="mb-3 flex gap-2">
+                      <input
+                        type="text"
+                        value={memoInput}
+                        onChange={(e) => setMemoInput(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") handleAddMemo(); }}
+                        placeholder="書いてみたいこと、気になるトピック..."
+                        className="pen-input flex-1 text-sm"
+                        autoFocus
+                      />
+                      <button
+                        onClick={handleAddMemo}
+                        disabled={!memoInput.trim()}
+                        className="pen-btn pen-btn-primary shrink-0 px-3"
+                      >
+                        <Plus className="h-4 w-4" />
+                      </button>
+                    </div>
+                  )}
+                  {memos.length > 0 ? (
+                    <div className="space-y-1.5">
+                      {memos.map((m) => (
+                        <div
+                          key={m.id}
+                          className="border-border bg-card flex items-center gap-2 rounded-lg border px-3 py-2"
+                        >
+                          <Zap className="text-muted-foreground h-3 w-3 shrink-0" />
+                          <span className="min-w-0 flex-1 truncate text-xs">{m.text}</span>
+                          <button
+                            onClick={() => handleDeleteMemo(m.id)}
+                            className="text-muted-foreground hover:text-red-500 shrink-0 transition-colors"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : !showMemoForm ? (
+                    <button
+                      onClick={() => setShowMemoForm(true)}
+                      className="border-border hover:bg-muted flex w-full items-center justify-center gap-2 rounded-lg border border-dashed p-3 text-xs transition-colors"
+                    >
+                      <MessageSquarePlus className="text-muted-foreground h-4 w-4" />
+                      <span className="text-muted-foreground">「書いてみたいこと」をメモしておくと、次のAIが参考にします</span>
+                    </button>
+                  ) : null}
+                </div>
 
                 {/* 発見済みテーマ一覧 */}
                 {discoveredThemes.length > 0 && (
