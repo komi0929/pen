@@ -11,6 +11,7 @@ import {
   Briefcase,
   Clock,
   Lightbulb,
+  ListOrdered,
   Loader2,
   Pen,
   RefreshCw,
@@ -421,7 +422,13 @@ export default function ThemeDiscoverPage() {
     setSavingTheme(true);
     try {
       const desc = `${theme.description}\n\n切り口: ${theme.angle}\n想定読者: ${theme.readers}`;
-      const result = await createTheme(theme.title, desc);
+      const adviceText = theme.advice
+        ? `\n\n--- 執筆アドバイス ---\n■ 一次性: ${theme.advice.primary ?? ""}\n■ 普遍性: ${theme.advice.universal ?? ""}\n■ 深掘り: ${theme.advice.depth ?? ""}`
+        : "";
+      const outlineText = theme.articleOutline
+        ? `\n\n--- 記事の構成案 ---\n導入: ${theme.articleOutline.hook ?? ""}\n${(theme.articleOutline.sections ?? []).map((s, i) => `${i + 1}. ${s}`).join("\n")}\n締め: ${theme.articleOutline.closing ?? ""}`
+        : "";
+      const result = await createTheme(theme.title, desc + adviceText + outlineText);
       if (result.success) {
         router.push(`/themes/${result.data.id}`);
       } else {
@@ -523,6 +530,52 @@ export default function ThemeDiscoverPage() {
                     </p>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {/* 記事の構成案 */}
+            {selectedTheme.articleOutline && (
+              <div className="mb-6">
+                <h3 className="mb-3 flex items-center gap-2 text-sm font-bold">
+                  <ListOrdered className="h-4 w-4" />
+                  記事の構成案
+                </h3>
+                <div className="border-border bg-muted/30 rounded-xl border p-4 space-y-3">
+                  {/* 導入 */}
+                  {selectedTheme.articleOutline.hook && (
+                    <div>
+                      <p className="text-[10px] font-bold text-amber-600 dark:text-amber-400 mb-1">導入</p>
+                      <p className="text-sm leading-relaxed italic">
+                        {selectedTheme.articleOutline.hook}
+                      </p>
+                    </div>
+                  )}
+                  {/* 本文セクション */}
+                  {selectedTheme.articleOutline.sections && selectedTheme.articleOutline.sections.length > 0 && (
+                    <div>
+                      <p className="text-[10px] font-bold text-blue-600 dark:text-blue-400 mb-1">本文</p>
+                      <ol className="space-y-1.5">
+                        {selectedTheme.articleOutline.sections.map((section, i) => (
+                          <li key={i} className="flex items-start gap-2 text-sm">
+                            <span className="bg-muted text-muted-foreground mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold">
+                              {i + 1}
+                            </span>
+                            <span className="leading-relaxed">{section}</span>
+                          </li>
+                        ))}
+                      </ol>
+                    </div>
+                  )}
+                  {/* 締め */}
+                  {selectedTheme.articleOutline.closing && (
+                    <div>
+                      <p className="text-[10px] font-bold text-green-600 dark:text-green-400 mb-1">締め</p>
+                      <p className="text-sm leading-relaxed">
+                        {selectedTheme.articleOutline.closing}
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
