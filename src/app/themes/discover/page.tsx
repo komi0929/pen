@@ -31,7 +31,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 // --- Types ---
 
@@ -257,11 +257,11 @@ export default function ThemeDiscoverPage() {
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const isFetchingRef = useRef(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const progressInfo = getProgressInfo(discoveryProgress);
   const chatEnded = suggestedThemes !== null && suggestedThemes.length > 0;
   const isReturning = hasProfileData(sessionProfile);
-  const discoveredThemes = getDiscoveredThemes(pastSessions);
 
   useEffect(() => {
     const sessions = loadSessions();
@@ -346,7 +346,7 @@ export default function ThemeDiscoverPage() {
     []
   );
 
-  // AI応答取得
+  // AI応答取得（ストリーミング対応）
   const fetchAI = useCallback(
     async (
       currentMessages: ChatMessage[],
@@ -355,6 +355,24 @@ export default function ThemeDiscoverPage() {
     ) => {
       if (isFetchingRef.current) return;
       isFetchingRef.current = true;
+
+      // 前のリクエストをキャンセル
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
+
+      // ストリーミング用のAIメッセージを先に追加（空の状態で）
+      const aiMsgId = `ai-${Date.now()}`;
+      const aiMsg: ChatMessage = {
+        id: aiMsgId,
+        role: "assistant",
+        content: "",
+      };
+      const msgsWithEmptyAi = [...currentMessages, aiMsg];
+      setMessages(msgsWithEmptyAi);
+
       try {
         const res = await fetch("/api/theme-discovery", {
           method: "POST",
@@ -363,71 +381,143 @@ export default function ThemeDiscoverPage() {
             messages: currentMessages.map((m) => ({ role: m.role, content: m.content })),
             userProfile: profile,
           }),
+          signal: controller.signal,
         });
         if (!res.ok) {
           throw new Error(`サーバーエラーが発生しました (${res.status})`);
         }
-        const data = await res.json();
-        if (data.error) throw new Error(data.error);
-        if (!data.response) throw new Error("AI応答が空です");
 
-        let newProgress = -1;
-        if (typeof data.discoveryProgress === "number" && data.discoveryProgress >= 0) {
-          newProgress = data.discoveryProgress;
-          setDiscoveryProgress(newProgress);
-        }
-        let newThemes: SuggestedTheme[] | null = null;
-        if (data.suggestedThemes) {
-          newThemes = data.suggestedThemes;
-          setSuggestedThemes(newThemes);
-        }
-        let newProfile = profile;
-        if (data.userProfile) {
-          newProfile = mergeProfiles(profile, data.userProfile);
-          setSessionProfile(newProfile);
-        }
+        const contentType = res.headers.get("content-type") || "";
 
-        // 編集者メモをグローバルプロファイルに蓄積
-        if (data.editorNotes) {
-          const gp = loadGlobalProfile() ?? {};
-          const notes = gp.editorNotes ?? [];
-          if (data.editorNotes.strengths) {
-            notes.push(`強み: ${data.editorNotes.strengths}`);
-            gp.writerStrengths = data.editorNotes.strengths;
-          }
-          if (data.editorNotes.pattern) {
-            notes.push(`観察: ${data.editorNotes.pattern}`);
-          }
-          if (data.editorNotes.nextSuggestion) {
-            notes.push(`次回の提案: ${data.editorNotes.nextSuggestion}`);
-          }
-          // 最新の6件のみ保持
-          gp.editorNotes = notes.slice(-6);
-          if (data.editorNotes.topicArea) {
-            const areas = gp.topicAreas ?? [];
-            if (!areas.includes(data.editorNotes.topicArea)) {
-              areas.push(data.editorNotes.topicArea);
+        if (contentType.includes("text/event-stream") && res.body) {
+          // ストリーミングモード
+          const reader = res.body.getReader();
+          const decoder = new TextDecoder();
+          let streamedText = "";
+          let buffer = "";
+
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split("\n");
+            buffer = lines.pop() || "";
+
+            for (const line of lines) {
+              if (!line.startsWith("data: ")) continue;
+              try {
+                const event = JSON.parse(line.slice(6));
+
+                if (event.type === "text") {
+                  streamedText += event.content;
+                  // AIメッセージをリアルタイム更新
+                  setMessages((prev) =>
+                    prev.map((m) =>
+                      m.id === aiMsgId ? { ...m, content: streamedText } : m
+                    )
+                  );
+                } else if (event.type === "done") {
+                  // クリーンテキストで最終更新
+                  const cleanText = event.cleanText || streamedText;
+                  setMessages((prev) =>
+                    prev.map((m) =>
+                      m.id === aiMsgId ? { ...m, content: cleanText } : m
+                    )
+                  );
+
+                  // 構造化データの処理
+                  let newProgress = -1;
+                  if (typeof event.discoveryProgress === "number" && event.discoveryProgress >= 0) {
+                    newProgress = event.discoveryProgress;
+                    setDiscoveryProgress(newProgress);
+                  }
+                  let newThemes: SuggestedTheme[] | null = null;
+                  if (event.suggestedThemes) {
+                    newThemes = event.suggestedThemes;
+                    setSuggestedThemes(newThemes);
+                  }
+                  let newProfile = profile;
+                  if (event.userProfile) {
+                    newProfile = mergeProfiles(profile, event.userProfile);
+                    setSessionProfile(newProfile);
+                  }
+                  if (event.editorNotes) {
+                    processEditorNotes(event.editorNotes);
+                  }
+
+                  // 最終メッセージで自動保存
+                  const finalMsgs = currentMessages.concat({
+                    id: aiMsgId,
+                    role: "assistant",
+                    content: cleanText,
+                  });
+                  const isCompleted = !!(newThemes && newThemes.length > 0);
+                  saveCurrentSession(finalMsgs, newProgress, newThemes, newProfile, sessionId, isCompleted);
+                } else if (event.type === "error") {
+                  throw new Error(event.error);
+                }
+              } catch (parseErr) {
+                // SSEパースエラーは無視
+                if (parseErr instanceof Error && parseErr.message !== "Unexpected end of JSON input") {
+                  throw parseErr;
+                }
+              }
             }
-            gp.topicAreas = areas;
           }
-          saveGlobalProfile(gp as UserProfile);
+        } else {
+          // フォールバック: 非ストリーミング（モックモード等）
+          const data = await res.json();
+          if (data.error) throw new Error(data.error);
+          if (!data.response) throw new Error("AI応答が空です");
+
+          let newProgress = -1;
+          if (typeof data.discoveryProgress === "number" && data.discoveryProgress >= 0) {
+            newProgress = data.discoveryProgress;
+            setDiscoveryProgress(newProgress);
+          }
+          let newThemes: SuggestedTheme[] | null = null;
+          if (data.suggestedThemes) {
+            newThemes = data.suggestedThemes;
+            setSuggestedThemes(newThemes);
+          }
+          let newProfile = profile;
+          if (data.userProfile) {
+            newProfile = mergeProfiles(profile, data.userProfile);
+            setSessionProfile(newProfile);
+          }
+          if (data.editorNotes) {
+            processEditorNotes(data.editorNotes);
+          }
+
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === aiMsgId ? { ...m, content: data.response } : m
+            )
+          );
+
+          const finalMsgs = currentMessages.concat({
+            id: aiMsgId,
+            role: "assistant",
+            content: data.response,
+          });
+          const isCompleted = !!(newThemes && newThemes.length > 0);
+          saveCurrentSession(finalMsgs, newProgress, newThemes, newProfile, sessionId, isCompleted);
         }
-
-        const aiMsg: ChatMessage = {
-          id: `ai-${Date.now()}`,
-          role: "assistant",
-          content: data.response,
-        };
-        const updatedMsgs = [...currentMessages, aiMsg];
-        setMessages(updatedMsgs);
-
-        // 自動保存（テーマが提案されたら completed フラグも立てる）
-        const isCompleted = !!(newThemes && newThemes.length > 0);
-        saveCurrentSession(updatedMsgs, newProgress, newThemes, newProfile, sessionId, isCompleted);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "AI応答の取得に失敗しました");
+        if (err instanceof DOMException && err.name === "AbortError") {
+          // キャンセルされたリクエスト — 空のAIメッセージを削除
+          setMessages((prev) => prev.filter((m) => m.id !== aiMsgId));
+        } else {
+          setError(err instanceof Error ? err.message : "AI応答の取得に失敗しました");
+          // 空のAIメッセージも削除
+          setMessages((prev) => prev.filter((m) => m.id !== aiMsgId || m.content !== ""));
+        }
       } finally {
         isFetchingRef.current = false;
+        if (abortControllerRef.current === controller) {
+          abortControllerRef.current = null;
+        }
       }
     },
     [saveCurrentSession]
@@ -671,9 +761,34 @@ export default function ThemeDiscoverPage() {
     }
   };
 
-  // --- Derived data ---
-  const activeSessions = pastSessions.filter((s) => !s.completed);
-  const profileCompleteness = (() => {
+  // --- ヘルパー: editorNotes処理 ---
+  const processEditorNotes = (editorNotes: { strengths?: string; pattern?: string; nextSuggestion?: string; topicArea?: string }) => {
+    const gp = loadGlobalProfile() ?? {};
+    const notes = gp.editorNotes ?? [];
+    if (editorNotes.strengths) {
+      notes.push(`強み: ${editorNotes.strengths}`);
+      gp.writerStrengths = editorNotes.strengths;
+    }
+    if (editorNotes.pattern) {
+      notes.push(`観察: ${editorNotes.pattern}`);
+    }
+    if (editorNotes.nextSuggestion) {
+      notes.push(`次回の提案: ${editorNotes.nextSuggestion}`);
+    }
+    gp.editorNotes = notes.slice(-6);
+    if (editorNotes.topicArea) {
+      const areas = gp.topicAreas ?? [];
+      if (!areas.includes(editorNotes.topicArea)) {
+        areas.push(editorNotes.topicArea);
+      }
+      gp.topicAreas = areas;
+    }
+    saveGlobalProfile(gp as UserProfile);
+  };
+
+  // --- Derived data (useMemo) ---
+  const activeSessions = useMemo(() => pastSessions.filter((s) => !s.completed), [pastSessions]);
+  const profileCompleteness = useMemo(() => {
     if (!sessionProfile) return 0;
     let score = 0;
     if (sessionProfile.occupation) score += 25;
@@ -682,7 +797,8 @@ export default function ThemeDiscoverPage() {
     if (sessionProfile.uniqueExperiences && sessionProfile.uniqueExperiences.length > 0) score += 20;
     if (sessionProfile.consultedTopics && sessionProfile.consultedTopics.length > 0) score += 15;
     return score;
-  })();
+  }, [sessionProfile]);
+  const discoveredThemes = useMemo(() => getDiscoveredThemes(pastSessions), [pastSessions]);
 
   // --- テーマ詳細ビュー ---
   if (selectedTheme) {

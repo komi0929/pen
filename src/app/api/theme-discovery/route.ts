@@ -140,38 +140,71 @@ ${originalTheme.articleOutline ? `- 構成案: ${JSON.stringify(originalTheme.ar
 
     const chat = model.startChat({ history: chatHistory });
 
-    // リトライ付きでメッセージ送信（429対策）
-    let rawResponse: string | null = null;
-    for (let attempt = 0; attempt < 3; attempt++) {
-      try {
-        const result = await chat.sendMessage(prompt);
-        rawResponse = result.response.text();
-        break;
-      } catch (retryError: unknown) {
-        const isRateLimit =
-          retryError instanceof Error && retryError.message.includes("429");
-        if (isRateLimit && attempt < 2) {
-          await new Promise((r) => setTimeout(r, (attempt + 1) * 2000));
-          continue;
+    // ストリーミング応答
+    const encoder = new TextEncoder();
+    const stream = new TransformStream();
+    const writer = stream.writable.getWriter();
+
+    // バックグラウンドでストリーミング処理
+    (async () => {
+      let fullText = "";
+      let attempt = 0;
+      const maxAttempts = 3;
+
+      while (attempt < maxAttempts) {
+        try {
+          const result = await chat.sendMessageStream(prompt);
+          for await (const chunk of result.stream) {
+            const text = chunk.text();
+            if (text) {
+              fullText += text;
+              // テキストチャンクを送信（タグは除去してクリーンなテキストのみ）
+              await writer.write(
+                encoder.encode(`data: ${JSON.stringify({ type: "text", content: text })}\n\n`)
+              );
+            }
+          }
+          break; // 成功
+        } catch (retryError: unknown) {
+          const isRateLimit =
+            retryError instanceof Error && retryError.message.includes("429");
+          if (isRateLimit && attempt < maxAttempts - 1) {
+            attempt++;
+            await new Promise((r) => setTimeout(r, attempt * 2000));
+            continue;
+          }
+          // エラーを送信
+          await writer.write(
+            encoder.encode(`data: ${JSON.stringify({ type: "error", error: retryError instanceof Error ? retryError.message : "不明なエラー" })}\n\n`)
+          );
+          await writer.close();
+          return;
         }
-        throw retryError;
       }
-    }
 
-    const {
-      text: response,
-      discoveryProgress,
-      suggestedThemes,
-      userProfile,
-      editorNotes,
-    } = parseDiscoveryResponse(rawResponse ?? "");
+      // 全テキスト受信後にパースして構造化データを送信
+      const parsed = parseDiscoveryResponse(fullText);
+      await writer.write(
+        encoder.encode(
+          `data: ${JSON.stringify({
+            type: "done",
+            cleanText: parsed.text,
+            discoveryProgress: parsed.discoveryProgress,
+            suggestedThemes: parsed.suggestedThemes,
+            userProfile: parsed.userProfile,
+            editorNotes: parsed.editorNotes,
+          })}\n\n`
+        )
+      );
+      await writer.close();
+    })();
 
-    return NextResponse.json({
-      response,
-      discoveryProgress,
-      suggestedThemes,
-      userProfile,
-      editorNotes,
+    return new Response(stream.readable, {
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+      },
     });
   } catch (error) {
     console.error("Theme Discovery API error:", error);
