@@ -289,7 +289,7 @@ export default function ThemeDiscoverPage() {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages, sending]);
 
   const autoResize = (el: HTMLTextAreaElement) => {
     el.style.height = "auto";
@@ -496,6 +496,7 @@ export default function ThemeDiscoverPage() {
   };
 
   const handleDeleteSession = (sessionId: string) => {
+    if (!window.confirm("この探索セッションを削除しますか？")) return;
     const sessions = loadSessions().filter((s) => s.sessionId !== sessionId);
     saveSessions(sessions);
     setPastSessions(sessions);
@@ -531,6 +532,7 @@ export default function ThemeDiscoverPage() {
 
   const handleThemeCardClick = (theme: SuggestedTheme) => {
     setSelectedTheme(theme);
+    setError(null);
   };
 
   const handleSaveTheme = async (theme: SuggestedTheme) => {
@@ -560,7 +562,7 @@ export default function ThemeDiscoverPage() {
             saveGlobalProfile(gp);
           }
         }
-        router.push(`/themes/${result.data.id}`);
+        router.replace(`/themes/${result.data.id}`);
       } else {
         setError(result.error);
       }
@@ -1211,10 +1213,8 @@ export default function ThemeDiscoverPage() {
       {/* ヘッダー */}
       <header className="discover-chat-header">
         <div className="flex items-center gap-3">
-          <Link
-            href="#"
-            onClick={(e) => {
-              e.preventDefault();
+          <button
+            onClick={() => {
               setStarted(false);
               setMessages([]);
               setSuggestedThemes(null);
@@ -1226,7 +1226,7 @@ export default function ThemeDiscoverPage() {
             aria-label="戻る"
           >
             <ArrowLeft className="h-5 w-5" />
-          </Link>
+          </button>
           <div className="min-w-0">
             <h1 className="text-sm font-bold leading-tight">テーマ探索</h1>
             {discoveryProgress >= 0 && (
@@ -1331,7 +1331,7 @@ export default function ThemeDiscoverPage() {
             <div className="pen-bubble-ai">
               <div className="flex items-center gap-2">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                <span className="text-muted-foreground text-sm">考えています...</span>
+                <span className="text-muted-foreground text-sm">考えています<span className="inline-block w-6 text-left"><span className="animate-pulse">...</span></span></span>
               </div>
             </div>
           </div>
@@ -1350,6 +1350,7 @@ export default function ThemeDiscoverPage() {
                 }
               }}
               className="pen-btn pen-btn-ghost text-xs"
+              aria-label="再試行"
             >
               <RotateCcw className="mr-1 inline h-3 w-3" />
               再試行
@@ -1372,7 +1373,7 @@ export default function ThemeDiscoverPage() {
                 autoResize(e.target);
               }}
               onKeyDown={handleKeyDown}
-              placeholder="メッセージを入力..."
+              placeholder={sending ? "AIが考え中..." : "メッセージを入力..."}
               className="discover-input-textarea"
               rows={1}
               disabled={sending}
