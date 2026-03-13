@@ -620,6 +620,38 @@ h4 {
   transform: scale(0.97);
 }
 
+/* テーマカード段差出現アニメーション */
+.discover-theme-card {
+  animation: themeCardEntrance 0.4s ease backwards;
+}
+.discover-theme-card:nth-child(1) { animation-delay: 0.1s; }
+.discover-theme-card:nth-child(2) { animation-delay: 0.25s; }
+.discover-theme-card:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes themeCardEntrance {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* チャットメッセージ入場 */
+.discover-msg-wrapper {
+  animation: msgSlideIn 0.3s ease;
+}
+@keyframes msgSlideIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* プログレスバー滑らかアニメーション */
+.discover-progress-fill {
+  transition: width 0.6s ease;
+}
+
+/* 送信ボタン押下 */
+.discover-send-btn:active:not(:disabled) {
+  transform: scale(0.85);
+}
+
 /* Input area */
 .discover-input-area {
   flex-shrink: 0;

@@ -1005,42 +1005,48 @@ export default function ThemeDiscoverPage() {
               )}
             </div>
 
-            <div className="space-y-3">
-              {user ? (
-                <button
-                  onClick={() => handleSaveTheme(selectedTheme)}
-                  disabled={savingTheme}
-                  className="pen-btn pen-btn-accent flex w-full items-center justify-center gap-2 py-3.5 text-base"
-                >
-                  {savingTheme ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />}
-                  {savingTheme ? "保存中..." : "このテーマで記事を書く"}
-                </button>
-              ) : (
-                <button
-                  onClick={() => handleSaveTheme(selectedTheme)}
-                  className="pen-btn pen-btn-accent flex w-full items-center justify-center gap-2 py-3.5 text-base"
-                >
-                  <UserPlus className="h-5 w-5" />
-                  登録してこのテーマで書く
-                </button>
-              )}
+            <div className="flex gap-2 pb-4">
               <button
                 onClick={handleBackFromDetail}
-                className="pen-btn pen-btn-ghost w-full py-3 text-sm"
+                className="pen-btn pen-btn-ghost flex-1 py-2.5 text-sm"
               >
-                他のテーマ候補に戻る
+                他のテーマ候補へ
               </button>
               <button
                 onClick={handleExploreAnother}
                 disabled={sending}
-                className="pen-btn pen-btn-ghost flex w-full items-center justify-center gap-2 py-3 text-sm"
+                className="pen-btn pen-btn-ghost flex flex-1 items-center justify-center gap-1.5 py-2.5 text-sm"
               >
-                <RefreshCw className="h-4 w-4" />
-                別の角度でテーマを探索する
+                <RefreshCw className="h-3.5 w-3.5" />
+                再探索
               </button>
             </div>
           </div>
         </main>
+
+        {/* Sticky CTA */}
+        <div className="border-border sticky bottom-0 z-40 border-t bg-white/90 px-4 py-3 backdrop-blur-md dark:bg-gray-950/90" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
+          <div className="mx-auto max-w-lg">
+            {user ? (
+              <button
+                onClick={() => handleSaveTheme(selectedTheme)}
+                disabled={savingTheme}
+                className="pen-btn pen-btn-accent flex w-full items-center justify-center gap-2 py-3 text-base font-bold"
+              >
+                {savingTheme ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />}
+                {savingTheme ? "保存中..." : "このテーマで記事を書く"}
+              </button>
+            ) : (
+              <button
+                onClick={() => handleSaveTheme(selectedTheme)}
+                className="pen-btn pen-btn-accent flex w-full items-center justify-center gap-2 py-3 text-base font-bold"
+              >
+                <UserPlus className="h-5 w-5" />
+                登録してこのテーマで書く
+              </button>
+            )}
+          </div>
+        </div>
       </div>
     );
   }
@@ -1458,7 +1464,12 @@ export default function ThemeDiscoverPage() {
                   className="discover-theme-card"
                 >
                   <div className="mb-2 flex items-start justify-between gap-2">
-                    <h3 className="text-sm font-bold leading-snug">{theme.title}</h3>
+                    <div className="flex items-center gap-2">
+                      <span className="bg-accent/10 text-accent flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold">
+                        {i + 1}
+                      </span>
+                      <h3 className="text-sm font-bold leading-snug">{theme.title}</h3>
+                    </div>
                     <ArrowRight className="text-muted-foreground mt-0.5 h-4 w-4 shrink-0" />
                   </div>
                   <p className="text-muted-foreground mb-1.5 text-xs leading-relaxed">
