@@ -319,6 +319,7 @@ function generateMockResponse(
   discoveryProgress: number;
   suggestedThemes: SuggestedTheme[] | null;
   userProfile: UserProfile | null;
+  editorNotes: null;
 } {
   if (messageCount === 0) {
     return {
@@ -338,6 +339,7 @@ noteでは、投稿された記事の約40%が1年後も読まれ続けている
       discoveryProgress: 5,
       suggestedThemes: null,
       userProfile: null,
+      editorNotes: null,
     };
   }
 
@@ -352,6 +354,7 @@ noteでは、投稿された記事の約40%が1年後も読まれ続けている
         interests: ["（モック: ユーザーの興味）"],
         expertise: userTurnCount >= 2 ? ["（モック: 専門分野）"] : undefined,
       },
+      editorNotes: null,
     };
   }
 
@@ -423,5 +426,6 @@ noteでは、投稿された記事の約40%が1年後も読まれ続けている
       expertise: ["（モック: 専門分野）"],
       uniqueExperiences: ["（モック: ユニークな経験）"],
     },
+    editorNotes: null,
   };
 }

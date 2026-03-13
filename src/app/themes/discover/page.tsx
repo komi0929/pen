@@ -603,6 +603,7 @@ export default function ThemeDiscoverPage() {
   const handleRefineTheme = async () => {
     if (!refineInput.trim() || !selectedTheme) return;
     setRefining(true);
+    setError(null);
     try {
       const res = await fetch("/api/theme-discovery", {
         method: "POST",
@@ -616,14 +617,30 @@ export default function ThemeDiscoverPage() {
           originalTheme: selectedTheme,
         }),
       });
+      if (!res.ok) {
+        throw new Error(`サーバーエラー (${res.status})`);
+      }
       const data = await res.json();
+      if (data.error) throw new Error(data.error);
       if (data.suggestedThemes && data.suggestedThemes.length > 0) {
-        setSelectedTheme(data.suggestedThemes[0]);
+        const refined = data.suggestedThemes[0];
+        setSelectedTheme(refined);
+        // suggestedThemes内の該当テーマも更新
+        if (suggestedThemes) {
+          const idx = suggestedThemes.findIndex((t) => t.title === selectedTheme.title);
+          if (idx >= 0) {
+            const updated = [...suggestedThemes];
+            updated[idx] = refined;
+            setSuggestedThemes(updated);
+          }
+        }
+      } else {
+        throw new Error("磨き込み結果を取得できませんでした");
       }
       setRefineInput("");
       setShowRefine(false);
-    } catch {
-      setError("磨き込みに失敗しました");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "磨き込みに失敗しました");
     } finally {
       setRefining(false);
     }
@@ -777,10 +794,11 @@ export default function ThemeDiscoverPage() {
                       type="text"
                       value={refineInput}
                       onChange={(e) => setRefineInput(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) handleRefineTheme(); }}
+                      onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !refining) handleRefineTheme(); }}
                       placeholder="例: もっと実践的な内容にしたい"
                       className="pen-input flex-1 text-sm"
                       autoFocus
+                      disabled={refining}
                     />
                     <button
                       onClick={handleRefineTheme}
@@ -790,6 +808,9 @@ export default function ThemeDiscoverPage() {
                       {refining ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
                     </button>
                   </div>
+                  {error && (
+                    <p className="text-danger mt-2 text-xs">{error}</p>
+                  )}
                 </div>
               )}
             </div>
