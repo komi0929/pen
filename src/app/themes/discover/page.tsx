@@ -370,8 +370,8 @@ export default function ThemeDiscoverPage() {
         role: "assistant",
         content: "",
       };
-      const msgsWithEmptyAi = [...currentMessages, aiMsg];
-      setMessages(msgsWithEmptyAi);
+      // 関数型更新でReactのバッチングに安全に対応
+      setMessages((prev) => [...prev, aiMsg]);
 
       try {
         const res = await fetch("/api/theme-discovery", {
@@ -1439,7 +1439,7 @@ export default function ThemeDiscoverPage() {
           </div>
         )}
 
-        {sending && (
+        {sending && !messages.some(m => m.role === "assistant" && m.content === "") && (
           <div className="discover-msg-wrapper discover-msg-ai">
             <div className="discover-avatar">
               <BookOpen className="h-4 w-4" />
@@ -1461,7 +1461,9 @@ export default function ThemeDiscoverPage() {
                 setError(null);
                 if (currentSessionId) {
                   setSending(true);
-                  await fetchAI(messages, currentSessionId, sessionProfile);
+                  // ゴーストAIメッセージを除外してリトライ
+                  const cleanMessages = messages.filter(m => m.role !== "assistant" || m.content !== "");
+                  await fetchAI(cleanMessages, currentSessionId, sessionProfile);
                   setSending(false);
                 }
               }}
