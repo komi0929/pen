@@ -76,8 +76,18 @@ function loadSessions(): DiscoverySession[] {
 
 function saveSessions(sessions: DiscoverySession[]) {
   if (typeof window === "undefined") return;
-  const trimmed = sessions.slice(0, MAX_SESSIONS);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(trimmed));
+  try {
+    const trimmed = sessions.slice(0, MAX_SESSIONS);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(trimmed));
+  } catch {
+    // localStorage quota exceeded — 古いセッションを削除してリトライ
+    try {
+      const trimmed = sessions.slice(0, 3);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(trimmed));
+    } catch {
+      // 完全に失敗 — サイレントに処理
+    }
+  }
 }
 
 function loadGlobalProfile(): UserProfile | null {
@@ -92,7 +102,11 @@ function loadGlobalProfile(): UserProfile | null {
 
 function saveGlobalProfile(profile: UserProfile) {
   if (typeof window === "undefined") return;
-  localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+  try {
+    localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+  } catch {
+    // localStorage quota exceeded — サイレントに処理
+  }
 }
 
 function clearGlobalProfile() {
@@ -350,6 +364,9 @@ export default function ThemeDiscoverPage() {
             userProfile: profile,
           }),
         });
+        if (!res.ok) {
+          throw new Error(`サーバーエラーが発生しました (${res.status})`);
+        }
         const data = await res.json();
         if (data.error) throw new Error(data.error);
         if (!data.response) throw new Error("AI応答が空です");
@@ -504,6 +521,8 @@ export default function ThemeDiscoverPage() {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // IME変換中はEnterを無視（日本語入力対応）
+    if (e.nativeEvent.isComposing) return;
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend(e as unknown as React.FormEvent);
