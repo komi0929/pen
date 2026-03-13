@@ -1,6 +1,7 @@
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
+import { ToastContainer } from "@/components/Toast";
 import type { User } from "@supabase/supabase-js";
 import {
   createContext,
@@ -62,6 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return (
     <AuthContext.Provider value={{ user, loading, signOut }}>
       {children}
+      <ToastContainer />
 
       {/* ログアウト確認ダイアログ */}
       {showLogoutConfirm && (

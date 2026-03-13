@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuth } from "@/contexts/AuthContext";
+import { showToast } from "@/components/Toast";
 import { createTheme } from "@/lib/actions/themes";
 import type { SuggestedTheme } from "@/app/api/theme-discovery/route";
 import type { UserProfile } from "@/lib/prompts/theme-discovery";
@@ -702,6 +703,7 @@ export default function ThemeDiscoverPage() {
           }
         }
         router.replace(`/themes/${result.data.id}`);
+        showToast("テーマを保存しました");
       } else {
         setError(result.error);
       }

@@ -1,6 +1,7 @@
 "use client";
 
 import { trackClientEvent } from "@/lib/analytics-client";
+import { showToast } from "@/components/Toast";
 
 import { AuthGuard } from "@/components/AuthGuard";
 import { BlockEditor } from "@/components/BlockEditor";
@@ -124,6 +125,8 @@ function ArticleDetailContent() {
       await navigator.clipboard.writeText(article.content);
       setCopied(true);
       trackClientEvent("article_copied", { article_id: article.id });
+      showToast("記事をコピーしました");
+      if (navigator.vibrate) navigator.vibrate(50);
       setTimeout(() => setCopied(false), 2000);
     } catch {
       const textarea = document.createElement("textarea");
