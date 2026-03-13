@@ -169,6 +169,16 @@ function generateSessionId(): string {
   return `ds-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+// ストリーミング中にAI制御タグをリアルタイム除去
+function cleanStreamText(text: string): string {
+  // 完成したタグを除去: [[TAG:...]]
+  let cleaned = text.replace(/\[\[[A-Z_]+:[\s\S]*?\]\]/g, "");
+  // 未完了タグ（まだ閉じていない [[TAG: から末尾まで）を除去
+  cleaned = cleaned.replace(/\[\[[A-Z_]+:[\s\S]*$/g, "");
+  // 先頭・末尾の空行を除去
+  return cleaned.trim();
+}
+
 // --- Helpers ---
 
 function getProgressInfo(progress: number) {
@@ -399,6 +409,9 @@ export default function ThemeDiscoverPage() {
       // 関数型更新でReactのバッチングに安全に対応
       setMessages((prev) => [...prev, aiMsg]);
 
+      // タイムアウト(45秒)
+      const timeoutId = setTimeout(() => controller.abort(), 45000);
+
       try {
         const res = await fetch("/api/theme-discovery", {
           method: "POST",
@@ -440,10 +453,12 @@ export default function ThemeDiscoverPage() {
 
                 if (event.type === "text") {
                   streamedText += event.content;
+                  // タグをリアルタイムで除去して表示
+                  const displayText = cleanStreamText(streamedText);
                   // AIメッセージをリアルタイム更新
                   setMessages((prev) =>
                     prev.map((m) =>
-                      m.id === aiMsgId ? { ...m, content: streamedText } : m
+                      m.id === aiMsgId ? { ...m, content: displayText } : m
                     )
                   );
                 } else if (event.type === "done") {
@@ -535,8 +550,12 @@ export default function ThemeDiscoverPage() {
         }
       } catch (err) {
         if (err instanceof DOMException && err.name === "AbortError") {
-          // キャンセルされたリクエスト — 空のAIメッセージを削除
+          // キャンセル or タイムアウト
           setMessages((prev) => prev.filter((m) => m.id !== aiMsgId));
+          // タイムアウトの場合はエラー表示（手動キャンセル時はabortControllerRefがnull）
+          if (abortControllerRef.current === controller) {
+            setError("応答に時間がかかっています。もう一度お試しください。");
+          }
         } else {
           setError(err instanceof Error ? err.message : "AI応答の取得に失敗しました");
           // 空のAIメッセージも削除
@@ -544,6 +563,7 @@ export default function ThemeDiscoverPage() {
         }
       } finally {
         isFetchingRef.current = false;
+        clearTimeout(timeoutId);
         if (abortControllerRef.current === controller) {
           abortControllerRef.current = null;
         }
