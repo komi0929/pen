@@ -7,10 +7,12 @@ import {
   ArrowLeft,
   ArrowRight,
   BookOpen,
+  Check,
   Clock,
   Loader2,
   Pen,
   RotateCcw,
+  Save,
   Search,
   Send,
   Sparkles,
@@ -53,7 +55,6 @@ function loadSessions(): DiscoverySession[] {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
     const sessions: DiscoverySession[] = JSON.parse(raw);
-    // 古いセッションを自動削除
     const cutoff = Date.now() - SESSION_TTL_DAYS * 24 * 60 * 60 * 1000;
     return sessions.filter((s) => new Date(s.updatedAt).getTime() > cutoff);
   } catch {
@@ -63,7 +64,6 @@ function loadSessions(): DiscoverySession[] {
 
 function saveSessions(sessions: DiscoverySession[]) {
   if (typeof window === "undefined") return;
-  // 最大件数制限
   const trimmed = sessions.slice(0, MAX_SESSIONS);
   localStorage.setItem(STORAGE_KEY, JSON.stringify(trimmed));
 }
@@ -121,11 +121,7 @@ function generateSessionId(): string {
 
 function getProgressInfo(progress: number) {
   if (progress < 0)
-    return {
-      label: "",
-      color: "bg-gray-300",
-      message: "",
-    };
+    return { label: "", color: "bg-gray-300", message: "" };
   if (progress < 20)
     return {
       label: "ヒアリング中",
@@ -169,6 +165,13 @@ function formatRelativeTime(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString("ja-JP");
 }
 
+// --- Score badge color ---
+function scoreBadgeColor(score?: string): string {
+  if (score === "◎") return "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400";
+  if (score === "○") return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400";
+  return "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400";
+}
+
 // --- Main Component ---
 
 export default function ThemeDiscoverPage() {
@@ -191,17 +194,26 @@ export default function ThemeDiscoverPage() {
   const [pastSessions, setPastSessions] = useState<DiscoverySession[]>([]);
   const [showSessionHistory, setShowSessionHistory] = useState(false);
 
+  // テーマ詳細ビュー
+  const [selectedTheme, setSelectedTheme] = useState<SuggestedTheme | null>(
+    null
+  );
+  // 会話記録ダイアログ
+  const [showRecordDialog, setShowRecordDialog] = useState(false);
+  const [recordSaved, setRecordSaved] = useState(false);
+
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const isFetchingRef = useRef(false);
 
   const progressInfo = getProgressInfo(discoveryProgress);
 
-  // 初回マウント時にセッション一覧を読み込み
+  // テーマが提案されたらチャット入力を無効化
+  const chatEnded = suggestedThemes !== null && suggestedThemes.length > 0;
+
   useEffect(() => {
     const sessions = loadSessions();
     setPastSessions(sessions);
-    // グローバルプロファイルも読み込み
     const gp = loadGlobalProfile();
     if (gp) setSessionProfile(gp);
   }, []);
@@ -214,7 +226,6 @@ export default function ThemeDiscoverPage() {
     scrollToBottom();
   }, [messages]);
 
-  // テキストエリア自動拡張
   const autoResize = (el: HTMLTextAreaElement) => {
     el.style.height = "auto";
     el.style.height = Math.min(el.scrollHeight, 120) + "px";
@@ -239,8 +250,7 @@ export default function ThemeDiscoverPage() {
         userProfile: profile,
         discoveryProgress: progress,
         suggestedThemes: themes,
-        createdAt:
-          existing >= 0 ? sessions[existing].createdAt : now,
+        createdAt: existing >= 0 ? sessions[existing].createdAt : now,
         updatedAt: now,
         completed,
       };
@@ -254,7 +264,6 @@ export default function ThemeDiscoverPage() {
       saveSessions(sessions);
       setPastSessions(sessions);
 
-      // グローバルプロファイルも更新
       if (profile) {
         const globalProfile = loadGlobalProfile();
         const merged = mergeProfiles(globalProfile, profile);
@@ -309,7 +318,6 @@ export default function ThemeDiscoverPage() {
           setSuggestedThemes(newThemes);
         }
 
-        // プロファイル更新
         let newProfile = profile;
         if (data.userProfile) {
           newProfile = mergeProfiles(profile, data.userProfile);
@@ -324,14 +332,14 @@ export default function ThemeDiscoverPage() {
         const updatedMsgs = [...currentMessages, aiMsg];
         setMessages(updatedMsgs);
 
-        // セッション保存
+        // テーマ提案が来たら自動セーブ（未完了扱い）
         saveCurrentSession(
           updatedMsgs,
           newProgress,
           newThemes,
           newProfile,
           sessionId,
-          newProgress >= 90
+          false
         );
       } catch (err) {
         setError(
@@ -353,6 +361,9 @@ export default function ThemeDiscoverPage() {
     setMessages([]);
     setDiscoveryProgress(-1);
     setSuggestedThemes(null);
+    setSelectedTheme(null);
+    setShowRecordDialog(false);
+    setRecordSaved(false);
 
     const globalProfile = loadGlobalProfile();
     setSessionProfile(globalProfile);
@@ -362,7 +373,7 @@ export default function ThemeDiscoverPage() {
     inputRef.current?.focus();
   };
 
-  // 過去セッションの続きから再開
+  // 過去セッション再開
   const handleResume = async (session: DiscoverySession) => {
     setCurrentSessionId(session.sessionId);
     setMessages(session.messages);
@@ -371,10 +382,12 @@ export default function ThemeDiscoverPage() {
     setSessionProfile(session.userProfile);
     setStarted(true);
     setShowSessionHistory(false);
+    setSelectedTheme(null);
+    setShowRecordDialog(false);
+    setRecordSaved(false);
     inputRef.current?.focus();
   };
 
-  // セッション削除
   const handleDeleteSession = (sessionId: string) => {
     const sessions = loadSessions().filter((s) => s.sessionId !== sessionId);
     saveSessions(sessions);
@@ -384,7 +397,7 @@ export default function ThemeDiscoverPage() {
   // メッセージ送信
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || sending || !currentSessionId) return;
+    if (!input.trim() || sending || !currentSessionId || chatEnded) return;
 
     setSending(true);
     setError(null);
@@ -413,9 +426,13 @@ export default function ThemeDiscoverPage() {
     }
   };
 
-  // テーマを選んで次へ進む
-  const handleSelectTheme = (theme: SuggestedTheme) => {
-    // セッションを完了マーク
+  // テーマカードをタップ → 詳細ビュー表示
+  const handleThemeCardClick = (theme: SuggestedTheme) => {
+    setSelectedTheme(theme);
+  };
+
+  // テーマをそのまま保存（ログイン済み）or ログイン誘導
+  const handleSaveTheme = (theme: SuggestedTheme) => {
     if (currentSessionId) {
       saveCurrentSession(
         messages,
@@ -438,15 +455,227 @@ export default function ThemeDiscoverPage() {
     }
   };
 
-  // --- 未完了セッション ---
+  // 「この会話を記録しますか？」→ はい
+  const handleRecordConversation = () => {
+    if (currentSessionId) {
+      saveCurrentSession(
+        messages,
+        discoveryProgress,
+        suggestedThemes,
+        sessionProfile,
+        currentSessionId,
+        true
+      );
+    }
+    setRecordSaved(true);
+    setTimeout(() => {
+      setShowRecordDialog(false);
+    }, 1500);
+  };
+
+  // 「この会話を記録しますか？」→ いいえ（記録せず閉じる）
+  const handleSkipRecord = () => {
+    if (currentSessionId) {
+      // セッションを削除
+      const sessions = loadSessions().filter(
+        (s) => s.sessionId !== currentSessionId
+      );
+      saveSessions(sessions);
+      setPastSessions(sessions);
+    }
+    setShowRecordDialog(false);
+  };
+
+  // テーマ詳細画面の「戻る」
+  const handleBackFromDetail = () => {
+    setSelectedTheme(null);
+    // 会話記録ダイアログを表示
+    setShowRecordDialog(true);
+  };
+
+  // --- 未完了／完了セッション ---
   const activeSessions = pastSessions.filter((s) => !s.completed);
   const completedSessions = pastSessions.filter((s) => s.completed);
+
+  // --- テーマ詳細ビュー ---
+  if (selectedTheme) {
+    return (
+      <div className="flex min-h-dvh flex-col">
+        <header className="border-border bg-card/80 sticky top-0 z-50 border-b backdrop-blur-md">
+          <div className="pen-container flex h-14 items-center gap-3">
+            <button
+              onClick={handleBackFromDetail}
+              className="text-muted-foreground hover:text-foreground rounded-lg p-1.5 transition-colors"
+              aria-label="戻る"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </button>
+            <h1 className="text-sm font-bold">テーマ詳細</h1>
+          </div>
+        </header>
+
+        <main className="flex-1 px-4 py-6">
+          <div className="mx-auto max-w-lg">
+            {/* テーマタイトル */}
+            <div className="mb-6">
+              <h2 className="mb-2 text-xl font-bold leading-snug">
+                {selectedTheme.title}
+              </h2>
+              <p className="text-muted-foreground text-sm leading-relaxed">
+                {selectedTheme.description}
+              </p>
+              <div className="text-muted-foreground mt-2 flex flex-wrap gap-3 text-xs">
+                <span>切り口: {selectedTheme.angle}</span>
+                <span>想定読者: {selectedTheme.readers}</span>
+              </div>
+              {/* スコアバッジ */}
+              {selectedTheme.scores && (
+                <div className="mt-3 flex gap-2">
+                  <span className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${scoreBadgeColor(selectedTheme.scores.primary)}`}>
+                    一次性 {selectedTheme.scores.primary}
+                  </span>
+                  <span className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${scoreBadgeColor(selectedTheme.scores.universal)}`}>
+                    普遍性 {selectedTheme.scores.universal}
+                  </span>
+                  <span className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${scoreBadgeColor(selectedTheme.scores.depth)}`}>
+                    深掘り {selectedTheme.scores.depth}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* 3条件ごとの執筆アドバイス */}
+            {selectedTheme.advice && (
+              <div className="mb-6 space-y-4">
+                <h3 className="text-sm font-bold">
+                  3つの条件を満たすための執筆アドバイス
+                </h3>
+
+                <div className="border-border rounded-xl border p-4">
+                  <div className="mb-2 flex items-center gap-2">
+                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${scoreBadgeColor(selectedTheme.scores?.primary)}`}>
+                      一次性 {selectedTheme.scores?.primary}
+                    </span>
+                    <span className="text-xs font-medium">
+                      あなたにしか書けない情報
+                    </span>
+                  </div>
+                  <p className="text-muted-foreground text-sm leading-relaxed">
+                    {selectedTheme.advice.primary}
+                  </p>
+                </div>
+
+                <div className="border-border rounded-xl border p-4">
+                  <div className="mb-2 flex items-center gap-2">
+                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${scoreBadgeColor(selectedTheme.scores?.universal)}`}>
+                      普遍性 {selectedTheme.scores?.universal}
+                    </span>
+                    <span className="text-xs font-medium">
+                      繰り返し検索されるニーズ
+                    </span>
+                  </div>
+                  <p className="text-muted-foreground text-sm leading-relaxed">
+                    {selectedTheme.advice.universal}
+                  </p>
+                </div>
+
+                <div className="border-border rounded-xl border p-4">
+                  <div className="mb-2 flex items-center gap-2">
+                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${scoreBadgeColor(selectedTheme.scores?.depth)}`}>
+                      深掘り {selectedTheme.scores?.depth}
+                    </span>
+                    <span className="text-xs font-medium">
+                      ひとつのテーマを徹底的に
+                    </span>
+                  </div>
+                  <p className="text-muted-foreground text-sm leading-relaxed">
+                    {selectedTheme.advice.depth}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* アクションボタン */}
+            <div className="space-y-3">
+              {user ? (
+                <button
+                  onClick={() => handleSaveTheme(selectedTheme)}
+                  className="pen-btn pen-btn-accent flex w-full items-center justify-center gap-2 py-3.5 text-base"
+                >
+                  <Save className="h-5 w-5" />
+                  このテーマで記事を書く
+                </button>
+              ) : (
+                <button
+                  onClick={() => handleSaveTheme(selectedTheme)}
+                  className="pen-btn pen-btn-accent flex w-full items-center justify-center gap-2 py-3.5 text-base"
+                >
+                  <UserPlus className="h-5 w-5" />
+                  登録してこのテーマで書く
+                </button>
+              )}
+              <button
+                onClick={handleBackFromDetail}
+                className="pen-btn pen-btn-ghost w-full py-3 text-sm"
+              >
+                他のテーマ候補に戻る
+              </button>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // --- 会話記録ダイアログ ---
+  const recordDialog = showRecordDialog && (
+    <div className="bg-black/50 fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <div className="bg-card border-border w-full max-w-sm rounded-2xl border p-6 shadow-xl">
+        {recordSaved ? (
+          <div className="py-4 text-center">
+            <div className="bg-green-100 dark:bg-green-900/30 mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full">
+              <Check className="h-6 w-6 text-green-600 dark:text-green-400" />
+            </div>
+            <p className="text-sm font-bold">会話を記録しました</p>
+            <p className="text-muted-foreground mt-1 text-xs">
+              次回は記録された情報を元に探索が始まります
+            </p>
+          </div>
+        ) : (
+          <>
+            <h3 className="mb-2 text-center text-sm font-bold">
+              この会話を記録しますか？
+            </h3>
+            <p className="text-muted-foreground mb-5 text-center text-xs leading-relaxed">
+              記録すると、次回のテーマ探索で
+              <br />
+              同じ質問に答える必要がなくなります
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={handleSkipRecord}
+                className="pen-btn pen-btn-ghost flex-1 py-2.5 text-sm"
+              >
+                記録しない
+              </button>
+              <button
+                onClick={handleRecordConversation}
+                className="pen-btn pen-btn-accent flex flex-1 items-center justify-center gap-2 py-2.5 text-sm"
+              >
+                <Save className="h-4 w-4" />
+                記録する
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
 
   // --- ウェルカム画面 ---
   if (!started) {
     return (
       <div className="flex min-h-dvh flex-col">
-        {/* ヘッダー */}
         <header className="border-border bg-card/80 sticky top-0 z-50 border-b backdrop-blur-md">
           <div className="pen-container flex h-14 items-center justify-between">
             <Link
@@ -477,7 +706,7 @@ export default function ThemeDiscoverPage() {
             <p className="text-muted-foreground mb-3 text-sm leading-relaxed">
               noteで長く読まれる記事には共通点があります。
               <br />
-              AI編集者との対話を通じて、あなたの経験の中に
+              AI編集者との短い対話で、あなたの経験の中に
               <br />
               眠っている最高のテーマを一緒に発掘しましょう。
             </p>
@@ -532,7 +761,6 @@ export default function ThemeDiscoverPage() {
 
                 {showSessionHistory && (
                   <div className="space-y-2">
-                    {/* 未完了セッション */}
                     {activeSessions.length > 0 && (
                       <>
                         <p className="text-muted-foreground text-[11px] font-bold">
@@ -549,7 +777,6 @@ export default function ThemeDiscoverPage() {
                       </>
                     )}
 
-                    {/* 完了セッション */}
                     {completedSessions.length > 0 && (
                       <>
                         <p className="text-muted-foreground mt-3 text-[11px] font-bold">
@@ -578,6 +805,8 @@ export default function ThemeDiscoverPage() {
   // --- チャット画面 ---
   return (
     <div className="discover-chat-container">
+      {recordDialog}
+
       {/* ヘッダー */}
       <header className="discover-chat-header">
         <div className="flex items-center gap-3">
@@ -597,15 +826,12 @@ export default function ThemeDiscoverPage() {
             )}
           </div>
         </div>
-        {/* プログレスバー */}
         {discoveryProgress >= 0 && (
           <div className="discover-progress-wrapper">
             <div className="discover-progress-track">
               <div
                 className={`discover-progress-fill ${progressInfo.color}`}
-                style={{
-                  width: `${Math.min(discoveryProgress, 100)}%`,
-                }}
+                style={{ width: `${Math.min(discoveryProgress, 100)}%` }}
               />
             </div>
           </div>
@@ -636,18 +862,21 @@ export default function ThemeDiscoverPage() {
           </div>
         ))}
 
-        {/* テーマ提案カード */}
-        {suggestedThemes && suggestedThemes.length > 0 && (
+        {/* テーマ提案カード（チャット終了後に表示） */}
+        {chatEnded && suggestedThemes && (
           <div className="discover-themes-area">
             <p className="mb-3 text-center text-xs font-bold">
               <Sparkles className="mr-1 inline h-3.5 w-3.5" />
               あなたにおすすめのテーマ
             </p>
+            <p className="text-muted-foreground mb-4 text-center text-[11px]">
+              タップして執筆アドバイスを確認
+            </p>
             <div className="space-y-3">
               {suggestedThemes.map((theme, i) => (
                 <button
                   key={i}
-                  onClick={() => handleSelectTheme(theme)}
+                  onClick={() => handleThemeCardClick(theme)}
                   className="discover-theme-card"
                 >
                   <div className="mb-2 flex items-start justify-between gap-2">
@@ -659,19 +888,15 @@ export default function ThemeDiscoverPage() {
                   <p className="text-muted-foreground mb-1.5 text-xs leading-relaxed">
                     {theme.description}
                   </p>
-                  <div className="text-muted-foreground flex flex-wrap gap-3 text-[11px]">
-                    <span>切り口: {theme.angle}</span>
-                    <span>読者: {theme.readers}</span>
-                  </div>
                   {theme.scores && (
-                    <div className="mt-1.5 flex gap-2 text-[10px]">
-                      <span className="bg-muted rounded px-1.5 py-0.5">
+                    <div className="flex gap-2 text-[10px]">
+                      <span className={`rounded-full px-1.5 py-0.5 font-medium ${scoreBadgeColor(theme.scores.primary)}`}>
                         一次性{theme.scores.primary}
                       </span>
-                      <span className="bg-muted rounded px-1.5 py-0.5">
+                      <span className={`rounded-full px-1.5 py-0.5 font-medium ${scoreBadgeColor(theme.scores.universal)}`}>
                         普遍性{theme.scores.universal}
                       </span>
-                      <span className="bg-muted rounded px-1.5 py-0.5">
+                      <span className={`rounded-full px-1.5 py-0.5 font-medium ${scoreBadgeColor(theme.scores.depth)}`}>
                         深掘り{theme.scores.depth}
                       </span>
                     </div>
@@ -679,30 +904,10 @@ export default function ThemeDiscoverPage() {
                 </button>
               ))}
             </div>
-            <div className="mt-4 text-center">
-              {user ? (
-                <p className="text-muted-foreground text-xs">
-                  テーマをタップして、記事作成を始めましょう
-                </p>
-              ) : (
-                <div className="space-y-2">
-                  <p className="text-muted-foreground text-xs">
-                    テーマを保存して記事を書くには、アカウント登録が必要です
-                  </p>
-                  <Link
-                    href={`/login?from=discover&theme=${encodeURIComponent(suggestedThemes[0]?.title ?? "")}`}
-                    className="pen-btn pen-btn-accent inline-flex items-center gap-2 text-sm"
-                  >
-                    <UserPlus className="h-4 w-4" />
-                    無料で登録して始める
-                  </Link>
-                </div>
-              )}
-            </div>
           </div>
         )}
 
-        {/* AI思考中インジケーター */}
+        {/* AI思考中 */}
         {sending && (
           <div className="discover-msg-wrapper discover-msg-ai">
             <div className="discover-avatar">
@@ -728,32 +933,34 @@ export default function ThemeDiscoverPage() {
         <div ref={chatEndRef} />
       </div>
 
-      {/* 入力エリア */}
-      <div className="discover-input-area">
-        <form onSubmit={handleSend} className="discover-input-form">
-          <textarea
-            ref={inputRef}
-            value={input}
-            onChange={(e) => {
-              setInput(e.target.value);
-              autoResize(e.target);
-            }}
-            onKeyDown={handleKeyDown}
-            placeholder="メッセージを入力..."
-            className="discover-input-textarea"
-            rows={1}
-            disabled={sending}
-          />
-          <button
-            type="submit"
-            disabled={sending || !input.trim()}
-            className="discover-send-btn"
-            aria-label="送信"
-          >
-            <Send className="h-5 w-5" />
-          </button>
-        </form>
-      </div>
+      {/* 入力エリア（テーマ提案後は非表示） */}
+      {!chatEnded && (
+        <div className="discover-input-area">
+          <form onSubmit={handleSend} className="discover-input-form">
+            <textarea
+              ref={inputRef}
+              value={input}
+              onChange={(e) => {
+                setInput(e.target.value);
+                autoResize(e.target);
+              }}
+              onKeyDown={handleKeyDown}
+              placeholder="メッセージを入力..."
+              className="discover-input-textarea"
+              rows={1}
+              disabled={sending}
+            />
+            <button
+              type="submit"
+              disabled={sending || !input.trim()}
+              className="discover-send-btn"
+              aria-label="送信"
+            >
+              <Send className="h-5 w-5" />
+            </button>
+          </form>
+        </div>
+      )}
     </div>
   );
 }

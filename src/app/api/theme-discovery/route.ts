@@ -119,6 +119,11 @@ export interface SuggestedTheme {
     universal?: string;
     depth?: string;
   };
+  advice?: {
+    primary?: string;
+    universal?: string;
+    depth?: string;
+  };
 }
 
 function parseDiscoveryResponse(text: string): {
@@ -239,7 +244,7 @@ noteでは、投稿された記事の約40%が1年後も読まれ続けている
 - 記事の切り口: ビフォーアフター形式で、具体的な手順を示す
 - 想定読者: 初心者や、これから始める人
 
-気になるテーマはありますか？ もしくは、別の切り口も一緒に考えましょう！`,
+気になるテーマをタップして、詳しい執筆アドバイスを見てみてください！`,
     discoveryProgress: 80,
     suggestedThemes: [
       {
@@ -249,14 +254,24 @@ noteでは、投稿された記事の約40%が1年後も読まれ続けている
         angle: "具体的なエピソードを軸に、学びを構造化して伝える",
         readers: "同じ業界で働く若手や、キャリアに悩む人",
         scores: { primary: "◎", universal: "○", depth: "○" },
+        advice: {
+          primary: "あなた自身が実際に経験した具体的なエピソード（失敗談・成功談）を数値や固有名詞付きで盛り込みましょう",
+          universal: "『仕事術』で検索する人が知りたい、すぐ実践できるステップを含めましょう",
+          depth: "なぜその方法にたどり着いたか、試行錯誤の過程を丁寧に描きましょう",
+        },
       },
       {
         title: "誰も教えてくれなかった日常のコツ",
         description:
-          "あなたが「当たり前」だと思っていたことが、実は貴重な一次情報です",
+          "あなたが『当たり前』だと思っていたことが、実は貴重な一次情報です",
         angle: "ビフォーアフター形式で、具体的な手順を示す",
         readers: "初心者や、これから始める人",
         scores: { primary: "○", universal: "◎", depth: "○" },
+        advice: {
+          primary: "あなた自身が『当たり前』だと思っていた具体的なコツを列挙しましょう",
+          universal: "初心者が最初に直面する困りごとにフォーカスし、検索されやすいタイトルをつけましょう",
+          depth: "1つのコツについてビフォーアフターの具体例を詳しく示しましょう",
+        },
       },
     ],
     userProfile: {
