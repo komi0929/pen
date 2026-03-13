@@ -22,8 +22,10 @@ function checkRateLimit(ip: string): boolean {
   return true;
 }
 
-// 古いエントリを定期クリーンアップ
-if (typeof setInterval !== "undefined") {
+// 古いエントリを定期クリーンアップ（サーバーレス環境での二重起動防止）
+let cleanupStarted = false;
+if (typeof setInterval !== "undefined" && !cleanupStarted) {
+  cleanupStarted = true;
   setInterval(() => {
     const now = Date.now();
     for (const [key, val] of rateLimitMap) {
@@ -90,6 +92,7 @@ ${originalTheme.articleOutline ? `- 構成案: ${JSON.stringify(originalTheme.ar
         discoveryProgress: parsed.discoveryProgress,
         suggestedThemes: parsed.suggestedThemes,
         userProfile: null,
+        editorNotes: parsed.editorNotes,
       });
     }
 

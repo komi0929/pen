@@ -442,11 +442,14 @@ export default function ThemeDiscoverPage() {
     // メモがある場合はAIの初回メッセージにメモを注入
     const currentMemos = loadMemos();
     if (currentMemos.length > 0) {
+      const memoText = currentMemos.map((m) => `・${m.text}`).join("\n");
       const memoContext: ChatMessage = {
         id: `memo-${Date.now()}`,
         role: "user",
-        content: `【テーマメモ（事前に記録していたアイデア）】\n${currentMemos.map((m) => `・${m.text}`).join("\n")}\n\nこれらのメモを参考にしつつ、テーマ探索を始めてください。`,
+        content: `【テーマメモ】\n${memoText}`,
       };
+      // メモメッセージをUIにも表示
+      setMessages([memoContext]);
       await fetchAI([memoContext], sid, profileWithCount);
       // 使用済みメモをクリア
       saveMemos([]);
@@ -467,6 +470,8 @@ export default function ThemeDiscoverPage() {
     setStarted(true);
     setSelectedTheme(null);
     setError(null);
+    setShowRefine(false);
+    setRefineInput("");
     inputRef.current?.focus();
   };
 
@@ -524,6 +529,15 @@ export default function ThemeDiscoverPage() {
         : "";
       const result = await createTheme(theme.title, desc + adviceText + outlineText);
       if (result.success) {
+        // pastThemeTitlesに蓄積
+        const gp = loadGlobalProfile();
+        if (gp) {
+          const titles = gp.pastThemeTitles ?? [];
+          if (!titles.includes(theme.title)) {
+            gp.pastThemeTitles = [...titles, theme.title];
+            saveGlobalProfile(gp);
+          }
+        }
         router.push(`/themes/${result.data.id}`);
       } else {
         setError(result.error);
