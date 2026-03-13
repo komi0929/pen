@@ -689,12 +689,12 @@ export default function ThemeDiscoverPage() {
               <p className="text-muted-foreground text-sm leading-relaxed">
                 {selectedTheme.description}
               </p>
-              <div className="text-muted-foreground mt-2 flex flex-wrap gap-3 text-xs">
+              <div className="text-muted-foreground mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs">
                 <span>切り口: {selectedTheme.angle}</span>
                 <span>想定読者: {selectedTheme.readers}</span>
               </div>
               {selectedTheme.scores && (
-                <div className="mt-3 flex gap-2">
+                <div className="mt-3 flex flex-wrap gap-2">
                   <span className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${scoreBadgeColor(selectedTheme.scores.primary)}`}>
                     一次性 {selectedTheme.scores.primary}
                   </span>
@@ -942,7 +942,7 @@ export default function ThemeDiscoverPage() {
                       {sessionProfile?.occupation && (
                         <li className="flex items-start gap-2">
                           <Briefcase className="mt-0.5 h-3 w-3 shrink-0" />
-                          {sessionProfile.occupation}
+                          <span className="break-all">{sessionProfile.occupation}</span>
                         </li>
                       )}
                       {sessionProfile?.interests && sessionProfile.interests.length > 0 && (
@@ -1139,16 +1139,10 @@ export default function ThemeDiscoverPage() {
                   <Search className="h-10 w-10" />
                 </div>
                 <h1 className="mb-3 text-2xl font-bold tracking-tight">
-                  あなたの「書くべきテーマ」を
-                  <br />
-                  AI編集者が見つけます
+                  あなたの「書くべきテーマ」をAI編集者が見つけます
                 </h1>
                 <p className="text-muted-foreground mb-3 text-sm leading-relaxed">
-                  noteで長く読まれる記事には共通点があります。
-                  <br />
-                  AI編集者との短い対話で、あなたの経験の中に
-                  <br />
-                  眠っている最高のテーマを一緒に発掘しましょう。
+                  noteで長く読まれる記事には共通点があります。AI編集者との短い対話で、あなたの経験の中に眠っている最高のテーマを一緒に発掘しましょう。
                 </p>
                 <div className="bg-muted mb-6 rounded-xl p-4 text-left">
                   <p className="mb-2 text-xs font-bold">

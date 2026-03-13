@@ -697,4 +697,38 @@ h4 {
   .pen-bubble-ai {
     max-width: 85%;
   }
+
+  /* iOS Safari ズーム防止: font-size < 16px でオートズームが発動する */
+  .discover-input-textarea {
+    font-size: 1rem;
+  }
+
+  .discover-chat-header {
+    padding: 0.5rem 0.75rem;
+    padding-top: max(0.5rem, env(safe-area-inset-top));
+    gap: 0.5rem;
+  }
+
+  .discover-progress-wrapper {
+    max-width: 100px;
+  }
+
+  .discover-theme-card {
+    padding: 0.75rem 1rem;
+  }
+
+  .discover-input-area {
+    padding: 0.5rem 0.75rem;
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+  }
+
+  .discover-avatar {
+    width: 28px;
+    height: 28px;
+  }
+
+  .discover-send-btn {
+    width: 2.25rem;
+    height: 2.25rem;
+  }
 }
