@@ -110,6 +110,11 @@ function mergeProfiles(
   merged.expertise = mergeArray(existing.expertise, incoming.expertise);
   merged.uniqueExperiences = mergeArray(existing.uniqueExperiences, incoming.uniqueExperiences);
   merged.consultedTopics = mergeArray(existing.consultedTopics, incoming.consultedTopics);
+  // v4フィールド: pastThemeTitlesとsessionCountは上書きではなく蓄積
+  merged.pastThemeTitles = mergeArray(existing.pastThemeTitles, incoming.pastThemeTitles);
+  if (incoming.sessionCount != null) {
+    merged.sessionCount = Math.max(existing.sessionCount ?? 0, incoming.sessionCount);
+  }
   return merged;
 }
 
@@ -259,6 +264,12 @@ export default function ThemeDiscoverPage() {
         const globalProfile = loadGlobalProfile();
         const merged = mergeProfiles(globalProfile, profile);
         if (merged) {
+          // テーマ完了時に発見テーマタイトルを蓄積
+          if (completed && themes && themes.length > 0) {
+            const existingTitles = merged.pastThemeTitles ?? [];
+            const newTitles = themes.map((t) => t.title);
+            merged.pastThemeTitles = [...new Set([...existingTitles, ...newTitles])];
+          }
           saveGlobalProfile(merged);
           setSessionProfile(merged);
         }
@@ -337,10 +348,17 @@ export default function ThemeDiscoverPage() {
     setSelectedTheme(null);
     setError(null);
 
+    // セッションカウントをインクリメント
     const globalProfile = loadGlobalProfile();
-    setSessionProfile(globalProfile);
+    const profileWithCount = globalProfile
+      ? { ...globalProfile, sessionCount: (globalProfile.sessionCount ?? 0) + 1 }
+      : null;
+    if (profileWithCount) {
+      saveGlobalProfile(profileWithCount);
+    }
+    setSessionProfile(profileWithCount);
 
-    await fetchAI([], sid, globalProfile);
+    await fetchAI([], sid, profileWithCount);
     setSending(false);
     inputRef.current?.focus();
   };
@@ -576,7 +594,9 @@ export default function ThemeDiscoverPage() {
                   おかえりなさい！
                 </h1>
                 <p className="text-muted-foreground mb-4 text-sm">
-                  前回の情報を元に、新しいテーマを探索しましょう
+                  {sessionProfile?.sessionCount && sessionProfile.sessionCount >= 3
+                    ? `${sessionProfile.sessionCount - 1}回の探索で${discoveredThemes.length}つのテーマを発見。さらに新しいテーマを探しましょう`
+                    : "前回の情報を元に、新しいテーマを探索しましょう"}
                 </p>
 
                 {/* プロファイルサマリー */}
