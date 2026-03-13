@@ -419,6 +419,7 @@ export default function ThemeDiscoverPage() {
   // --- Actions ---
 
   const startNewSession = async () => {
+    if (sending) return; // 二重クリック防止
     const sid = generateSessionId();
     setCurrentSessionId(sid);
     setStarted(true);
@@ -428,6 +429,8 @@ export default function ThemeDiscoverPage() {
     setSuggestedThemes(null);
     setSelectedTheme(null);
     setError(null);
+    setShowMemoForm(false);
+    setShowProfileReset(false);
 
     // セッションカウントをインクリメント
     const globalProfile = loadGlobalProfile();
@@ -576,6 +579,7 @@ export default function ThemeDiscoverPage() {
     setSelectedTheme(null);
     setShowRefine(false);
     setRefineInput("");
+    setError(null);
   };
 
   // テーマメモ追加
@@ -1038,6 +1042,7 @@ export default function ThemeDiscoverPage() {
                         onKeyDown={(e) => { if (e.key === "Enter") handleAddMemo(); }}
                         placeholder="書いてみたいこと、気になるトピック..."
                         className="pen-input flex-1 text-sm"
+                        maxLength={100}
                         autoFocus
                       />
                       <button
@@ -1086,9 +1091,9 @@ export default function ThemeDiscoverPage() {
                       過去に発見したテーマ（{discoveredThemes.length}件）
                     </p>
                     <div className="space-y-2">
-                      {discoveredThemes.slice(0, 6).map(({ theme, date }, i) => (
+                      {discoveredThemes.slice(0, 6).map(({ theme, date }) => (
                         <button
-                          key={i}
+                          key={`${theme.title}-${date}`}
                           onClick={() => {
                             setSelectedTheme(theme);
                           }}
