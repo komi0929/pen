@@ -277,7 +277,7 @@ function ThemeDetailContent() {
                   )}
                 </button>
                 {showArticleSelector && (
-                  <div className="border-border bg-card absolute right-0 z-50 mt-2 w-80 rounded-xl border shadow-lg">
+                  <div className="border-border bg-card absolute right-0 z-50 mt-2 w-[calc(100vw-2rem)] rounded-xl border shadow-lg sm:w-80">
                     <div className="border-border border-b px-4 py-3">
                       <p className="text-sm font-bold">参考記事を選択</p>
                       <p className="text-muted-foreground text-xs">
@@ -377,7 +377,7 @@ function ThemeDetailContent() {
               value={content}
               onChange={(e) => setContent(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="メモを入力... (Ctrl+Enterで追加)"
+              placeholder="メモを入力... (⌘/Ctrl+Enterで追加)"
               className="pen-textarea"
               rows={3}
               autoFocus
@@ -425,7 +425,7 @@ function ThemeDetailContent() {
                   <button
                     onClick={() => handleDeleteMemo(memo.id)}
                     aria-label="メモを削除"
-                    className="text-muted-foreground hover:bg-danger/10 hover:text-danger shrink-0 rounded-lg p-2 transition-all md:opacity-0 md:group-hover:opacity-100"
+                    className="text-muted-foreground hover:bg-danger/10 hover:text-danger shrink-0 rounded-lg p-2 transition-all"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>

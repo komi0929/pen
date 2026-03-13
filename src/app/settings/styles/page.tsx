@@ -222,7 +222,7 @@ function StylesContent() {
                         </span>
                       )}
                     </div>
-                    <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                    <div className="flex items-center gap-1 md:opacity-0 md:transition-opacity md:group-hover:opacity-100">
                       <button
                         onClick={() => startEdit(style)}
                         className="text-muted-foreground hover:text-foreground rounded-lg p-1.5 transition-colors"
@@ -315,6 +315,7 @@ function StylesContent() {
               value={formLabel}
               onChange={(e) => setFormLabel(e.target.value)}
               placeholder="例: ○○さん風、カジュアルトーン..."
+              maxLength={50}
               className="border-border bg-background focus:border-accent w-full rounded-lg border px-3 py-2 text-sm outline-none"
             />
           </div>
@@ -324,7 +325,7 @@ function StylesContent() {
             </label>
             <textarea
               value={formText}
-              onChange={(e) => setFormText(e.target.value)}
+              onChange={(e) => setFormText(e.target.value.slice(0, 10000))}
               placeholder="参考にしたいnote記事の本文をここに貼り付けてください..."
               rows={8}
               className="border-border bg-background focus:border-accent w-full resize-y rounded-lg border px-3 py-2 text-sm leading-relaxed outline-none"
