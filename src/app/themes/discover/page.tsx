@@ -2,26 +2,122 @@
 
 import { useAuth } from "@/contexts/AuthContext";
 import type { SuggestedTheme } from "@/app/api/theme-discovery/route";
+import type { UserProfile } from "@/lib/prompts/theme-discovery";
 import {
   ArrowLeft,
   ArrowRight,
   BookOpen,
+  Clock,
   Loader2,
   Pen,
+  RotateCcw,
   Search,
   Send,
   Sparkles,
+  Trash2,
   UserPlus,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+// --- Types ---
+
 type ChatMessage = {
   id: string;
   role: "user" | "assistant";
   content: string;
 };
+
+interface DiscoverySession {
+  sessionId: string;
+  messages: ChatMessage[];
+  userProfile: UserProfile | null;
+  discoveryProgress: number;
+  suggestedThemes: SuggestedTheme[] | null;
+  createdAt: string;
+  updatedAt: string;
+  completed: boolean;
+}
+
+// --- Storage Helpers ---
+
+const STORAGE_KEY = "pen_discovery_sessions";
+const PROFILE_KEY = "pen_discovery_profile";
+const MAX_SESSIONS = 10;
+const SESSION_TTL_DAYS = 30;
+
+function loadSessions(): DiscoverySession[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return [];
+    const sessions: DiscoverySession[] = JSON.parse(raw);
+    // 古いセッションを自動削除
+    const cutoff = Date.now() - SESSION_TTL_DAYS * 24 * 60 * 60 * 1000;
+    return sessions.filter((s) => new Date(s.updatedAt).getTime() > cutoff);
+  } catch {
+    return [];
+  }
+}
+
+function saveSessions(sessions: DiscoverySession[]) {
+  if (typeof window === "undefined") return;
+  // 最大件数制限
+  const trimmed = sessions.slice(0, MAX_SESSIONS);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(trimmed));
+}
+
+function loadGlobalProfile(): UserProfile | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(PROFILE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveGlobalProfile(profile: UserProfile) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+}
+
+function mergeProfiles(
+  existing: UserProfile | null,
+  incoming: UserProfile | null
+): UserProfile | null {
+  if (!incoming) return existing;
+  if (!existing) return incoming;
+  const merged: UserProfile = { ...existing };
+
+  if (incoming.occupation) merged.occupation = incoming.occupation;
+
+  const mergeArray = (a?: string[], b?: string[]): string[] | undefined => {
+    if (!b || b.length === 0) return a;
+    if (!a || a.length === 0) return b;
+    return [...new Set([...a, ...b])];
+  };
+
+  merged.interests = mergeArray(existing.interests, incoming.interests);
+  merged.expertise = mergeArray(existing.expertise, incoming.expertise);
+  merged.uniqueExperiences = mergeArray(
+    existing.uniqueExperiences,
+    incoming.uniqueExperiences
+  );
+  merged.consultedTopics = mergeArray(
+    existing.consultedTopics,
+    incoming.consultedTopics
+  );
+
+  return merged;
+}
+
+function generateSessionId(): string {
+  return `ds-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+// --- Progress Info ---
 
 function getProgressInfo(progress: number) {
   if (progress < 0)
@@ -61,6 +157,20 @@ function getProgressInfo(progress: number) {
   };
 }
 
+function formatRelativeTime(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "たった今";
+  if (mins < 60) return `${mins}分前`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}時間前`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}日前`;
+  return new Date(dateStr).toLocaleDateString("ja-JP");
+}
+
+// --- Main Component ---
+
 export default function ThemeDiscoverPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
@@ -74,12 +184,27 @@ export default function ThemeDiscoverPage() {
     SuggestedTheme[] | null
   >(null);
   const [started, setStarted] = useState(false);
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const [sessionProfile, setSessionProfile] = useState<UserProfile | null>(
+    null
+  );
+  const [pastSessions, setPastSessions] = useState<DiscoverySession[]>([]);
+  const [showSessionHistory, setShowSessionHistory] = useState(false);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const isFetchingRef = useRef(false);
 
   const progressInfo = getProgressInfo(discoveryProgress);
+
+  // 初回マウント時にセッション一覧を読み込み
+  useEffect(() => {
+    const sessions = loadSessions();
+    setPastSessions(sessions);
+    // グローバルプロファイルも読み込み
+    const gp = loadGlobalProfile();
+    if (gp) setSessionProfile(gp);
+  }, []);
 
   const scrollToBottom = () => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -95,9 +220,60 @@ export default function ThemeDiscoverPage() {
     el.style.height = Math.min(el.scrollHeight, 120) + "px";
   };
 
+  // セッション保存
+  const saveCurrentSession = useCallback(
+    (
+      msgs: ChatMessage[],
+      progress: number,
+      themes: SuggestedTheme[] | null,
+      profile: UserProfile | null,
+      sessionId: string,
+      completed: boolean = false
+    ) => {
+      const sessions = loadSessions();
+      const existing = sessions.findIndex((s) => s.sessionId === sessionId);
+      const now = new Date().toISOString();
+      const session: DiscoverySession = {
+        sessionId,
+        messages: msgs,
+        userProfile: profile,
+        discoveryProgress: progress,
+        suggestedThemes: themes,
+        createdAt:
+          existing >= 0 ? sessions[existing].createdAt : now,
+        updatedAt: now,
+        completed,
+      };
+
+      if (existing >= 0) {
+        sessions[existing] = session;
+      } else {
+        sessions.unshift(session);
+      }
+
+      saveSessions(sessions);
+      setPastSessions(sessions);
+
+      // グローバルプロファイルも更新
+      if (profile) {
+        const globalProfile = loadGlobalProfile();
+        const merged = mergeProfiles(globalProfile, profile);
+        if (merged) {
+          saveGlobalProfile(merged);
+          setSessionProfile(merged);
+        }
+      }
+    },
+    []
+  );
+
   // AI応答取得
   const fetchAI = useCallback(
-    async (currentMessages: ChatMessage[]) => {
+    async (
+      currentMessages: ChatMessage[],
+      sessionId: string,
+      profile: UserProfile | null
+    ) => {
       if (isFetchingRef.current) return;
       isFetchingRef.current = true;
 
@@ -110,6 +286,7 @@ export default function ThemeDiscoverPage() {
               role: m.role,
               content: m.content,
             })),
+            userProfile: profile,
           }),
         });
 
@@ -117,15 +294,26 @@ export default function ThemeDiscoverPage() {
         if (data.error) throw new Error(data.error);
         if (!data.response) throw new Error("AI応答が空です");
 
+        let newProgress = discoveryProgress;
         if (
           typeof data.discoveryProgress === "number" &&
           data.discoveryProgress >= 0
         ) {
-          setDiscoveryProgress(data.discoveryProgress);
+          newProgress = data.discoveryProgress;
+          setDiscoveryProgress(newProgress);
         }
 
+        let newThemes = suggestedThemes;
         if (data.suggestedThemes) {
-          setSuggestedThemes(data.suggestedThemes);
+          newThemes = data.suggestedThemes;
+          setSuggestedThemes(newThemes);
+        }
+
+        // プロファイル更新
+        let newProfile = profile;
+        if (data.userProfile) {
+          newProfile = mergeProfiles(profile, data.userProfile);
+          setSessionProfile(newProfile);
         }
 
         const aiMsg: ChatMessage = {
@@ -133,7 +321,18 @@ export default function ThemeDiscoverPage() {
           role: "assistant",
           content: data.response,
         };
-        setMessages((prev) => [...prev, aiMsg]);
+        const updatedMsgs = [...currentMessages, aiMsg];
+        setMessages(updatedMsgs);
+
+        // セッション保存
+        saveCurrentSession(
+          updatedMsgs,
+          newProgress,
+          newThemes,
+          newProfile,
+          sessionId,
+          newProgress >= 90
+        );
       } catch (err) {
         setError(
           err instanceof Error ? err.message : "AI応答の取得に失敗しました"
@@ -142,22 +341,50 @@ export default function ThemeDiscoverPage() {
         isFetchingRef.current = false;
       }
     },
-    []
+    [discoveryProgress, suggestedThemes, saveCurrentSession]
   );
 
-  // チャット開始
+  // 新規チャット開始
   const handleStart = async () => {
+    const sid = generateSessionId();
+    setCurrentSessionId(sid);
     setStarted(true);
     setSending(true);
-    await fetchAI([]);
+    setMessages([]);
+    setDiscoveryProgress(-1);
+    setSuggestedThemes(null);
+
+    const globalProfile = loadGlobalProfile();
+    setSessionProfile(globalProfile);
+
+    await fetchAI([], sid, globalProfile);
     setSending(false);
     inputRef.current?.focus();
+  };
+
+  // 過去セッションの続きから再開
+  const handleResume = async (session: DiscoverySession) => {
+    setCurrentSessionId(session.sessionId);
+    setMessages(session.messages);
+    setDiscoveryProgress(session.discoveryProgress);
+    setSuggestedThemes(session.suggestedThemes);
+    setSessionProfile(session.userProfile);
+    setStarted(true);
+    setShowSessionHistory(false);
+    inputRef.current?.focus();
+  };
+
+  // セッション削除
+  const handleDeleteSession = (sessionId: string) => {
+    const sessions = loadSessions().filter((s) => s.sessionId !== sessionId);
+    saveSessions(sessions);
+    setPastSessions(sessions);
   };
 
   // メッセージ送信
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || sending) return;
+    if (!input.trim() || sending || !currentSessionId) return;
 
     setSending(true);
     setError(null);
@@ -174,7 +401,7 @@ export default function ThemeDiscoverPage() {
       inputRef.current.style.height = "auto";
     }
 
-    await fetchAI(updatedMessages);
+    await fetchAI(updatedMessages, currentSessionId, sessionProfile);
     setSending(false);
     inputRef.current?.focus();
   };
@@ -188,18 +415,32 @@ export default function ThemeDiscoverPage() {
 
   // テーマを選んで次へ進む
   const handleSelectTheme = (theme: SuggestedTheme) => {
+    // セッションを完了マーク
+    if (currentSessionId) {
+      saveCurrentSession(
+        messages,
+        discoveryProgress,
+        suggestedThemes,
+        sessionProfile,
+        currentSessionId,
+        true
+      );
+    }
+
     if (user) {
-      // ログイン済み → テーマ作成画面へ（将来的にServer Actionで自動作成）
       router.push(
         `/themes?newTitle=${encodeURIComponent(theme.title)}&newDesc=${encodeURIComponent(theme.description + "\n\n切り口: " + theme.angle + "\n想定読者: " + theme.readers)}`
       );
     } else {
-      // 未ログイン → 登録画面へ誘導
       router.push(
         `/login?from=discover&theme=${encodeURIComponent(theme.title)}&desc=${encodeURIComponent(theme.description)}`
       );
     }
   };
+
+  // --- 未完了セッション ---
+  const activeSessions = pastSessions.filter((s) => !s.completed);
+  const completedSessions = pastSessions.filter((s) => s.completed);
 
   // --- ウェルカム画面 ---
   if (!started) {
@@ -274,6 +515,60 @@ export default function ThemeDiscoverPage() {
             <p className="text-muted-foreground mt-3 text-xs">
               ログイン不要・無料で何度でも使えます
             </p>
+
+            {/* 過去のセッション */}
+            {pastSessions.length > 0 && (
+              <div className="mt-8 text-left">
+                <button
+                  onClick={() => setShowSessionHistory(!showSessionHistory)}
+                  className="text-muted-foreground hover:text-foreground mb-3 flex w-full items-center gap-2 text-xs font-bold transition-colors"
+                >
+                  <Clock className="h-3.5 w-3.5" />
+                  過去の探索履歴（{pastSessions.length}件）
+                  <span className="ml-auto">
+                    {showSessionHistory ? "▲" : "▼"}
+                  </span>
+                </button>
+
+                {showSessionHistory && (
+                  <div className="space-y-2">
+                    {/* 未完了セッション */}
+                    {activeSessions.length > 0 && (
+                      <>
+                        <p className="text-muted-foreground text-[11px] font-bold">
+                          途中の探索
+                        </p>
+                        {activeSessions.map((s) => (
+                          <SessionCard
+                            key={s.sessionId}
+                            session={s}
+                            onResume={() => handleResume(s)}
+                            onDelete={() => handleDeleteSession(s.sessionId)}
+                          />
+                        ))}
+                      </>
+                    )}
+
+                    {/* 完了セッション */}
+                    {completedSessions.length > 0 && (
+                      <>
+                        <p className="text-muted-foreground mt-3 text-[11px] font-bold">
+                          完了した探索
+                        </p>
+                        {completedSessions.map((s) => (
+                          <SessionCard
+                            key={s.sessionId}
+                            session={s}
+                            onResume={() => handleResume(s)}
+                            onDelete={() => handleDeleteSession(s.sessionId)}
+                          />
+                        ))}
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </main>
       </div>
@@ -368,6 +663,19 @@ export default function ThemeDiscoverPage() {
                     <span>切り口: {theme.angle}</span>
                     <span>読者: {theme.readers}</span>
                   </div>
+                  {theme.scores && (
+                    <div className="mt-1.5 flex gap-2 text-[10px]">
+                      <span className="bg-muted rounded px-1.5 py-0.5">
+                        一次性{theme.scores.primary}
+                      </span>
+                      <span className="bg-muted rounded px-1.5 py-0.5">
+                        普遍性{theme.scores.universal}
+                      </span>
+                      <span className="bg-muted rounded px-1.5 py-0.5">
+                        深掘り{theme.scores.depth}
+                      </span>
+                    </div>
+                  )}
                 </button>
               ))}
             </div>
@@ -445,6 +753,68 @@ export default function ThemeDiscoverPage() {
             <Send className="h-5 w-5" />
           </button>
         </form>
+      </div>
+    </div>
+  );
+}
+
+// --- Session Card Component ---
+
+function SessionCard({
+  session,
+  onResume,
+  onDelete,
+}: {
+  session: DiscoverySession;
+  onResume: () => void;
+  onDelete: () => void;
+}) {
+  const userMsgs = session.messages.filter((m) => m.role === "user");
+  const firstUserMsg = userMsgs[0]?.content ?? "";
+  const preview =
+    firstUserMsg.length > 60
+      ? firstUserMsg.slice(0, 60) + "…"
+      : firstUserMsg || "（開始直後）";
+  const progress = session.discoveryProgress;
+
+  return (
+    <div className="border-border bg-card flex items-center gap-3 rounded-lg border p-3">
+      <button onClick={onResume} className="min-w-0 flex-1 text-left">
+        <p className="truncate text-sm font-medium">{preview}</p>
+        <div className="text-muted-foreground mt-1 flex items-center gap-2 text-[11px]">
+          <span>{formatRelativeTime(session.updatedAt)}</span>
+          {progress >= 0 && (
+            <>
+              <span>·</span>
+              <span>進捗 {progress}%</span>
+            </>
+          )}
+          <span>·</span>
+          <span>
+            {session.completed ? "完了" : `${userMsgs.length}回のやりとり`}
+          </span>
+        </div>
+      </button>
+      <div className="flex shrink-0 items-center gap-1">
+        {!session.completed && (
+          <button
+            onClick={onResume}
+            className="text-muted-foreground hover:text-foreground rounded p-1.5 transition-colors"
+            title="続きから再開"
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+          </button>
+        )}
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete();
+          }}
+          className="text-muted-foreground hover:text-red-500 rounded p-1.5 transition-colors"
+          title="削除"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
       </div>
     </div>
   );

@@ -1,4 +1,7 @@
-import { buildThemeDiscoveryPrompt } from "@/lib/prompts/theme-discovery";
+import {
+  buildThemeDiscoveryPrompt,
+  type UserProfile,
+} from "@/lib/prompts/theme-discovery";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -7,18 +10,25 @@ export async function POST(request: NextRequest) {
     // 認証不要 — ログインなしで利用可能
 
     const body = await request.json();
-    const { messages } = body;
+    const { messages, userProfile: incomingProfile } = body;
     const messageCount = messages?.length ?? 0;
+
+    // ユーザーのターン数を計算（user roleのメッセージ数）
+    const userTurnCount =
+      messages?.filter((m: { role: string }) => m.role === "user").length ?? 0;
 
     const apiKey = process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
-      const mock = generateMockResponse(messageCount);
+      const mock = generateMockResponse(messageCount, userTurnCount);
       return NextResponse.json(mock);
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    const systemPrompt = buildThemeDiscoveryPrompt();
+    const systemPrompt = buildThemeDiscoveryPrompt(
+      userTurnCount,
+      incomingProfile || null
+    );
     const model = genAI.getGenerativeModel({
       model: "gemini-3-flash-preview",
       systemInstruction: systemPrompt,
@@ -80,9 +90,15 @@ export async function POST(request: NextRequest) {
       text: response,
       discoveryProgress,
       suggestedThemes,
+      userProfile,
     } = parseDiscoveryResponse(rawResponse ?? "");
 
-    return NextResponse.json({ response, discoveryProgress, suggestedThemes });
+    return NextResponse.json({
+      response,
+      discoveryProgress,
+      suggestedThemes,
+      userProfile,
+    });
   } catch (error) {
     console.error("Theme Discovery API error:", error);
     const message = error instanceof Error ? error.message : "不明なエラー";
@@ -98,12 +114,18 @@ export interface SuggestedTheme {
   description: string;
   angle: string;
   readers: string;
+  scores?: {
+    primary?: string;
+    universal?: string;
+    depth?: string;
+  };
 }
 
 function parseDiscoveryResponse(text: string): {
   text: string;
   discoveryProgress: number;
   suggestedThemes: SuggestedTheme[] | null;
+  userProfile: UserProfile | null;
 } {
   // [[DISCOVERY:XX]] をパース
   const progressMatch = text.match(/\[\[DISCOVERY:(\d{1,3})\]\]/);
@@ -125,19 +147,36 @@ function parseDiscoveryResponse(text: string): {
     }
   }
 
+  // [[PROFILE:{...}]] をパース
+  let userProfile: UserProfile | null = null;
+  const profileMatch = text.match(/\[\[PROFILE:([\s\S]*?)\]\]/);
+  if (profileMatch) {
+    try {
+      const parsed = JSON.parse(profileMatch[1]);
+      userProfile = parsed as UserProfile;
+    } catch {
+      // JSONパース失敗 — 無視
+    }
+  }
+
   // タグを除去
   const cleanText = text
     .replace(/\s*\[\[DISCOVERY:\d{1,3}\]\]\s*/g, "")
     .replace(/\s*\[\[THEMES:[\s\S]*?\]\]\s*/g, "")
+    .replace(/\s*\[\[PROFILE:[\s\S]*?\]\]\s*/g, "")
     .trim();
 
-  return { text: cleanText, discoveryProgress, suggestedThemes };
+  return { text: cleanText, discoveryProgress, suggestedThemes, userProfile };
 }
 
-function generateMockResponse(messageCount: number): {
+function generateMockResponse(
+  messageCount: number,
+  userTurnCount: number
+): {
   response: string;
   discoveryProgress: number;
   suggestedThemes: SuggestedTheme[] | null;
+  userProfile: UserProfile | null;
 } {
   if (messageCount === 0) {
     return {
@@ -146,29 +185,44 @@ function generateMockResponse(messageCount: number): {
 noteでは、投稿された記事の約40%が1年後も読まれ続けているという調査結果があります。
 長く読まれる記事には共通点があるのですが、実はそのテーマは、書き手が「当たり前」だと思っていることの中に隠れていることが多いんです。
 
-今日は、対話を通じてあなたの中に眠っている「書くべきテーマ」を一緒に見つけていきたいと思います。
+今日は短い対話で、あなたの中に眠っている「書くべきテーマ」を見つけていきます。
 
-まず教えてください——普段はどんなお仕事や活動をされていますか？`,
+まず教えてください——
+・普段はどんなお仕事や活動をされていますか？
+・趣味や打ち込んでいることはありますか？
+・最近、人に話して「へえ！」と言われた経験はありますか？
+
+どれか1つでも、全部でも、気軽にお答えください！`,
       discoveryProgress: 5,
       suggestedThemes: null,
+      userProfile: null,
     };
   }
 
-  if (messageCount <= 2) {
+  if (userTurnCount <= 1) {
     return {
       response:
-        "なるほど、とても興味深いですね！ そのお仕事の中で、最近「これは面白かった」とか「大変だった」というエピソードはありますか？ 日常の中の小さなことでも構いません。",
-      discoveryProgress: 15 + messageCount * 8,
+        "なるほど、とても興味深いですね！ その中で特に「これは自分にしか語れない」と感じる経験はありますか？ 同じ立場の人が困っていそうなこと、よく相談されることでも構いません。",
+      discoveryProgress: 25,
       suggestedThemes: null,
+      userProfile: {
+        occupation: "（モック: ユーザーの職業）",
+        interests: ["（モック: ユーザーの興味）"],
+      },
     };
   }
 
-  if (messageCount <= 4) {
+  if (userTurnCount <= 3) {
     return {
       response:
-        "素晴らしいお話ですね！ その経験は、同じ立場の人がとても知りたい情報だと思います。ちなみに、そのことについて周りの人から相談されたり、「教えて」と言われたことはありますか？",
-      discoveryProgress: 40 + (messageCount - 2) * 10,
+        "素晴らしいお話ですね！ もしこの経験を1本の記事にまとめるなら、一番伝えたいことは何ですか？",
+      discoveryProgress: 50 + (userTurnCount - 2) * 15,
       suggestedThemes: null,
+      userProfile: {
+        occupation: "（モック: ユーザーの職業）",
+        interests: ["（モック: ユーザーの興味）"],
+        expertise: ["（モック: 専門分野）"],
+      },
     };
   }
 
@@ -176,12 +230,12 @@ noteでは、投稿された記事の約40%が1年後も読まれ続けている
     response: `ここまでのお話を伺って、あなたが書くべきテーマが見えてきました！
 
 **テーマ候補1: 「実体験から学んだ、仕事術の本質」**
-- なぜこのテーマか: あなたの一次体験に基づいており、多くの人が検索するテーマです
+- なぜこのテーマか: 一次性 ◎ / 普遍性 ○ / 深掘り ○
 - 記事の切り口: 具体的なエピソードを軸に、学びを構造化して伝える
 - 想定読者: 同じ業界で働く若手や、キャリアに悩む人
 
 **テーマ候補2: 「誰も教えてくれなかった日常のコツ」**
-- なぜこのテーマか: あなたが「当たり前」だと思っていたことが、実は貴重な一次情報です
+- なぜこのテーマか: 一次性 ○ / 普遍性 ◎ / 深掘り ○
 - 記事の切り口: ビフォーアフター形式で、具体的な手順を示す
 - 想定読者: 初心者や、これから始める人
 
@@ -194,6 +248,7 @@ noteでは、投稿された記事の約40%が1年後も読まれ続けている
           "あなたの一次体験に基づいており、多くの人が検索するテーマです",
         angle: "具体的なエピソードを軸に、学びを構造化して伝える",
         readers: "同じ業界で働く若手や、キャリアに悩む人",
+        scores: { primary: "◎", universal: "○", depth: "○" },
       },
       {
         title: "誰も教えてくれなかった日常のコツ",
@@ -201,7 +256,14 @@ noteでは、投稿された記事の約40%が1年後も読まれ続けている
           "あなたが「当たり前」だと思っていたことが、実は貴重な一次情報です",
         angle: "ビフォーアフター形式で、具体的な手順を示す",
         readers: "初心者や、これから始める人",
+        scores: { primary: "○", universal: "◎", depth: "○" },
       },
     ],
+    userProfile: {
+      occupation: "（モック: ユーザーの職業）",
+      interests: ["（モック: ユーザーの興味）"],
+      expertise: ["（モック: 専門分野）"],
+      uniqueExperiences: ["（モック: ユニークな経験）"],
+    },
   };
 }
