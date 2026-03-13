@@ -57,6 +57,7 @@ interface DiscoverySession {
 const STORAGE_KEY = "pen_discovery_sessions";
 const PROFILE_KEY = "pen_discovery_profile";
 const MEMO_KEY = "pen_theme_memos";
+const PENDING_THEME_KEY = "pen_pending_theme";
 const MAX_SESSIONS = 10;
 const SESSION_TTL_DAYS = 30;
 
@@ -254,6 +255,18 @@ export default function ThemeDiscoverPage() {
     const gp = loadGlobalProfile();
     if (gp) setSessionProfile(gp);
     setMemos(loadMemos());
+
+    // ログイン後のテーマ自動復元
+    const pendingRaw = localStorage.getItem(PENDING_THEME_KEY);
+    if (pendingRaw) {
+      try {
+        const pendingTheme = JSON.parse(pendingRaw) as SuggestedTheme;
+        localStorage.removeItem(PENDING_THEME_KEY);
+        setSelectedTheme(pendingTheme);
+      } catch {
+        localStorage.removeItem(PENDING_THEME_KEY);
+      }
+    }
   }, []);
 
   const scrollToBottom = () => {
@@ -495,9 +508,9 @@ export default function ThemeDiscoverPage() {
 
   const handleSaveTheme = async (theme: SuggestedTheme) => {
     if (!user) {
-      router.push(
-        `/login?from=discover&theme=${encodeURIComponent(theme.title)}&desc=${encodeURIComponent(theme.description)}`
-      );
+      // テーマ情報を一時保存してログインへ
+      localStorage.setItem(PENDING_THEME_KEY, JSON.stringify(theme));
+      router.push(`/login?next=${encodeURIComponent("/themes/discover")}`);
       return;
     }
     setSavingTheme(true);
@@ -524,8 +537,13 @@ export default function ThemeDiscoverPage() {
 
   // 別の角度で探索（テーマ結果画面からの再探索）
   const handleExploreAnother = async () => {
+    // 状態を完全リセットしてウェルカム経由で新セッション
     setSelectedTheme(null);
-    await startNewSession();
+    setSuggestedThemes(null);
+    setMessages([]);
+    setDiscoveryProgress(-1);
+    setStarted(false);
+    setError(null);
   };
 
   const handleResetProfile = () => {
@@ -535,6 +553,9 @@ export default function ThemeDiscoverPage() {
     // セッションも全削除
     saveSessions([]);
     setPastSessions([]);
+    // メモもクリア
+    saveMemos([]);
+    setMemos([]);
   };
 
   const handleBackFromDetail = () => {
@@ -1138,7 +1159,16 @@ export default function ThemeDiscoverPage() {
       <header className="discover-chat-header">
         <div className="flex items-center gap-3">
           <Link
-            href="/"
+            href="#"
+            onClick={(e) => {
+              e.preventDefault();
+              setStarted(false);
+              setMessages([]);
+              setSuggestedThemes(null);
+              setSelectedTheme(null);
+              setDiscoveryProgress(-1);
+              setError(null);
+            }}
             className="text-muted-foreground hover:text-foreground rounded-lg p-1.5 transition-colors"
             aria-label="戻る"
           >

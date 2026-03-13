@@ -38,11 +38,16 @@ export default function LoginPage() {
   const [cooldown, setCooldown] = useState(0);
   const supabase = createClient();
 
-  // 認証コールバックからのエラーを表示
+  // 認証コールバックからのエラーを表示 + nextパラメータを取得
+  const [nextUrl, setNextUrl] = useState<string | null>(null);
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("error") === "auth_failed") {
       setError("認証に失敗しました。もう一度お試しください。");
+    }
+    const next = params.get("next");
+    if (next && next.startsWith("/") && !next.startsWith("//")) {
+      setNextUrl(next);
     }
   }, []);
 
@@ -99,10 +104,13 @@ export default function LoginPage() {
         // メールアドレスを記憶
         localStorage.setItem(STORAGE_KEY_EMAIL, email.trim());
 
+        const callbackUrl = nextUrl
+          ? `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextUrl)}`
+          : `${window.location.origin}/auth/callback`;
         const { error } = await supabase.auth.signInWithOtp({
           email: email.trim(),
           options: {
-            emailRedirectTo: `${window.location.origin}/auth/callback`,
+            emailRedirectTo: callbackUrl,
           },
         });
         if (error) throw error;
@@ -129,16 +137,19 @@ export default function LoginPage() {
         setLoading(false);
       }
     },
-    [email, cooldown, supabase.auth, startCooldown]
+    [email, cooldown, supabase.auth, startCooldown, nextUrl]
   );
 
   const handleGoogleLogin = async () => {
     setLoading(true);
     setError(null);
+    const callbackUrl = nextUrl
+      ? `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextUrl)}`
+      : `${window.location.origin}/auth/callback`;
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: callbackUrl,
       },
     });
     if (error) {
