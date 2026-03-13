@@ -690,7 +690,7 @@ export default function ThemeDiscoverPage() {
           <div className="pen-container flex h-14 items-center gap-3">
             <button
               onClick={handleBackFromDetail}
-              className="text-muted-foreground hover:text-foreground rounded-lg p-1.5 transition-colors"
+              className="text-muted-foreground hover:text-foreground rounded-lg p-2.5 transition-colors"
               aria-label="戻る"
             >
               <ArrowLeft className="h-5 w-5" />
@@ -699,7 +699,7 @@ export default function ThemeDiscoverPage() {
           </div>
         </header>
 
-        <main className="flex-1 px-4 py-6">
+        <main className="flex-1 overflow-y-auto px-4 py-6" style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}>
           <div className="mx-auto max-w-lg">
             <div className="mb-6">
               <h2 className="mb-2 text-xl font-bold leading-snug">
@@ -894,8 +894,8 @@ export default function ThemeDiscoverPage() {
           </div>
         </header>
 
-        <main className="flex flex-1 items-center justify-center px-4">
-          <div className="pen-fade-in w-full max-w-md text-center">
+        <main className="flex flex-1 justify-center overflow-y-auto px-4 py-6">
+          <div className="pen-fade-in w-full max-w-md self-center text-center">
             {/* --- リピーター向け: プロファイル表示 + 高速スタート --- */}
             {isReturning ? (
               <>
@@ -1084,9 +1084,9 @@ export default function ThemeDiscoverPage() {
                           <span className="min-w-0 flex-1 truncate text-xs">{m.text}</span>
                           <button
                             onClick={() => handleDeleteMemo(m.id)}
-                            className="text-muted-foreground hover:text-red-500 shrink-0 transition-colors"
+                            className="text-muted-foreground hover:text-red-500 shrink-0 p-1.5 transition-colors"
                           >
-                            <X className="h-3 w-3" />
+                            <X className="h-4 w-4" />
                           </button>
                         </div>
                       ))}
@@ -1222,7 +1222,7 @@ export default function ThemeDiscoverPage() {
               setDiscoveryProgress(-1);
               setError(null);
             }}
-            className="text-muted-foreground hover:text-foreground rounded-lg p-1.5 transition-colors"
+            className="text-muted-foreground hover:text-foreground rounded-lg p-2.5 transition-colors"
             aria-label="戻る"
           >
             <ArrowLeft className="h-5 w-5" />
@@ -1431,10 +1431,10 @@ function SessionCard({
         {!session.completed && (
           <button
             onClick={onResume}
-            className="text-muted-foreground hover:text-foreground rounded p-1.5 transition-colors"
+            className="text-muted-foreground hover:text-foreground rounded p-2 transition-colors"
             title="続きから再開"
           >
-            <RotateCcw className="h-3.5 w-3.5" />
+            <RotateCcw className="h-4 w-4" />
           </button>
         )}
         <button
@@ -1442,10 +1442,10 @@ function SessionCard({
             e.stopPropagation();
             onDelete();
           }}
-          className="text-muted-foreground hover:text-red-500 rounded p-1.5 transition-colors"
+          className="text-muted-foreground hover:text-red-500 rounded p-2 transition-colors"
           title="削除"
         >
-          <Trash2 className="h-3.5 w-3.5" />
+          <Trash2 className="h-4 w-4" />
         </button>
       </div>
     </div>
