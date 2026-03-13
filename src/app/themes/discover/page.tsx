@@ -879,11 +879,18 @@ export default function ThemeDiscoverPage() {
           </div>
         )}
 
-        {error && (
+        {error && !sending && (
           <div className="px-4 py-3 text-center">
             <p className="text-danger mb-2 text-xs">{error}</p>
             <button
-              onClick={() => { setError(null); if (currentSessionId) fetchAI(messages, currentSessionId, sessionProfile); }}
+              onClick={async () => {
+                setError(null);
+                if (currentSessionId) {
+                  setSending(true);
+                  await fetchAI(messages, currentSessionId, sessionProfile);
+                  setSending(false);
+                }
+              }}
               className="pen-btn pen-btn-ghost text-xs"
             >
               <RotateCcw className="mr-1 inline h-3 w-3" />

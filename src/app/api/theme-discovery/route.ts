@@ -5,8 +5,45 @@ import {
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextRequest, NextResponse } from "next/server";
 
+// --- レートリミット（認証不要APIのため必須）---
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1分
+const RATE_LIMIT_MAX = 10; // 1分あたり10リクエスト
+
+function checkRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const entry = rateLimitMap.get(ip);
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    return true;
+  }
+  if (entry.count >= RATE_LIMIT_MAX) return false;
+  entry.count++;
+  return true;
+}
+
+// 古いエントリを定期クリーンアップ
+if (typeof setInterval !== "undefined") {
+  setInterval(() => {
+    const now = Date.now();
+    for (const [key, val] of rateLimitMap) {
+      if (now > val.resetAt) rateLimitMap.delete(key);
+    }
+  }, 5 * 60 * 1000);
+}
+
 export async function POST(request: NextRequest) {
   try {
+    // レートリミットチェック
+    const forwarded = request.headers.get("x-forwarded-for");
+    const ip = forwarded?.split(",")[0]?.trim() || "unknown";
+    if (!checkRateLimit(ip)) {
+      return NextResponse.json(
+        { error: "リクエストが多すぎます。少し待ってから再度お試しください。" },
+        { status: 429 }
+      );
+    }
+
     // 認証不要 — ログインなしで利用可能
 
     const body = await request.json();
@@ -138,12 +175,12 @@ function parseDiscoveryResponse(text: string): {
     ? Math.min(100, Math.max(0, parseInt(progressMatch[1], 10)))
     : -1;
 
-  // [[THEMES:{...}]] をパース
+  // [[THEMES:{...}]] をパース（ネストブラケット対応）
   let suggestedThemes: SuggestedTheme[] | null = null;
-  const themesMatch = text.match(/\[\[THEMES:([\s\S]*?)\]\]/);
-  if (themesMatch) {
+  const themesJson = extractTagContent(text, "THEMES");
+  if (themesJson) {
     try {
-      const parsed = JSON.parse(themesMatch[1]);
+      const parsed = JSON.parse(themesJson);
       if (parsed.themes && Array.isArray(parsed.themes)) {
         suggestedThemes = parsed.themes;
       }
@@ -152,12 +189,12 @@ function parseDiscoveryResponse(text: string): {
     }
   }
 
-  // [[PROFILE:{...}]] をパース
+  // [[PROFILE:{...}]] をパース（ネストブラケット対応）
   let userProfile: UserProfile | null = null;
-  const profileMatch = text.match(/\[\[PROFILE:([\s\S]*?)\]\]/);
-  if (profileMatch) {
+  const profileJson = extractTagContent(text, "PROFILE");
+  if (profileJson) {
     try {
-      const parsed = JSON.parse(profileMatch[1]);
+      const parsed = JSON.parse(profileJson);
       userProfile = parsed as UserProfile;
     } catch {
       // JSONパース失敗 — 無視
@@ -165,13 +202,58 @@ function parseDiscoveryResponse(text: string): {
   }
 
   // タグを除去
-  const cleanText = text
-    .replace(/\s*\[\[DISCOVERY:\d{1,3}\]\]\s*/g, "")
-    .replace(/\s*\[\[THEMES:[\s\S]*?\]\]\s*/g, "")
-    .replace(/\s*\[\[PROFILE:[\s\S]*?\]\]\s*/g, "")
-    .trim();
+  let cleanText = text;
+  cleanText = cleanText.replace(/\s*\[\[DISCOVERY:\d{1,3}\]\]\s*/g, "");
+  cleanText = removeTag(cleanText, "THEMES");
+  cleanText = removeTag(cleanText, "PROFILE");
 
-  return { text: cleanText, discoveryProgress, suggestedThemes, userProfile };
+  return { text: cleanText.trim(), discoveryProgress, suggestedThemes, userProfile };
+}
+
+/** [[TAG:{...}]] からJSONコンテンツを抽出。ネストされたブラケットに対応 */
+function extractTagContent(text: string, tag: string): string | null {
+  const marker = `[[${tag}:`;
+  const start = text.indexOf(marker);
+  if (start === -1) return null;
+  const jsonStart = start + marker.length;
+  // ブラケットの深さでマッチングして ]] の正しい終了位置を見つける
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  for (let i = jsonStart; i < text.length; i++) {
+    const ch = text[i];
+    if (escape) { escape = false; continue; }
+    if (ch === '\\' && inString) { escape = true; continue; }
+    if (ch === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (ch === '{' || ch === '[') depth++;
+    if (ch === '}' || ch === ']') {
+      depth--;
+      if (depth === 0 && i + 1 < text.length && text[i + 1] === ']') {
+        // これが最後の } または ] で、直後に ]] がある
+        return text.slice(jsonStart, i + 1);
+      }
+    }
+  }
+  // フォールバック: 旧正規表現
+  const re = new RegExp(`\\[\\[${tag}:([\\s\\S]*?)\\]\\]`);
+  const m = text.match(re);
+  return m ? m[1] : null;
+}
+
+/** [[TAG:{...}]] 全体をテキストから除去 */
+function removeTag(text: string, tag: string): string {
+  const marker = `[[${tag}:`;
+  const start = text.indexOf(marker);
+  if (start === -1) return text;
+  const content = extractTagContent(text, tag);
+  if (content) {
+    const fullTag = `[[${tag}:${content}]]`;
+    return text.replace(fullTag, "");
+  }
+  // フォールバック
+  const re = new RegExp(`\\s*\\[\\[${tag}:[\\s\\S]*?\\]\\]\\s*`, "g");
+  return text.replace(re, "");
 }
 
 function generateMockResponse(

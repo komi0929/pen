@@ -95,7 +95,20 @@ ${profileSection}
 ## 最初の挨拶（ユーザー応答0回目の場合のみ）
 ${
   userTurnCount === 0
-    ? `以下のトーンで始めてください：
+    ? existingProfile
+      ? `以下のトーンで始めてください：
+
+「おかえりなさい！ 前回の情報を元に、新しい角度からテーマを探しましょう。
+
+前回は${existingProfile.occupation ? `「${existingProfile.occupation}」というお仕事` : "さまざまな活動"}についてお話を伺いました。${existingProfile.uniqueExperiences && existingProfile.uniqueExperiences.length > 0 ? `「${existingProfile.uniqueExperiences[0]}」という貴重な経験もお持ちでしたね。` : ""}
+
+今回は別の切り口で探してみたいと思います——
+・最近、仕事や日常で新しく気づいたことはありますか？
+・人に教えていて『意外と伝わりにくいな』と感じたことは？
+・最近読んだ記事で『自分ならもっとうまく書ける』と思ったテーマは？
+
+どれか1つでも、気軽にお答えください！」`
+      : `以下のトーンで始めてください：
 
 「はじめまして！ noteの記事テーマを一緒に探す編集者です。
 
