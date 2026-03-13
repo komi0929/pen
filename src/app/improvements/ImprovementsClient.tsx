@@ -9,8 +9,22 @@ import {
   submitImprovementRequest,
   toggleLike,
 } from "@/lib/actions/improvements";
-import { Clock, Plus, Send, Sparkles, ThumbsUp, X } from "lucide-react";
+import { ChevronRight, Clock, Plus, Send, Sparkles, ThumbsUp, X } from "lucide-react";
+import Link from "next/link";
 import { useState, useTransition } from "react";
+
+/** description に `[詳細:/path]` が含まれていれば { text, detailHref } を返す */
+function parseDescription(desc: string): {
+  text: string;
+  detailHref: string | null;
+} {
+  const match = desc.match(/\[詳細:(\/[^\]]+)\]/);
+  if (!match) return { text: desc, detailHref: null };
+  return {
+    text: desc.replace(match[0], "").trim(),
+    detailHref: match[1],
+  };
+}
 
 type Tab = "requests" | "history";
 
@@ -197,24 +211,36 @@ export function ImprovementsClient({
             {/* タイムライン線 */}
             <div className="border-border absolute top-0 left-4 h-full w-px border-l-2 border-dashed" />
 
-            {history.map((h, i) => (
-              <div key={h.id} className="relative mb-8 pl-10 last:mb-0">
-                {/* タイムラインドット */}
-                <div className="bg-foreground absolute top-1 left-[11px] h-3 w-3 rounded-full" />
+            {history.map((h) => {
+              const { text, detailHref } = parseDescription(h.description);
+              return (
+                <div key={h.id} className="relative mb-8 pl-10 last:mb-0">
+                  {/* タイムラインドット */}
+                  <div className="bg-foreground absolute top-1 left-[11px] h-3 w-3 rounded-full" />
 
-                <p className="text-muted-foreground mb-1.5 text-sm font-bold">
-                  {formatDate(h.date)}
-                </p>
-                <div className="border-border bg-card rounded-xl border p-4">
-                  <h3 className="font-bold">{h.title}</h3>
-                  {h.description && (
-                    <p className="text-muted-foreground mt-1 text-sm">
-                      {h.description}
-                    </p>
-                  )}
+                  <p className="text-muted-foreground mb-1.5 text-sm font-bold">
+                    {formatDate(h.date)}
+                  </p>
+                  <div className="border-border bg-card rounded-xl border p-4">
+                    <h3 className="font-bold">{h.title}</h3>
+                    {text && (
+                      <p className="text-muted-foreground mt-1 text-sm">
+                        {text}
+                      </p>
+                    )}
+                    {detailHref && (
+                      <Link
+                        href={detailHref}
+                        className="text-foreground mt-2 inline-flex items-center gap-1 text-sm font-bold underline underline-offset-2 transition-opacity hover:opacity-70"
+                      >
+                        続きを見る
+                        <ChevronRight className="h-3.5 w-3.5" />
+                      </Link>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
