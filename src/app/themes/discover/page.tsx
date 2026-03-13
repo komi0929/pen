@@ -446,7 +446,7 @@ export default function ThemeDiscoverPage() {
                     processEditorNotes(event.editorNotes);
                   }
 
-                  // 最終メッセージで自動保存
+                  // 最終メッセージで自動保存（editorNotes処理の後に実行）
                   const finalMsgs = currentMessages.concat({
                     id: aiMsgId,
                     role: "assistant",
