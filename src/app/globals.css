@@ -131,6 +131,14 @@ h4 {
 .pen-btn-danger:hover {
   opacity: 0.9;
 }
+.pen-btn-ghost {
+  background: transparent;
+  color: var(--foreground);
+  border: 1px solid var(--border);
+}
+.pen-btn-ghost:hover {
+  background: var(--muted);
+}
 .pen-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;

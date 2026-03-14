@@ -184,16 +184,21 @@ function cleanStreamText(text: string): string {
 
 function getProgressInfo(progress: number) {
   if (progress < 0)
-    return { label: "", color: "bg-gray-300", message: "" };
+    return { label: "", color: "bg-foreground/20", message: "" };
   if (progress < 20)
-    return { label: "ヒアリング中", color: "bg-gray-400", message: "あなたのことを教えてください" };
+    return { label: "ヒアリング中", color: "bg-foreground/30", message: "あなたのことを教えてください" };
   if (progress < 45)
-    return { label: "テーマの種を探索中", color: "bg-gray-500", message: "面白い話題が見つかりそうです" };
+    return { label: "テーマの種を探索中", color: "bg-foreground/45", message: "面白い話題が見つかりそうです" };
   if (progress < 65)
-    return { label: "有望なテーマを発見中", color: "bg-gray-600", message: "テーマが絞り込まれてきました" };
+    return { label: "有望なテーマを発見中", color: "bg-foreground/55", message: "テーマが絞り込まれてきました" };
   if (progress < 80)
-    return { label: "テーマ提案準備中", color: "bg-gray-700", message: "もう少しで提案できます" };
-  return { label: "テーマ発見！", color: "bg-gray-800", message: "あなたに最適なテーマが見つかりました" };
+    return { label: "テーマ提案準備中", color: "bg-foreground/70", message: "もう少しで提案できます" };
+  return { label: "テーマ発見！", color: "bg-foreground/85", message: "あなたに最適なテーマが見つかりました" };
+}
+
+// AIバブルの連続空行を正規化（3行以上を2行に）
+function normalizeLineBreaks(text: string): string {
+  return text.replace(/\n{3,}/g, "\n\n");
 }
 
 function formatRelativeTime(dateStr: string): string {
@@ -868,7 +873,7 @@ export default function ThemeDiscoverPage() {
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto px-4 py-6" style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}>
+        <main className="pen-fade-in flex-1 overflow-y-auto px-4 py-6" style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}>
           <div className="mx-auto max-w-lg">
             <div className="mb-6">
               <h2 className="mb-2 text-xl font-bold leading-snug">
@@ -982,13 +987,13 @@ export default function ThemeDiscoverPage() {
                     どのように磨き込みたいですか？例: 「初心者向けにしたい」「切り口を変えたい」
                   </p>
                   <div className="flex gap-2">
-                    <input
-                      type="text"
+                    <textarea
                       value={refineInput}
                       onChange={(e) => setRefineInput(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !refining) handleRefineTheme(); }}
+                      onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !refining) { e.preventDefault(); handleRefineTheme(); } }}
                       placeholder="例: もっと実践的な内容にしたい"
                       className="pen-input flex-1 text-sm"
+                      rows={2}
                       autoFocus
                       disabled={refining}
                     />
@@ -1027,7 +1032,7 @@ export default function ThemeDiscoverPage() {
         </main>
 
         {/* Sticky CTA */}
-        <div className="border-border sticky bottom-0 z-40 border-t bg-white/90 px-4 py-3 backdrop-blur-md dark:bg-gray-950/90" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
+        <div className="border-border bg-card/90 sticky bottom-0 z-40 border-t px-4 py-3 backdrop-blur-md" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
           <div className="mx-auto max-w-lg">
             {user ? (
               <button
@@ -1388,6 +1393,14 @@ export default function ThemeDiscoverPage() {
         <div className="flex items-center gap-3">
           <button
             onClick={() => {
+              // 会話途中の場合は確認ダイアログを表示
+              if (messages.length > 0 && !chatEnded) {
+                if (!window.confirm("探索を中断しますか？ 現在のセッションは保存されます。")) return;
+                // 中間セッションを保存
+                if (currentSessionId) {
+                  saveCurrentSession(messages, discoveryProgress, suggestedThemes, sessionProfile, currentSessionId, false);
+                }
+              }
               setStarted(false);
               setMessages([]);
               setSuggestedThemes(null);
@@ -1441,9 +1454,16 @@ export default function ThemeDiscoverPage() {
               </div>
             )}
             <div className={msg.role === "user" ? "pen-bubble-user" : "pen-bubble-ai"}>
-              <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                {msg.content}
-              </p>
+              {msg.role === "assistant" && msg.content === "" ? (
+                <div className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span className="text-muted-foreground text-sm">考えています<span className="inline-block w-6 text-left"><span className="animate-pulse">...</span></span></span>
+                </div>
+              ) : (
+                <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                  {msg.role === "assistant" ? normalizeLineBreaks(msg.content) : msg.content}
+                </p>
+              )}
             </div>
           </div>
         ))}
@@ -1571,7 +1591,7 @@ export default function ThemeDiscoverPage() {
               className="discover-send-btn"
               aria-label="送信"
             >
-              <Send className="h-5 w-5" />
+              {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
             </button>
           </form>
         </div>
