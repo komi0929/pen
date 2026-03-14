@@ -2,10 +2,10 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "pen — AIインタビュー＆記事制作",
+    name: "pen — あなたの一次情報を、読まれ続ける記事にする",
     short_name: "pen",
     description:
-      "AIインタビューを通じて、あなたの思考をnote記事に変換するライティングツール",
+      "AIが深く問いかけ、あなたしか持っていない経験や考えを引き出す。出てきた一次情報を、noteで長く読まれる作品に仕上げます。",
     start_url: "/",
     display: "standalone",
     background_color: "#ffffff",

@@ -22,9 +22,9 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "pen — AIインタビュー＆記事制作",
+  title: "pen — あなたの一次情報を、読まれ続ける記事にする",
   description:
-    "AIインタビューを通じて、あなたの思考をnote記事に変換するライティングツール",
+    "AIが深く問いかけ、あなたしか持っていない経験や考えを引き出す。出てきた一次情報を、noteで長く読まれる作品に仕上げます。",
   metadataBase: new URL("https://pen.hitokoto.tech"),
   alternates: {
     canonical: "/",
@@ -34,8 +34,9 @@ export const metadata: Metadata = {
     apple: "/apple-touch-icon.png",
   },
   openGraph: {
-    title: "pen — AIインタビュー＆記事制作",
-    description: "AIインタビューで記事を生成",
+    title: "pen — あなたの一次情報を、読まれ続ける記事にする",
+    description:
+      "AIが深く問いかけ、一次情報を引き出す。読まれ続けるnote記事をつくるライティングツール。",
     type: "website",
     url: "https://pen.hitokoto.tech",
     siteName: "pen",
@@ -43,8 +44,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "pen — AIインタビュー＆記事制作",
-    description: "AIインタビューで記事を生成",
+    title: "pen — あなたの一次情報を、読まれ続ける記事にする",
+    description:
+      "AIが深く問いかけ、一次情報を引き出す。読まれ続けるnote記事をつくるライティングツール。",
   },
 };
 

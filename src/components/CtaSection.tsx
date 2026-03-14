@@ -12,9 +12,9 @@ export function CtaSection() {
   return (
     <section className="mb-12 text-center">
       <div className="bg-muted rounded-xl p-8">
-        <h2 className="mb-4 text-2xl font-bold">さっそく始めてみましょう</h2>
+        <h2 className="mb-4 text-2xl font-bold">あなたの話を、聞かせてください。</h2>
         <p className="text-muted-foreground mx-auto mb-8 max-w-md text-sm leading-relaxed">
-          アカウント登録は無料。テーマを作って、AIと対話するだけで記事が完成します。
+          アカウント登録は無料。AIがあなたの経験を引き出し、読まれ続ける記事に仕上げます。
         </p>
         <Link
           href="/login"

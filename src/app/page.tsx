@@ -31,12 +31,14 @@ export default function HomePage() {
               <PenLine className="h-8 w-8" />
             </div>
             <h1 className="mb-4 text-3xl font-bold tracking-tight sm:text-4xl">
-              話すだけで、記事になる。
+              あなたの中にしかない話を、
+              <br />
+              読まれ続ける記事にする。
             </h1>
             <p className="text-muted-foreground mx-auto mb-8 max-w-lg text-base leading-relaxed sm:text-lg">
-              penは、AIとの対話であなたの考えを引き出し、
+              AIが深く問いかけ、あなたの経験や考えを引き出す。
               <br className="hidden sm:block" />
-              noteに投稿できる記事に仕上げるツールです。
+              出てきた一次情報を、noteで長く読まれる作品に仕上げます。
             </p>
             <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center sm:gap-4">
               <Link
@@ -83,13 +85,13 @@ export default function HomePage() {
             <div className="mx-auto mb-8 max-w-lg">
               <div className="bg-card border-border rounded-xl border p-5">
                 <p className="mb-3 text-sm font-bold">
-                  noteの調査でわかった「長く読まれる記事」の条件
+                  読まれ続ける記事に共通する3つの条件
                 </p>
                 <div className="space-y-2">
                   {[
-                    "書き手自身の経験に根ざした一次情報",
-                    "繰り返し検索される普遍的な問いへの回答",
-                    "ひとつのテーマを徹底的に深掘り",
+                    "書き手自身の経験に根ざした一次情報がある",
+                    "繰り返し検索される普遍的な問いに答えている",
+                    "ひとつのテーマを徹底的に深掘りしている",
                   ].map((text, i) => (
                     <div
                       key={i}
@@ -118,16 +120,66 @@ export default function HomePage() {
         </section>
 
         {/* ========================================
-            Section 3: 使い方 3ステップ
+            Section 3: penの考え方 — 悪い効率化 vs 良い効率化
             ======================================== */}
         <section className="py-12 sm:py-16">
           <div className="pen-container">
+            <div className="mx-auto max-w-xl text-center">
+              <h2 className="mb-6 text-2xl font-bold">
+                AIに「書かせる」のではなく、
+                <br className="sm:hidden" />
+                あなたの言葉を「引き出す」。
+              </h2>
+            </div>
+
+            <div className="mx-auto max-w-xl space-y-4">
+              {/* 悪い効率化 */}
+              <div className="border-border bg-card rounded-xl border p-5 opacity-60">
+                <div className="mb-2 flex items-center gap-2">
+                  <span className="text-danger text-lg">✕</span>
+                  <h3 className="font-bold">ありがちなAI執筆</h3>
+                </div>
+                <p className="text-muted-foreground text-sm leading-relaxed">
+                  AIに丸投げ → 文章は綺麗だけど中身はすっかすか。
+                  読んでも一ミリも心が動かない。
+                </p>
+              </div>
+
+              {/* 良い効率化 */}
+              <div className="border-foreground/20 bg-card rounded-xl border-2 p-5">
+                <div className="mb-2 flex items-center gap-2">
+                  <span className="text-lg">◎</span>
+                  <h3 className="font-bold">penのやり方</h3>
+                </div>
+                <p className="text-muted-foreground text-sm leading-relaxed">
+                  AIが深く問いかけ、あなたの一次情報を徹底的に引き出す。
+                  「自分、こんなこと考えてたんだ！」
+                  そんな発見がある記事に仕上がります。
+                </p>
+              </div>
+            </div>
+
+            <p className="text-muted-foreground mx-auto mt-6 max-w-md text-center text-sm leading-relaxed">
+              行くまではだるいジムみたいなもの。
+              <br />
+              15分、集中して頭の中を出し切る。
+              <br />
+              終わったあとの爽快感が、penの価値です。
+            </p>
+          </div>
+        </section>
+
+        {/* ========================================
+            Section 4: 使い方 3ステップ
+            ======================================== */}
+        <section className="bg-muted py-12 sm:py-16">
+          <div className="pen-container">
             <div className="mb-8 text-center">
               <h2 className="mb-2 text-2xl font-bold">
-                3ステップで記事が完成
+                一次情報を引き出す3ステップ
               </h2>
               <p className="text-muted-foreground text-sm">
-                書く力は必要ありません。話すだけでOKです。
+                あなたは話すだけ。あとはAIが整えます。
               </p>
             </div>
 
@@ -137,19 +189,19 @@ export default function HomePage() {
                   step: "1",
                   icon: Lightbulb,
                   title: "テーマを決める",
-                  desc: "「副業で学んだこと」「転職して気づいたこと」など、自由にテーマを設定。迷ったらAIがテーマ探索を手伝います。",
+                  desc: "「副業で学んだこと」「転職して気づいたこと」など、自由にテーマを設定。迷ったらAI編集者がテーマ探索を手伝います。",
                 },
                 {
                   step: "2",
                   icon: MessageSquare,
-                  title: "AIと話す",
-                  desc: "AIが質問を投げかけるので答えるだけ。あなたの経験や考えが、自然に言葉になっていきます。",
+                  title: "AIのインタビューに答える",
+                  desc: "AIが質問を投げかけます。答えていくうちに、自分でも気づいていなかった考えが言葉になっていきます。ここが一番大事なステップです。",
                 },
                 {
                   step: "3",
                   icon: BookOpen,
-                  title: "記事が完成",
-                  desc: "対話の内容をもとにAIが記事を自動生成。5つのトーンから文体を選んで、好みの雰囲気に仕上がります。",
+                  title: "あなたの言葉で記事が完成",
+                  desc: "引き出された一次情報をもとに、AIが記事を構成。5つのトーンから雰囲気を選べば、あなたらしい作品に仕上がります。",
                 },
               ].map((item) => (
                 <div
@@ -174,16 +226,16 @@ export default function HomePage() {
         </section>
 
         {/* ========================================
-            Section 4: 主要機能ハイライト
+            Section 5: 主要機能ハイライト
             ======================================== */}
-        <section className="bg-muted py-12 sm:py-16">
+        <section className="py-12 sm:py-16">
           <div className="pen-container">
             <div className="mb-8 text-center">
               <h2 className="mb-2 text-2xl font-bold">
-                penにできること
+                一次情報を、作品にする機能
               </h2>
               <p className="text-muted-foreground text-sm">
-                記事を書くためのすべてが揃っています。
+                引き出したあなたの言葉を、読まれる記事に仕上げる道具が揃っています。
               </p>
             </div>
 
@@ -198,17 +250,17 @@ export default function HomePage() {
                 {
                   icon: Zap,
                   title: "ストリーミングAI",
-                  desc: "AIの回答がリアルタイムで表示。待ち時間なく、テンポよく対話が進みます。",
+                  desc: "AIの回答がリアルタイムで表示。テンポよく対話が進み、集中を途切れさせません。",
                 },
                 {
                   icon: RefreshCw,
                   title: "AIリライト",
-                  desc: "完成した記事を5つのトーン（記録・思考・カジュアル・ティーチ・ストーリー）で書き直し。文体を変えるだけで印象が変わります。",
+                  desc: "記事のトーンを5種類（記録・思考・カジュアル・ティーチ・ストーリー）から選択。同じ内容でも印象ががらりと変わります。",
                 },
                 {
                   icon: TrendingUp,
-                  title: "成長トラッキング",
-                  desc: "テーマ磨き込みやメモ機能で、あなたのライティングの変化を記録。AIがパーソナル編集者として寄り添います。",
+                  title: "パーソナル編集者",
+                  desc: "AIがあなたの書き手としての強みを分析。テーマ磨き込みやネタ帳で、書くことが習慣になります。",
                 },
               ].map((item) => (
                 <div
@@ -238,9 +290,9 @@ export default function HomePage() {
         </section>
 
         {/* ========================================
-            Section 5: こんな人におすすめ
+            Section 6: こんな人におすすめ
             ======================================== */}
-        <section className="py-12 sm:py-16">
+        <section className="bg-muted py-12 sm:py-16">
           <div className="pen-container">
             <div className="mb-8 text-center">
               <h2 className="mb-2 text-2xl font-bold">こんな人におすすめ</h2>
@@ -250,19 +302,19 @@ export default function HomePage() {
               {[
                 {
                   emoji: "💭",
-                  text: "書きたいことはあるけど、うまく言葉にできない",
-                },
-                {
-                  emoji: "⏰",
-                  text: "記事を書く時間がなかなか取れない",
+                  text: "伝えたいことはあるのに、うまく言葉にできない",
                 },
                 {
                   emoji: "🔰",
-                  text: "noteやブログを始めたいけど、何を書けばいいかわからない",
+                  text: "noteを始めたいけど、何を書いたら読まれるかわからない",
+                },
+                {
+                  emoji: "😤",
+                  text: "AI任せの薄っぺらい文章は嫌。自分の考えをちゃんと届けたい",
                 },
                 {
                   emoji: "✨",
-                  text: "自分の経験を誰かの役に立つ情報にしたい",
+                  text: "自分の経験を、誰かの役に立つ作品にしたい",
                 },
               ].map((item, i) => (
                 <div
@@ -278,9 +330,9 @@ export default function HomePage() {
         </section>
 
         {/* ========================================
-            Section 6: スマホ対応 & 品質
+            Section 7: スマホ & 品質
             ======================================== */}
-        <section className="bg-muted py-12 sm:py-16">
+        <section className="py-12 sm:py-16">
           <div className="pen-container">
             <div className="mx-auto grid max-w-xl gap-4 sm:grid-cols-2">
               <div className="border-border bg-card rounded-xl border p-5 text-center">
@@ -313,22 +365,28 @@ export default function HomePage() {
         </section>
 
         {/* ========================================
-            Section 7: コンセプト
+            Section 8: コンセプト — ジムのメタファー
             ======================================== */}
-        <section className="py-12 sm:py-16">
+        <section className="bg-muted py-12 sm:py-16">
           <div className="pen-container">
             <div className="mx-auto max-w-xl text-center">
               <h2 className="mb-6 text-2xl font-bold">penが目指すこと</h2>
               <div className="space-y-4 text-left">
                 <p className="leading-relaxed">
-                  「書きたいことはあるのに、うまく言葉にできない」——
-                  そんな経験はありませんか？
+                  「楽に記事をつくる」ツールではありません。
                 </p>
                 <p className="leading-relaxed">
-                  penは、AIとの対話を通じて自然に考えを整理し、断片的なメモを完成度の高い記事へと昇華させるツールです。
+                  行くまではだるいけど、終わったあとは最高にスッキリする——
+                  penは、そんな「ジムのような体験」を目指しています。
                 </p>
                 <p className="leading-relaxed">
-                  「書く」のではなく「話す」ことで、もっと気軽に、もっと多くの人が発信できる世界を作りたいと思って開発しています。
+                  15分、集中して、頭の中にあるものを全部出し切る。
+                  AIに整えてもらうのではなく、自分の言葉で語り切る。
+                  その先に「ああ、自分、こんなこと考えてたんだ」という驚きがあります。
+                </p>
+                <p className="leading-relaxed">
+                  あなたしか持っていない一次情報を、読み続けられる作品に変える。
+                  それがpenです。
                 </p>
               </div>
             </div>
@@ -336,9 +394,9 @@ export default function HomePage() {
         </section>
 
         {/* ========================================
-            Section 8: CTA（未ログインのみ）
+            Section 9: CTA（未ログインのみ）
             ======================================== */}
-        <section className="pb-12 sm:pb-16">
+        <section className="py-12 sm:py-16">
           <div className="pen-container">
             <CtaSection />
           </div>
