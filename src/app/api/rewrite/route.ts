@@ -3,6 +3,37 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextRequest, NextResponse } from "next/server";
 
 /**
+ * 記事コンテンツのサニタイズ
+ * AIが生のプロンプトや英語メタ情報を出力した場合に除去する
+ */
+function sanitizeArticleContent(content: string): string {
+  const metaPatterns = [
+    /^\s*\*?\s*Title:\s/i,
+    /^\s*\*?\s*Tone:\s/i,
+    /^\s*\*?\s*Structure:\s/i,
+    /^\s*\*?\s*Length:\s/i,
+    /^\s*\*?\s*Perspective:\s/i,
+    /^\s*\*?\s*Platform:\s/i,
+    /^\s*\*?\s*Constraint:\s/i,
+    /^\s*\*?\s*Note-specific Markdown:\s/i,
+    /^\s*\*?\s*Specific instruction:\s/i,
+    /^\s*\*?\s*Drafting\s*\(/i,
+    /^\s*\*?\s*Polishing\s*\(/i,
+    /^\s*\*?\s*Self-Correction/i,
+  ];
+
+  const lines = content.split("\n");
+  const cleanedLines: string[] = [];
+
+  for (const line of lines) {
+    const isMetaLine = metaPatterns.some((p) => p.test(line));
+    if (isMetaLine) continue;
+    cleanedLines.push(line);
+  }
+
+  return cleanedLines.join("\n").trim();
+}
+/**
  * 記事リライトAPI
  * - 文体リファレンスでのリライト
  * - フリーフォーマット指示でのリライト
@@ -149,10 +180,13 @@ export async function POST(request: NextRequest) {
       throw new Error("リライトに失敗しました");
     }
 
+    // サニタイズ: 英語メタ指示を除去
+    const sanitized = sanitizeArticleContent(rawResponse);
+
     // タイトルとコンテンツを分離
-    const lines = rawResponse.trim().split("\n");
+    const lines = sanitized.trim().split("\n");
     let newTitle = article.title;
-    let newContent = rawResponse;
+    let newContent = sanitized;
 
     if (lines[0].startsWith("# ")) {
       newTitle = lines[0].replace(/^#\s*/, "").trim();

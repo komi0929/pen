@@ -268,10 +268,10 @@ function ArticleDetailContent() {
         setRewriteTone("");
         setRewriteToneNote("");
       } else {
-        alert(data.error || "リライトに失敗しました");
+        showToast(data.error || "リライトに失敗しました", "error");
       }
     } catch {
-      alert("リライトに失敗しました");
+      showToast("リライトに失敗しました", "error");
     }
     setRewriting(false);
   };
@@ -593,7 +593,7 @@ function ArticleDetailContent() {
                     </p>
 
                     {/* タブ切替 */}
-                    <div className="mb-4 flex gap-1 rounded-lg bg-gray-100 p-1">
+                    <div className="bg-muted mb-4 flex gap-1 rounded-lg p-1">
                       <button
                         onClick={() => setComparisonTab("after")}
                         className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-all ${
