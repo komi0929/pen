@@ -171,14 +171,47 @@ function generateSessionId(): string {
   return `ds-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-// ストリーミング中にAI制御タグをリアルタイム除去
+// ストリーミング中にAI制御タグをリアルタイム除去（ネストブラケット対応）
 function cleanStreamText(text: string): string {
-  // 完成したタグを除去: [[TAG:...]]
-  let cleaned = text.replace(/\[\[[A-Z_]+:[\s\S]*?\]\]/g, "");
-  // 未完了タグ（まだ閉じていない [[TAG: から末尾まで）を除去
-  cleaned = cleaned.replace(/\[\[[A-Z_]+:[\s\S]*$/g, "");
+  let result = text;
+  // [[TAG: で始まるすべての制御タグを検出・除去
+  // 正規表現ではネストされた ]] を正しく処理できないため、深度追跡で処理
+  let safety = 0;
+  while (safety++ < 20) {
+    const tagMatch = result.match(/\[\[([A-Z_]+):/);
+    if (!tagMatch || tagMatch.index === undefined) break;
+    const tagStart = tagMatch.index;
+    const contentStart = tagStart + tagMatch[0].length;
+    // ブラケット深度追跡で正しい終了位置を見つける
+    let depth = 0;
+    let inString = false;
+    let escape = false;
+    let tagEnd = -1;
+    for (let i = contentStart; i < result.length; i++) {
+      const ch = result[i];
+      if (escape) { escape = false; continue; }
+      if (ch === '\\' && inString) { escape = true; continue; }
+      if (ch === '"') { inString = !inString; continue; }
+      if (inString) continue;
+      if (ch === '{' || ch === '[') depth++;
+      if (ch === '}' || ch === ']') {
+        depth--;
+        if (depth <= 0 && i + 1 < result.length && result[i + 1] === ']') {
+          tagEnd = i + 2; // ]] の次の位置
+          break;
+        }
+      }
+    }
+    if (tagEnd === -1) {
+      // タグが閉じていない（ストリーミング途中）→ タグ開始以降すべて除去
+      result = result.slice(0, tagStart);
+      break;
+    }
+    // 完成したタグを除去
+    result = result.slice(0, tagStart) + result.slice(tagEnd);
+  }
   // 先頭・末尾の空行を除去
-  return cleaned.trim();
+  return result.trim();
 }
 
 // --- Helpers ---
@@ -496,8 +529,8 @@ export default function ThemeDiscoverPage() {
                     )
                   );
                 } else if (event.type === "done") {
-                  // クリーンテキストで最終更新
-                  const cleanText = event.cleanText || streamedText;
+                  // クリーンテキストで最終更新（保険としてクライアント側でもタグ除去）
+                  const cleanText = cleanStreamText(event.cleanText || streamedText);
                   setMessages((prev) =>
                     prev.map((m) =>
                       m.id === aiMsgId ? { ...m, content: cleanText } : m
@@ -570,14 +603,14 @@ export default function ThemeDiscoverPage() {
 
           setMessages((prev) =>
             prev.map((m) =>
-              m.id === aiMsgId ? { ...m, content: data.response } : m
+              m.id === aiMsgId ? { ...m, content: cleanStreamText(data.response) } : m
             )
           );
 
           const finalMsgs = currentMessages.concat({
             id: aiMsgId,
             role: "assistant",
-            content: data.response,
+            content: cleanStreamText(data.response),
           });
           const isCompleted = !!(newThemes && newThemes.length > 0);
           saveCurrentSession(finalMsgs, newProgress, newThemes, newProfile, sessionId, isCompleted);
