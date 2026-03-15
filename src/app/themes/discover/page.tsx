@@ -8,13 +8,13 @@ import type { UserProfile } from "@/lib/prompts/theme-discovery";
 import {
   ArrowLeft,
   ArrowRight,
-  BookOpen,
   Briefcase,
   Clock,
   Lightbulb,
   ListOrdered,
   Loader2,
   MessageSquarePlus,
+  Moon,
   Pen,
   Plus,
   RefreshCw,
@@ -24,6 +24,7 @@ import {
   Send,
   Sparkles,
   Star,
+  Sun,
   Trash2,
   User,
   UserPlus,
@@ -333,6 +334,19 @@ export default function ThemeDiscoverPage() {
     };
   }, []);
 
+  // #P1-7: ダークモード切替
+  const [isDark, setIsDark] = useState(false);
+  useEffect(() => {
+    setIsDark(document.documentElement.classList.contains("dark"));
+  }, []);
+  const toggleDarkMode = useCallback(() => {
+    const html = document.documentElement;
+    const next = !html.classList.contains("dark");
+    html.classList.toggle("dark", next);
+    setIsDark(next);
+    try { localStorage.setItem("pen-theme", next ? "dark" : "light"); } catch {}
+  }, []);
+
   const autoResize = (el: HTMLTextAreaElement) => {
     el.style.height = "auto";
     el.style.height = Math.min(el.scrollHeight, 120) + "px";
@@ -387,6 +401,20 @@ export default function ThemeDiscoverPage() {
     },
     []
   );
+
+  // #P0-1: ブラウザ戻る/タブ閉じ時のデータ保護
+  useEffect(() => {
+    if (!started || chatEnded) return;
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      // 会話途中のセッションを自動保存
+      if (currentSessionId && messages.length > 0) {
+        saveCurrentSession(messages, discoveryProgress, suggestedThemes, sessionProfile, currentSessionId, false);
+      }
+      e.preventDefault();
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [started, chatEnded, currentSessionId, messages, discoveryProgress, suggestedThemes, sessionProfile, saveCurrentSession]);
 
   // AI応答取得（ストリーミング対応）
   const fetchAI = useCallback(
@@ -637,7 +665,11 @@ export default function ThemeDiscoverPage() {
     setError(null);
     setShowRefine(false);
     setRefineInput("");
-    inputRef.current?.focus();
+    // #P1-8: セッション復帰後に最新メッセージまでスクロール
+    setTimeout(() => {
+      scrollToBottom();
+      inputRef.current?.focus();
+    }, 100);
   };
 
   const handleDeleteSession = (sessionId: string) => {
@@ -678,6 +710,8 @@ export default function ThemeDiscoverPage() {
   const handleThemeCardClick = (theme: SuggestedTheme) => {
     setSelectedTheme(theme);
     setError(null);
+    // #P1-6: テーマ詳細画面のスクロール位置リセット
+    window.scrollTo(0, 0);
   };
 
   const handleSaveTheme = async (theme: SuggestedTheme) => {
@@ -810,6 +844,7 @@ export default function ThemeDiscoverPage() {
       }
       setRefineInput("");
       setShowRefine(false);
+      showToast("テーマを磨き込みました");
     } catch (err) {
       setError(err instanceof Error ? err.message : "磨き込みに失敗しました");
     } finally {
@@ -990,7 +1025,7 @@ export default function ThemeDiscoverPage() {
                     <textarea
                       value={refineInput}
                       onChange={(e) => setRefineInput(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !refining) { e.preventDefault(); handleRefineTheme(); } }}
+                      onKeyDown={(e) => { if (e.nativeEvent.isComposing) return; if (e.key === "Enter" && !e.shiftKey && !refining) { e.preventDefault(); handleRefineTheme(); } }}
                       placeholder="例: もっと実践的な内容にしたい"
                       className="pen-input flex-1 text-sm"
                       rows={2}
@@ -1005,7 +1040,14 @@ export default function ThemeDiscoverPage() {
                       {refining ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
                     </button>
                   </div>
-                  {error && (
+                  {/* #P0-3: 磨き込み中のフィードバック */}
+                  {refining && (
+                    <p className="text-muted-foreground mt-2 flex items-center gap-1.5 text-xs">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      AIがテーマを磨き込んでいます...
+                    </p>
+                  )}
+                  {error && !refining && (
                     <p className="text-danger mt-2 text-xs">{error}</p>
                   )}
                 </div>
@@ -1041,7 +1083,7 @@ export default function ThemeDiscoverPage() {
                 className="pen-btn pen-btn-accent flex w-full items-center justify-center gap-2 py-3 text-base font-bold"
               >
                 {savingTheme ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />}
-                {savingTheme ? "保存中..." : "このテーマで記事を書く"}
+                {savingTheme ? "保存中..." : "このテーマを保存して記事を準備する"}
               </button>
             ) : (
               <button
@@ -1068,9 +1110,19 @@ export default function ThemeDiscoverPage() {
               <Pen className="h-5 w-5" />
               <span>pen</span>
             </Link>
-            {!authLoading && !user && (
-              <Link href="/login" className="pen-btn pen-btn-primary text-sm">ログイン</Link>
-            )}
+            <div className="flex items-center gap-2">
+              {/* #P1-7: ダークモード切替 */}
+              <button
+                onClick={toggleDarkMode}
+                className="text-muted-foreground hover:text-foreground rounded-lg p-2 transition-colors"
+                aria-label={isDark ? "ライトモードに切替" : "ダークモードに切替"}
+              >
+                {isDark ? <Sun className="h-4.5 w-4.5" /> : <Moon className="h-4.5 w-4.5" />}
+              </button>
+              {!authLoading && !user && (
+                <Link href="/login" className="pen-btn pen-btn-primary text-sm">ログイン</Link>
+              )}
+            </div>
           </div>
         </header>
 
@@ -1091,25 +1143,27 @@ export default function ThemeDiscoverPage() {
                     : "前回の情報を元に、新しいテーマを探索しましょう"}
                 </p>
 
-                {/* 成長統計バー */}
-                {(discoveredThemes.length > 0 || profileCompleteness > 0) && (
-                  <div className="bg-muted mb-5 flex gap-4 rounded-xl p-3">
-                    <div className="flex-1 text-center">
-                      <p className="text-lg font-bold">{discoveredThemes.length}</p>
-                      <p className="text-muted-foreground text-[10px]">発見テーマ</p>
+                {/* #P2-13: 成長統計バー — ゼロの項目は非表示 */}
+                {(() => {
+                  const stats = [
+                    discoveredThemes.length > 0 && { value: discoveredThemes.length, label: "発見テーマ" },
+                    (sessionProfile?.sessionCount ?? 0) > 1 && { value: (sessionProfile?.sessionCount ?? 1) - 1, label: "探索回数" },
+                    profileCompleteness > 0 && { value: `${profileCompleteness}%`, label: "プロフィール" },
+                  ].filter(Boolean) as { value: number | string; label: string }[];
+                  return stats.length > 0 ? (
+                    <div className="bg-muted mb-5 flex gap-4 rounded-xl p-3">
+                      {stats.map((s, i) => (
+                        <div key={s.label} className="flex flex-1 items-center justify-center gap-0">
+                          {i > 0 && <div className="border-border -ml-2 mr-2 border-l self-stretch" />}
+                          <div className="text-center">
+                            <p className="text-lg font-bold">{s.value}</p>
+                            <p className="text-muted-foreground text-[10px]">{s.label}</p>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                    <div className="border-border border-l" />
-                    <div className="flex-1 text-center">
-                      <p className="text-lg font-bold">{sessionProfile?.sessionCount ? sessionProfile.sessionCount - 1 : 0}</p>
-                      <p className="text-muted-foreground text-[10px]">探索回数</p>
-                    </div>
-                    <div className="border-border border-l" />
-                    <div className="flex-1 text-center">
-                      <p className="text-lg font-bold">{profileCompleteness}%</p>
-                      <p className="text-muted-foreground text-[10px]">プロフィール</p>
-                    </div>
-                  </div>
-                )}
+                  ) : null;
+                })()}
 
                 {/* プロファイルサマリー */}
                 <div className="bg-muted mb-5 rounded-xl p-4 text-left">
@@ -1238,7 +1292,7 @@ export default function ThemeDiscoverPage() {
                         type="text"
                         value={memoInput}
                         onChange={(e) => setMemoInput(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === "Enter") handleAddMemo(); }}
+                        onKeyDown={(e) => { if (e.nativeEvent.isComposing) return; if (e.key === "Enter") handleAddMemo(); }}
                         placeholder="書いてみたいこと、気になるトピック..."
                         className="pen-input flex-1 text-sm"
                         maxLength={100}
@@ -1286,7 +1340,7 @@ export default function ThemeDiscoverPage() {
                 {discoveredThemes.length > 0 && (
                   <div className="mt-6 text-left">
                     <p className="text-muted-foreground mb-3 flex items-center gap-2 text-xs font-bold">
-                      <BookOpen className="h-3.5 w-3.5" />
+                      <Sparkles className="h-3.5 w-3.5" />
                       過去に発見したテーマ（{discoveredThemes.length}件）
                     </p>
                     <div className="space-y-2">
@@ -1343,25 +1397,42 @@ export default function ThemeDiscoverPage() {
                 <p className="text-muted-foreground mb-3 text-sm leading-relaxed">
                   noteで長く読まれる記事には共通点があります。AI編集者との短い対話で、あなたの経験の中に眠っている最高のテーマを一緒に発掘しましょう。
                 </p>
+                {/* #P2-11: 3条件にアイコン追加 */}
                 <div className="bg-muted mb-6 rounded-xl p-4 text-left">
-                  <p className="mb-2 text-xs font-bold">
+                  <p className="mb-3 text-xs font-bold">
                     長く読まれる記事の3つの条件
                   </p>
-                  <ul className="text-muted-foreground space-y-1.5 text-xs">
-                    <li className="flex items-start gap-2">
-                      <span className="mt-0.5 block h-1.5 w-1.5 shrink-0 rounded-full bg-gray-400" />
-                      書き手自身の経験に根ざした一次情報
+                  <ul className="space-y-2.5 text-xs">
+                    <li className="flex items-start gap-2.5">
+                      <span className="bg-card border-border mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border">
+                        <User className="h-3 w-3" />
+                      </span>
+                      <div>
+                        <p className="font-bold">一次性</p>
+                        <p className="text-muted-foreground">書き手自身の経験に根ざした一次情報</p>
+                      </div>
                     </li>
-                    <li className="flex items-start gap-2">
-                      <span className="mt-0.5 block h-1.5 w-1.5 shrink-0 rounded-full bg-gray-400" />
-                      繰り返し検索される普遍的な問いへの回答
+                    <li className="flex items-start gap-2.5">
+                      <span className="bg-card border-border mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border">
+                        <Search className="h-3 w-3" />
+                      </span>
+                      <div>
+                        <p className="font-bold">普遍性</p>
+                        <p className="text-muted-foreground">繰り返し検索される普遍的な問いへの回答</p>
+                      </div>
                     </li>
-                    <li className="flex items-start gap-2">
-                      <span className="mt-0.5 block h-1.5 w-1.5 shrink-0 rounded-full bg-gray-400" />
-                      ひとつのテーマを徹底的に深掘り
+                    <li className="flex items-start gap-2.5">
+                      <span className="bg-card border-border mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border">
+                        <Zap className="h-3 w-3" />
+                      </span>
+                      <div>
+                        <p className="font-bold">深掘り</p>
+                        <p className="text-muted-foreground">ひとつのテーマを徹底的に深掘り</p>
+                      </div>
                     </li>
                   </ul>
                 </div>
+                {/* #P2-12: CTAベネフィット訴求 */}
                 <button
                   onClick={startNewSession}
                   disabled={sending}
@@ -1372,7 +1443,7 @@ export default function ThemeDiscoverPage() {
                   ) : (
                     <Sparkles className="h-5 w-5" />
                   )}
-                  テーマ探索を始める
+                  あなたのテーマを見つける
                 </button>
                 <p className="text-muted-foreground mt-3 text-xs">
                   ログイン不要・無料で何度でも使えます
@@ -1449,15 +1520,19 @@ export default function ThemeDiscoverPage() {
             className={`discover-msg-wrapper ${msg.role === "user" ? "discover-msg-user" : "discover-msg-ai"}`}
           >
             {msg.role === "assistant" && (
-              <div className="discover-avatar">
-                <BookOpen className="h-4 w-4" />
+              <div className="discover-avatar discover-avatar-brand">
+                <Pen className="h-4 w-4" />
               </div>
             )}
             <div className={msg.role === "user" ? "pen-bubble-user" : "pen-bubble-ai"}>
               {msg.role === "assistant" && msg.content === "" ? (
                 <div className="flex items-center gap-2">
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  <span className="text-muted-foreground text-sm">考えています<span className="inline-block w-6 text-left"><span className="animate-pulse">...</span></span></span>
+                  {/* #P1-4: プログレス段階に応じたヒントテキスト */}
+                  <span className="text-muted-foreground text-sm">
+                    {discoveryProgress < 20 ? "あなたのことを分析中" : discoveryProgress < 50 ? "テーマの種を探しています" : discoveryProgress < 75 ? "最適な提案を準備中" : "テーマを仕上げています"}
+                    <span className="inline-block w-6 text-left"><span className="animate-pulse">...</span></span>
+                  </span>
                 </div>
               ) : (
                 <p className="text-sm leading-relaxed whitespace-pre-wrap">
@@ -1492,7 +1567,10 @@ export default function ThemeDiscoverPage() {
                       </span>
                       <h3 className="text-sm font-bold leading-snug">{theme.title}</h3>
                     </div>
-                    <ArrowRight className="text-muted-foreground mt-0.5 h-4 w-4 shrink-0" />
+                    {/* #P1-5: 明示的CTAラベル */}
+                    <span className="text-muted-foreground mt-0.5 flex shrink-0 items-center gap-0.5 text-[10px]">
+                      詳細<ArrowRight className="h-3 w-3" />
+                    </span>
                   </div>
                   <p className="text-muted-foreground mb-1.5 text-xs leading-relaxed">
                     {theme.description}
@@ -1530,13 +1608,16 @@ export default function ThemeDiscoverPage() {
 
         {sending && !messages.some(m => m.role === "assistant" && m.content === "") && (
           <div className="discover-msg-wrapper discover-msg-ai">
-            <div className="discover-avatar">
-              <BookOpen className="h-4 w-4" />
+            <div className="discover-avatar discover-avatar-brand">
+              <Pen className="h-4 w-4" />
             </div>
             <div className="pen-bubble-ai">
               <div className="flex items-center gap-2">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                <span className="text-muted-foreground text-sm">考えています<span className="inline-block w-6 text-left"><span className="animate-pulse">...</span></span></span>
+                <span className="text-muted-foreground text-sm">
+                  {discoveryProgress < 20 ? "あなたのことを分析中" : discoveryProgress < 50 ? "テーマの種を探しています" : discoveryProgress < 75 ? "最適な提案を準備中" : "テーマを仕上げています"}
+                  <span className="inline-block w-6 text-left"><span className="animate-pulse">...</span></span>
+                </span>
               </div>
             </div>
           </div>

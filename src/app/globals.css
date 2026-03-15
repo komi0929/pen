@@ -598,6 +598,12 @@ h4 {
   color: var(--foreground);
 }
 
+/* #P2-9: ブランドアバター */
+.discover-avatar-brand {
+  background: var(--accent);
+  color: #fff;
+}
+
 /* Theme suggestion cards */
 .discover-themes-area {
   padding: 1rem 0;
